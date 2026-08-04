@@ -33,6 +33,7 @@ commands = [
     {"command": "export", "description": "Exportar usuários (donos)"},
     {"command": "bancodds", "description": "DB dump (donos)"},
     {"command": "msg", "description": "Broadcast pra todos (donos)"},
+    {"command": "listdn", "description": "Lista comandos de dono (donos)"},
 ]
 
 resp = requests.post(f"{API}/setMyCommands", json={"commands": commands})

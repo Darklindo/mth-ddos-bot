@@ -1924,6 +1924,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /ban &lt;id&gt; [motivo] — Banir usuário do bot
 /unban &lt;id&gt; — Desbanir usuário
 /export — Exportar lista completa de usuários para TXT
+/listdn — Mostrar todos os comandos exclusivos dos donos
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <b>⏱️ Sistema (Todos):</b>
@@ -2805,6 +2806,46 @@ def handle_export(chat_id, user_id, username, first_name, last_name, args):
         send_message_safe(chat_id, "❌ Falha ao enviar o arquivo.")
 
 
+def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: List all owner-exclusive commands"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+        return
+
+    log_owner_command(user_id, username, "listdn")
+
+    msg = """👑 <b>Comandos de Dono — Mth Ddos v4.2</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+📊 <b>Administrativos:</b>
+  /botpanel — Painel de estatísticas do bot
+  /stats [username] — Stats gerais ou busca por usuário
+  /logs — Últimos comandos executados
+  /logs user:&lt;id&gt; — Comandos de um usuário específico
+
+📢 <b>Broadcast:</b>
+  /msg &lt;texto&gt; — Enviar mensagem pra todos
+  /msg &lt;texto&gt; (responder sticker) — Enviar sticker + mensagem
+  /msg &lt;texto&gt; (responder foto) — Enviar foto + legenda
+  /msg &lt;texto&gt; (responder GIF) — Enviar GIF + legenda
+  /msg &lt;texto&gt; (responder vídeo) — Enviar vídeo + legenda
+
+👥 <b>Usuários:</b>
+  /export — Exportar lista de usuários pra TXT
+  /ban &lt;id&gt; [motivo] — Banir usuário do bot
+  /unban &lt;id&gt; — Desbanir usuário
+
+📋 <b>Outros:</b>
+  /listdn — Mostrar esta lista (este comando)
+
+━━━━━━━━━━━━━━━━━━━━━━
+  🔒 Exclusivo para donos do bot"""
+
+    send_message_safe(chat_id, msg)
+
+
 def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
     """Show bot uptime (available to everyone)"""
     log_user(user_id, username, first_name, last_name)
@@ -2904,6 +2945,7 @@ CMD_HANDLERS = {
     '/unban':   lambda c, u, un, fn, ln, a: handle_unban(c, u, un, fn, ln, a),
     '/export':  lambda c, u, un, fn, ln, a: handle_export(c, u, un, fn, ln, a),
     '/uptime':  lambda c, u, un, fn, ln, a: handle_uptime(c, u, un, fn, ln, a),
+    '/listdn':  lambda c, u, un, fn, ln, a: handle_listdn(c, u, un, fn, ln, a),
 }
 
 def process_update(update):
