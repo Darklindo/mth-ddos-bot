@@ -2029,7 +2029,7 @@ def handle_ping(chat_id, user_id, username, first_name, last_name, args):
         speed_icon = "🔴"
         speed_label = "Muito lento"
 
-    msg = f"""🏓 <b>Ping — Mth Ddos Security v4.1</b>
+    msg = f"""🏓 <b>Ping — Mth Ddos Security v4.2</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📡 <b>Latência do Bot:</b> {bot_latency:.1f}ms
@@ -2329,7 +2329,7 @@ def handle_status(chat_id, user_id, username, first_name, last_name, args):
         db_size = 0
     active_threads = threading.active_count()
 
-    msg = f"""📊 <b>Mth Ddos Security v4.1 — Status</b>
+    msg = f"""📊 <b>Mth Ddos Security v4.2 — Status</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 🟢 <b>Online</b> | Uptime: {hours}h {mins}m {secs}s
 👥 Usuários: {stats['total']} (Donos: {stats['owners']})
@@ -2455,7 +2455,7 @@ def long_polling():
     consecutive_errors = 0
     max_consecutive_errors = 30  # Stop after 30 consecutive errors (~5 min)
 
-    print("🚀 Mth Ddos Security v4.1 started (long polling mode)")
+    print("🚀 Mth Ddos Security v4.2 started (long polling mode)")
     print(f"👑 Owners: {OWNERS}")
     print(f"📱 DB: {DB_PATH}")
 
@@ -2517,7 +2517,7 @@ def long_polling():
             print(f"[Polling] Too many consecutive errors ({consecutive_errors}). Stopping.")
             break
 
-    print("🛑 Mth Ddos Security v4.1 stopped.")
+    print("🛑 Mth Ddos Security v4.2 stopped.")
 
 
 def set_webhook(url):
@@ -2544,7 +2544,7 @@ if __name__ == "__main__":
         elif sys.argv[1] == "polling":
             long_polling()
         elif sys.argv[1] == "test":
-            print("Mth Ddos Security v4.1")
+            print("Mth Ddos Security v4.2")
             print(f"Owners: {OWNERS}")
             print(f"DB: {DB_PATH}")
             stats = get_user_stats()
