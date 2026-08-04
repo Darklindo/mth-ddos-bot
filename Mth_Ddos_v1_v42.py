@@ -1774,7 +1774,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /bancodds — Dump completo do banco de dados (todos os usuários e comandos registrados)
 /msg &lt;texto&gt; — Envia uma mensagem para TODOS os usuários do bot (broadcast)
   Exemplo: /msg Bot desligando para manutenção em 5 minutos!
-  📷 Sticker/Imagem: Envie um sticker ou foto e responda com /msg (opcional: /msg + texto pra adicionar legenda)
+  📷 Sticker/Imagem/GIF/Vídeo: Envie um sticker, foto, GIF ou vídeo e responda com /msg (opcional: /msg + texto pra adicionar legenda)
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>Mth Ddos Security v4.2</i>
@@ -2336,6 +2336,48 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
                 except:
                     failed += 1
             send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+
+        elif media_type == 'animation':
+            send_message_safe(chat_id, f"📢 <b>Enviando GIF para {len(users)} usuários...</b>")
+            sent = 0
+            failed = 0
+            for u in users:
+                try:
+                    resp = HTTP_SESSION.post(f"{API_URL}/sendAnimation", json={
+                        "chat_id": str(u['id']),
+                        "animation": file_id,
+                        "caption": caption or '📢 Mensagem dos Donos',
+                        "parse_mode": "HTML"
+                    }, timeout=15)
+                    if resp and resp.status_code == 200:
+                        sent += 1
+                    else:
+                        failed += 1
+                    time.sleep(0.3)
+                except:
+                    failed += 1
+            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+
+        elif media_type == 'video':
+            send_message_safe(chat_id, f"📢 <b>Enviando vídeo para {len(users)} usuários...</b>")
+            sent = 0
+            failed = 0
+            for u in users:
+                try:
+                    resp = HTTP_SESSION.post(f"{API_URL}/sendVideo", json={
+                        "chat_id": str(u['id']),
+                        "video": file_id,
+                        "caption": caption or '📢 Mensagem dos Donos',
+                        "parse_mode": "HTML"
+                    }, timeout=20)
+                    if resp and resp.status_code == 200:
+                        sent += 1
+                    else:
+                        failed += 1
+                    time.sleep(0.3)
+                except:
+                    failed += 1
+            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
         else:
             send_message_safe(chat_id, "❌ Tipo de mídia não suportado.")
 
@@ -2479,6 +2521,16 @@ def process_update(update):
             process_update._reply_media = {
                 'type': 'photo',
                 'file_id': best_photo['file_id']
+            }
+        elif reply.get('animation'):
+            process_update._reply_media = {
+                'type': 'animation',
+                'file_id': reply['animation']['file_id']
+            }
+        elif reply.get('video'):
+            process_update._reply_media = {
+                'type': 'video',
+                'file_id': reply['video']['file_id']
             }
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {username or user_id}: {text}")
