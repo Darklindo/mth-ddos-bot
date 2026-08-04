@@ -226,6 +226,125 @@ USER_CMD_LIMIT = 10  # max 10 commands per minute per user
 USER_CMD_WINDOW = 60  # 60 second window
 
 # ═══════════════════════════════════════════════════════════════
+#  NEW FEATURES: Cache, Ban, Error Log, Progress
+# ═══════════════════════════════════════════════════════════════
+
+# Result cache: (command, target) -> (result_text, timestamp)
+RESULT_CACHE = {}
+CACHE_TTL = 300  # 5 minutes cache
+
+# Banned users
+BANNED_USERS = set()  # user_ids banned by /ban
+
+def load_banned_users():
+    """Load banned users from DB on startup"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("SELECT user_id FROM banned_users")
+            for row in c.fetchall():
+                BANNED_USERS.add(row[0])
+    except:
+        pass
+
+def sanitize_url(url):
+    """Sanitize URL input to prevent command injection and SSRF attempts"""
+    if not url:
+        return None
+    url = url.strip()
+    # Remove dangerous chars
+    url = url.replace(';', '').replace('|', '').replace('&', '')
+    # Limit length
+    if len(url) > 2048:
+        url = url[:2048]
+    return url
+
+def get_cached_result(cmd, target):
+    """Get cached result if available and not expired"""
+    key = (cmd, target)
+    if key in RESULT_CACHE:
+        result, ts = RESULT_CACHE[key]
+        if time.time() - ts < CACHE_TTL:
+            return result
+        else:
+            del RESULT_CACHE[key]
+    return None
+
+def set_cached_result(cmd, target, result):
+    """Store result in cache"""
+    key = (cmd, target)
+    RESULT_CACHE[key] = (result, time.time())
+    # Cleanup old entries if cache is too big
+    if len(RESULT_CACHE) > 200:
+        now = time.time()
+        stale = [k for k, (_, ts) in RESULT_CACHE.items() if now - ts > CACHE_TTL]
+        for k in stale:
+            del RESULT_CACHE[k]
+
+# Error log file
+ERROR_LOG_PATH = os.path.join(DB_DIR, "error_log.txt")
+
+def log_error(module, error):
+    """Log error to file with timestamp"""
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] [{module}] {error}\n"
+    try:
+        with open(ERROR_LOG_PATH, "a") as f:
+            f.write(line)
+    except:
+        pass
+    print(f"[ERROR LOG] {module}: {error}")
+
+# Progress tracking for long-running scans
+SCAN_PROGRESS = {}  # scan_id -> {current, total, message, chat_id}
+
+def send_progress(chat_id, scan_id, current, total, message=""):
+    """Send progress update for long-running scans"""
+    pct = int((current / total) * 100) if total > 0 else 0
+    progress_msg = f"⏳ <b>{message}</b>\n📊 Progresso: {current}/{total} ({pct}%)"
+    try:
+        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": progress_msg,
+            "parse_mode": "HTML"
+        }, timeout=5)
+        if resp and resp.status_code == 200:
+            msg_id = resp.json().get('result', {}).get('message_id')
+            SCAN_PROGRESS[scan_id] = {'msg_id': msg_id, 'chat_id': chat_id, 'current': current, 'total': total}
+            return msg_id
+    except:
+        pass
+    return None
+
+def edit_progress(msg_id, chat_id, current, total, message=""):
+    """Edit a progress message with updated percentage"""
+    if not msg_id:
+        return
+    pct = int((current / total) * 100) if total > 0 else 0
+    progress_msg = f"⏳ <b>{message}</b>\n📊 Progresso: {current}/{total} ({pct}%)"
+    try:
+        HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+            "chat_id": chat_id,
+            "message_id": msg_id,
+            "text": progress_msg,
+            "parse_mode": "HTML"
+        }, timeout=5)
+    except:
+        pass
+
+def finish_progress(msg_id, chat_id, final_message):
+    """Delete the progress message after scan completes"""
+    if not msg_id:
+        return
+    try:
+        HTTP_SESSION.post(f"{API_URL}/deleteMessage", json={
+            "chat_id": chat_id,
+            "message_id": msg_id
+        }, timeout=5)
+    except:
+        pass
+
+# ═══════════════════════════════════════════════════════════════
 #  DATABASE - LOG DE USUÁRIOS
 # ═══════════════════════════════════════════════════════════════
 # Use Termux home directory to avoid Scoped Storage issues on Android
@@ -258,6 +377,13 @@ def init_db():
         c.execute('CREATE INDEX IF NOT EXISTS idx_logs_user_id ON logs(user_id)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_logs_username ON logs(username)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC)')
+        c.execute('''CREATE TABLE IF NOT EXISTS banned_users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            reason TEXT,
+            banned_at TEXT,
+            banned_by INTEGER
+        )''')
         c.execute('''CREATE TABLE IF NOT EXISTS owner_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -380,6 +506,7 @@ def get_db_dump():
     return dump
 
 init_db()
+load_banned_users()
 
 # ═══════════════════════════════════════════════════════════════
 #  TELEGRAM HELPERS
@@ -785,7 +912,7 @@ def tool_xss_scanner(url):
         header = f"🚨 <b>{found} vulnerabilidade(s) XSS encontrada(s)!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         return header + "\n".join(results)
 
-def tool_admin_finder(url):
+def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
     """Admin Panel Finder v3.6 - 70+ paths, full URL, ANTI-FALSE-POSITIVE, deduped with dir scanner"""
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
@@ -844,6 +971,8 @@ def tool_admin_finder(url):
     base_url = url.rstrip('/')
     results = []
     found = 0
+    total = len(paths)
+    checked = 0
 
     # Get baseline: a random path that definitely doesn't exist
     baseline = _safe_get(f"{base_url}/{random_string(12)}.xyz", timeout=3)
@@ -856,6 +985,14 @@ def tool_admin_finder(url):
     root_len = len(root.content) if root else 0
 
     def check_path(path):
+        nonlocal checked
+        checked += 1
+        # Report progress every 10 paths
+        if checked % 10 == 0 and progress_chat_id and progress_msg_id:
+            try:
+                edit_progress(progress_msg_id, progress_chat_id, checked, total, "Escaneando paths...")
+            except:
+                pass
         try:
             full_path = f"{base_url}/{path}"
             r = _safe_get(full_path, timeout=3)
@@ -913,11 +1050,19 @@ def tool_admin_finder(url):
 
     # PERF: Use shared SCAN_POOL
     futures = {SCAN_POOL.submit(check_path, p): p for p in paths}
+    completed = 0
     for future in concurrent.futures.as_completed(futures):
         result = future.result()
+        completed += 1
         if result:
             found += 1
             results.append(f"Admin panel found: {escape_html(result[0])} (Status: {result[1]})")
+        # Update progress
+        if completed % 10 == 0 and progress_chat_id and progress_msg_id:
+            try:
+                edit_progress(progress_msg_id, progress_chat_id, completed, total, "Escaneando paths...")
+            except:
+                pass
 
     if found == 0:
         return f"Admin Panel Finder for {escape_html(base_url)}:\n\n✅ Nenhum painel admin encontrado"
@@ -1775,6 +1920,17 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /msg &lt;texto&gt; — Envia uma mensagem para TODOS os usuários do bot (broadcast)
   Exemplo: /msg Bot desligando para manutenção em 5 minutos!
   📷 Sticker/Imagem/GIF/Vídeo: Envie um sticker, foto, GIF ou vídeo e responda com /msg (opcional: /msg + texto pra adicionar legenda)
+/stats — Estatísticas dos usuários (geral ou busca por usuário específico)
+/ban &lt;id&gt; [motivo] — Banir usuário do bot
+/unban &lt;id&gt; — Desbanir usuário
+/export — Exportar lista completa de usuários para TXT
+
+━━━━━━━━━━━━━━━━━━━━━━
+<b>⏱️ Sistema (Todos):</b>
+/uptime — Mostra tempo online do bot
+/ping — Latência do bot + API Telegram
+/status — Health check completo
+/about — Informações sobre o bot
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>Mth Ddos Security v4.2</i>
@@ -1806,8 +1962,14 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 • Rate limiting e retry automático
 • Connection pooling (HTTP session)
 • Shared thread pool
-• Broadcast /msg para donos
+• Broadcast /msg para donos (texto, imagem, sticker, GIF, vídeo)
 • Painel admin do bot (/botpanel)
+• Sistema de ban/desban (/ban, /unban)
+• Exportação de usuários (/export)
+• Estatísticas por usuário (/stats)
+• Auto-restart em caso de crash
+• Log de erros em arquivo
+• Health check automático
 • DNS-over-HTTPS (funciona sem dig/nslookup)
 • Compatível com Android/Termux
 
@@ -2157,7 +2319,10 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
     log_command(user_id, username, "panel", target)
     clean_target = extract_hostname(target)
     send_message_safe(chat_id, f"🔍 <b>Painel Admin Finder</b> em {escape_html(clean_target)}...")
-    result = tool_admin_finder(target)
+    # Send initial progress
+    progress_msg_id = send_progress(chat_id, f"panel_{user_id}_{time.time()}", 0, 100, "Escaneando paths...")
+    result = tool_admin_finder(target, chat_id, progress_msg_id)
+    finish_progress(progress_msg_id, chat_id, result)
     send_message_safe(chat_id, result)
 
 def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
@@ -2214,11 +2379,15 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
 /botpanel — Este painel
 /bancodds — Dump do banco de dados
 /msg — Enviar mensagem pra todos os usuários
+/stats — Estatísticas de usuários
+/ban — Banir usuário
+/unban — Desbanir usuário
+/export — Exportar lista de usuários
 
 <b>🔧 Ferramentas (Todos):</b>
 /info, /sqli, /xss, /admin, /panel,
 /ports, /dirs, /sub, /wp, /emails,
-/dns, /cms, /reverse, /ftpssh, /ping
+/dns, /cms, /reverse, /ftpssh, /ping, /uptime
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>""" + datetime.now().strftime("%d/%m/%Y %H:%M") + """</i>"""
@@ -2414,6 +2583,261 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
 
         send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
 
+# ═══════════════════════════════════════════════════════════════
+#  NEW HANDLERS: /stats, /ban, /unban, /export, /uptime
+# ═══════════════════════════════════════════════════════════════
+
+def handle_stats(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: View stats of a specific user or all users"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+        return
+
+    log_owner_command(user_id, username, "stats")
+
+    # If args provided, search for specific user
+    if args:
+        search_term = ' '.join(args)
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                # Search by username or user_id
+                c.execute("SELECT * FROM users WHERE username LIKE ? OR id = ? ORDER BY command_count DESC",
+                          (f"%{search_term}%", search_term))
+                rows = [dict(r) for r in c.fetchall()]
+
+            if not rows:
+                send_message_safe(chat_id, f"🔍 Nenhum usuário encontrado para: {escape_html(search_term)}")
+                return
+
+            msg = f"📊 <b>Estatísticas — Buscar: {escape_html(search_term)}</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+            for r in rows[:10]:
+                msg += f"\n<b>@{escape_html(r['username'] or 'N/D')}</b> (ID: {r['id']})\n"
+                msg += f"  Nome: {escape_html(r['first_name'])} {escape_html(r['last_name'] or '')}\n"
+                msg += f"  Comandos: {r['command_count']}\n"
+                msg += f"  Dono: {'Sim' if r['is_owner'] else 'Não'}\n"
+                msg += f"  Primeiro acesso: {r['first_seen']}\n"
+                msg += f"  Último acesso: {r['last_seen']}\n"
+                # Get user's top commands
+                c2 = conn.cursor()
+                c2.execute("SELECT command, COUNT(*) as cnt FROM logs WHERE user_id = ? GROUP BY command ORDER BY cnt DESC LIMIT 3",
+                           (r['id'],))
+                top_cmds = c2.fetchall()
+                if top_cmds:
+                    top_parts = []
+                    for d in top_cmds:
+                        dd = dict(d)
+                        top_parts.append(f"/{dd['command']}({dd['cnt']}x)")
+                    msg += f"  Top comandos: {', '.join(top_parts)}\n"
+
+            send_message_safe(chat_id, msg[:4000])
+        except Exception as e:
+            print(f"[DB Error] handle_stats: {e}")
+            log_error("stats", str(e))
+            send_message_safe(chat_id, "❌ Erro ao buscar estatísticas.")
+    else:
+        # General stats
+        stats = get_user_stats()
+        uptime_secs = int(time.time() - BOT_START_TIME)
+        hours, mins, secs = uptime_secs // 3600, (uptime_secs % 3600) // 60, uptime_secs % 3600 % 60
+
+        # Top 10 users by command count
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT username, command_count FROM users ORDER BY command_count DESC LIMIT 10")
+                top_users = [dict(r) for r in c.fetchall()]
+        except:
+            top_users = []
+
+        msg = f"""📊 <b>Mth Ddos Security v4.2 — Estatísticas</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>📈 Gerais:</b>
+👥 Total de usuários: {stats['total']}
+👑 Donos: {stats['owners']}
+👤 Regulares: {stats['regular']}
+📝 Comandos registrados: {stats['commands']}
+⏱️ Uptime: {hours}h {mins}m {secs}s
+🚫 Banidos: {len(BANNED_USERS)}
+📦 Cache: {len(RESULT_CACHE)} entradas
+
+<b>🏆 Top 10 Usuários (mais ativos):</b>"""
+
+        for i, u in enumerate(top_users, 1):
+            msg += f"\n  {i}. @{escape_html(u['username'] or 'N/D')} — {u['command_count']} comandos"
+
+        send_message_safe(chat_id, msg)
+
+
+def handle_ban(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Ban a user from using the bot"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+        return
+
+    log_owner_command(user_id, username, "ban")
+
+    if not args:
+        send_message_safe(chat_id, "❌ Use: /ban &lt;user_id&gt; [motivo]\nExemplo: /ban 123456789 Spam de comandos")
+        return
+
+    target_id = int(args[0]) if args[0].isdigit() else None
+    if not target_id:
+        send_message_safe(chat_id, "❌ ID inválido. Use o número do ID do usuário.")
+        return
+
+    if target_id in OWNERS:
+        send_message_safe(chat_id, "🚫 <b>Não é possível banir um dono!</b>")
+        return
+
+    reason = ' '.join(args[1:]) if len(args) > 1 else "Sem motivo especificado"
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("INSERT OR REPLACE INTO banned_users (user_id, username, reason, banned_at, banned_by) VALUES (?, ?, ?, ?, ?)",
+                      (target_id, args[0], reason, now, user_id))
+            conn.commit()
+
+        BANNED_USERS.add(target_id)
+
+        # Try to get username
+        try:
+            resp = HTTP_SESSION.get(f"{API_URL}/getChat", json={"chat_id": target_id}, timeout=5)
+            if resp.status_code == 200:
+                chat_data = resp.json().get('result', {})
+                target_user = chat_data.get('username', f"ID {target_id}")
+            else:
+                target_user = f"ID {target_id}"
+        except:
+            target_user = f"ID {target_id}"
+
+        send_message_safe(chat_id, f"✅ <b>Usuário banido!</b>\n👤 {escape_html(target_user)}\n📝 Motivo: {escape_html(reason)}")
+    except Exception as e:
+        print(f"[DB Error] handle_ban: {e}")
+        log_error("ban", str(e))
+        send_message_safe(chat_id, "❌ Erro ao banir usuário.")
+
+
+def handle_unban(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Unban a user"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+        return
+
+    log_owner_command(user_id, username, "unban")
+
+    if not args or not args[0].isdigit():
+        send_message_safe(chat_id, "❌ Use: /unban &lt;user_id&gt;\nExemplo: /unban 123456789")
+        return
+
+    target_id = int(args[0])
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM banned_users WHERE user_id = ?", (target_id,))
+            conn.commit()
+
+        BANNED_USERS.discard(target_id)
+
+        send_message_safe(chat_id, f"✅ <b>Usuário desbanido!</b>\nID: {target_id}")
+    except Exception as e:
+        print(f"[DB Error] handle_unban: {e}")
+        log_error("unban", str(e))
+        send_message_safe(chat_id, "❌ Erro ao desbanir usuário.")
+
+
+def handle_export(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Export user list to TXT file"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+        return
+
+    log_owner_command(user_id, username, "export")
+
+    send_message_safe(chat_id, "⏳ <b>Exportando lista de usuários...</b>")
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT * FROM users ORDER BY command_count DESC")
+            users = [dict(r) for r in c.fetchall()]
+    except Exception as e:
+        print(f"[DB Error] handle_export: {e}")
+        log_error("export", str(e))
+        send_message_safe(chat_id, "❌ Erro ao exportar lista.")
+        return
+
+    if not users:
+        send_message_safe(chat_id, "ℹ️ Nenhum usuário encontrado.")
+        return
+
+    export_text = "Mth Ddos Security - Exportação de Usuários\n"
+    export_text += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    export_text += f"Total: {len(users)} usuários\n"
+    export_text += "=" * 60 + "\n\n"
+
+    for u in users:
+        export_text += f"ID: {u['id']} | @{u['username'] or 'N/D'} | {u['first_name']} {u['last_name'] or ''} | "
+        export_text += f"Owner: {'Sim' if u['is_owner'] else 'Não'} | "
+        export_text += f"Cmds: {u['command_count']} | "
+        export_text += f"First: {u['first_seen']} | Last: {u['last_seen']}\n"
+
+    filepath = os.path.join(DB_DIR, "users_export.txt")
+    with open(filepath, "w") as f:
+        f.write(export_text)
+
+    with open(filepath, "rb") as f:
+        resp = HTTP_SESSION.post(f"{API_URL}/sendDocument",
+            data={"chat_id": chat_id, "caption": f"📄 Lista de {len(users)} usuários"},
+            files={"document": f}, timeout=30)
+
+    if resp and resp.status_code == 200:
+        os.remove(filepath)
+        send_message_safe(chat_id, f"✅ <b>Exportação concluída!</b>\n📤 {len(users)} usuários exportados.")
+    else:
+        send_message_safe(chat_id, "❌ Falha ao enviar o arquivo.")
+
+
+def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
+    """Show bot uptime (available to everyone)"""
+    log_user(user_id, username, first_name, last_name)
+
+    uptime_secs = int(time.time() - BOT_START_TIME)
+    days = uptime_secs // 86400
+    hours = (uptime_secs % 86400) // 3600
+    mins = (uptime_secs % 3600) // 60
+    secs = uptime_secs % 60
+
+    msg = f"""⏱️ <b>Mth Ddos Security v4.2 — Uptime</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+🟢 <b>Online há:</b>
+"""
+    if days > 0:
+        msg += f"  {days} dias, "
+    msg += f"{hours} horas, {mins} minutos e {secs} segundos\n"
+    msg += f"\n📅 Iniciado em: {datetime.fromtimestamp(BOT_START_TIME).strftime('%d/%m/%Y %H:%M:%S')}\n"
+    msg += f"⏰ Agora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
+    msg += "━━━━━━━━━━━━━━━━━━━━━━"
+
+    send_message_safe(chat_id, msg)
+
+
 def handle_status(chat_id, user_id, username, first_name, last_name, args):
     """Quick health check and bot status"""
     log_user(user_id, username, first_name, last_name)
@@ -2483,6 +2907,11 @@ CMD_HANDLERS = {
     '/botpanel':lambda c, u, un, fn, ln, a: handle_botpanel(c, u, un, fn, ln, a),
     '/bancodds':lambda c, u, un, fn, ln, a: handle_bancodds(c, u, un, fn, ln, a),
     '/msg':     lambda c, u, un, fn, ln, a: handle_msg(c, u, un, fn, ln, a, getattr(process_update, '_reply_media', None)),
+    '/stats':   lambda c, u, un, fn, ln, a: handle_stats(c, u, un, fn, ln, a),
+    '/ban':     lambda c, u, un, fn, ln, a: handle_ban(c, u, un, fn, ln, a),
+    '/unban':   lambda c, u, un, fn, ln, a: handle_unban(c, u, un, fn, ln, a),
+    '/export':  lambda c, u, un, fn, ln, a: handle_export(c, u, un, fn, ln, a),
+    '/uptime':  lambda c, u, un, fn, ln, a: handle_uptime(c, u, un, fn, ln, a),
 }
 
 def process_update(update):
@@ -2535,6 +2964,11 @@ def process_update(update):
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {username or user_id}: {text}")
 
+    # Ban check (allow /start, /help, /ping to respond even if banned)
+    if user_id in BANNED_USERS and cmd not in ('/start', '/help', '/ping'):
+        send_message_safe(chat_id, "🚫 <b>Voce foi banido deste bot.</b> Acesso negado.")
+        return
+
     # Rate limit check: max USER_CMD_LIMIT commands per USER_CMD_WINDOW seconds
     now_ts = time.time()
     user_cmd_list = USER_CMD_COUNT.get(user_id, [])
@@ -2566,6 +3000,7 @@ def process_update(update):
                     handler_fn(chat_id, user_id, username, first_name, last_name, args)
                 except Exception as e:
                     print(f"[Handler Error] {cmd}: {e}")
+                    log_error("handler", f"{cmd} by user {user_id}: {e}")
                 finally:
                     ACTIVE_THREADS.release()
             else:
@@ -2668,12 +3103,62 @@ def set_webhook(url):
         print(f"❌ HTTP {resp.status_code}: {resp.text}")
 
 
+def health_check_loop():
+    """Background thread that checks bot health every 5 minutes and logs"""
+    global SHUTDOWN_FLAG
+    while not SHUTDOWN_FLAG:
+        time.sleep(300)  # 5 minutes
+        if SHUTDOWN_FLAG:
+            break
+        try:
+            # Quick health check
+            resp = HTTP_SESSION.get(f"{API_URL}/getMe", timeout=10)
+            if resp.status_code != 200:
+                log_error("health", f"API unreachable (status {resp.status_code})")
+            else:
+                uptime_secs = int(time.time() - BOT_START_TIME)
+                hours = uptime_secs // 3600
+                print(f"[Health] OK | Uptime: {hours}h | Users: {len(USER_CMD_COUNT)} active | Cache: {len(RESULT_CACHE)} | Threads: {threading.active_count()}")
+        except Exception as e:
+            log_error("health", str(e))
+
+
+def run_with_restart():
+    """Run long_polling with auto-restart on crash"""
+    restart_count = 0
+    max_restarts = 10  # Max 10 restarts before giving up
+
+    while restart_count < max_restarts and not SHUTDOWN_FLAG:
+        try:
+            print(f"[Restart] Starting bot (attempt {restart_count + 1}/{max_restarts})")
+            long_polling()
+        except Exception as e:
+            log_error("restart", f"Bot crashed: {e}")
+            print(f"[Restart] Bot crashed: {e}")
+
+        if not SHUTDOWN_FLAG and restart_count < max_restarts - 1:
+            restart_count += 1
+            wait_time = min(30 * restart_count, 300)  # Backoff: 30s, 60s, 90s...
+            print(f"[Restart] Restarting in {wait_time}s...")
+            time.sleep(wait_time)
+        else:
+            break
+
+    if restart_count >= max_restarts:
+        print(f"[Restart] Max restarts reached ({max_restarts}). Stopping.")
+        log_error("restart", f"Max restarts reached ({max_restarts})")
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "webhook" and len(sys.argv) > 2:
             set_webhook(sys.argv[2])
         elif sys.argv[1] == "polling":
-            long_polling()
+            # Start health check in background
+            health_thread = threading.Thread(target=health_check_loop, daemon=True)
+            health_thread.start()
+            # Start bot with auto-restart
+            run_with_restart()
         elif sys.argv[1] == "test":
             print("Mth Ddos Security v4.2")
             print(f"Owners: {OWNERS}")
@@ -2685,4 +3170,8 @@ if __name__ == "__main__":
     else:
         print('Usage: python3 Mth_Ddos_v1.py [polling|webhook <url>|test]')
         print("Default: long polling mode")
-        long_polling()
+        # Start health check in background
+        health_thread = threading.Thread(target=health_check_loop, daemon=True)
+        health_thread.start()
+        # Start bot with auto-restart
+        run_with_restart()
