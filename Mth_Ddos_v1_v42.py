@@ -190,9 +190,9 @@ def extract_hostname(target):
     """Extract clean hostname/IP from a URL or raw domain/IP input.
     Handles: http://mthteam.com, https://mthteam.com:8080, mthteam.com, 8.8.8.8
     Returns the bare hostname or IP string."""
-    if target.startswith(('http://', 'https://')):
+    if '://' in target:
         parsed = urlparse(target)
-        hostname = parsed.netloc.split(':')[0]  # Strip port
+        hostname = parsed.hostname or parsed.netloc.split(':')[0].split('@')[-1]
         return hostname if hostname else target
     return target
 
@@ -252,8 +252,9 @@ def sanitize_url(url):
     if not url:
         return None
     url = url.strip()
-    # Remove dangerous chars
-    url = url.replace(';', '').replace('|', '').replace('&', '')
+    # Remove dangerous chars (command injection, SSRF, pipe)
+    for char in [';', '|', '&', '$', '`', '(', ')']:
+        url = url.replace(char, '')
     # Limit length
     if len(url) > 2048:
         url = url[:2048]
@@ -2796,17 +2797,9 @@ def handle_export(chat_id, user_id, username, first_name, last_name, args):
         export_text += f"Cmds: {u['command_count']} | "
         export_text += f"First: {u['first_seen']} | Last: {u['last_seen']}\n"
 
-    filepath = os.path.join(DB_DIR, "users_export.txt")
-    with open(filepath, "w") as f:
-        f.write(export_text)
-
-    with open(filepath, "rb") as f:
-        resp = HTTP_SESSION.post(f"{API_URL}/sendDocument",
-            data={"chat_id": chat_id, "caption": f"📄 Lista de {len(users)} usuários"},
-            files={"document": f}, timeout=30)
-
-    if resp and resp.status_code == 200:
-        os.remove(filepath)
+    # Use send_document helper which has its own error handling
+    success = send_document(chat_id, export_text, "users_export.txt")
+    if success:
         send_message_safe(chat_id, f"✅ <b>Exportação concluída!</b>\n📤 {len(users)} usuários exportados.")
     else:
         send_message_safe(chat_id, "❌ Falha ao enviar o arquivo.")
@@ -2905,7 +2898,7 @@ CMD_HANDLERS = {
     '/panel':   lambda c, u, un, fn, ln, a: handle_panel(c, u, un, fn, ln, a),
     '/botpanel':lambda c, u, un, fn, ln, a: handle_botpanel(c, u, un, fn, ln, a),
     '/bancodds':lambda c, u, un, fn, ln, a: handle_bancodds(c, u, un, fn, ln, a),
-    '/msg':     lambda c, u, un, fn, ln, a: handle_msg(c, u, un, fn, ln, a, getattr(process_update, '_reply_media', None)),
+    '/msg':     None,
     '/stats':   lambda c, u, un, fn, ln, a: handle_stats(c, u, un, fn, ln, a),
     '/ban':     lambda c, u, un, fn, ln, a: handle_ban(c, u, un, fn, ln, a),
     '/unban':   lambda c, u, un, fn, ln, a: handle_unban(c, u, un, fn, ln, a),
@@ -2934,11 +2927,11 @@ def process_update(update):
     args = parts[1].split() if len(parts) > 1 else []
 
     # Check for reply to a sticker or photo (for /msg media broadcast)
-    process_update._reply_media = None
+    reply_media = None
     if cmd == '/msg' and message.get('reply_to_message'):
         reply = message['reply_to_message']
         if reply.get('sticker'):
-            process_update._reply_media = {
+            reply_media = {
                 'type': 'sticker',
                 'file_id': reply['sticker']['file_id']
             }
@@ -2946,17 +2939,17 @@ def process_update(update):
             photos = reply['photo']
             # Use highest resolution photo
             best_photo = max(photos, key=lambda p: p.get('file_size', 0))
-            process_update._reply_media = {
+            reply_media = {
                 'type': 'photo',
                 'file_id': best_photo['file_id']
             }
         elif reply.get('animation'):
-            process_update._reply_media = {
+            reply_media = {
                 'type': 'animation',
                 'file_id': reply['animation']['file_id']
             }
         elif reply.get('video'):
-            process_update._reply_media = {
+            reply_media = {
                 'type': 'video',
                 'file_id': reply['video']['file_id']
             }
@@ -2964,7 +2957,7 @@ def process_update(update):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {username or user_id}: {text}")
 
     # Ban check (allow /start, /help, /ping to respond even if banned)
-    if user_id in BANNED_USERS and cmd not in ('/start', '/help', '/ping'):
+    if user_id in BANNED_USERS and cmd not in ('/start', '/help', '/about', '/ping', '/status'):
         send_message_safe(chat_id, "🚫 <b>Voce foi banido deste bot.</b> Acesso negado.")
         return
 
@@ -2993,10 +2986,17 @@ def process_update(update):
         # Use semaphore to limit concurrent threads (prevent OOM)
         handler_done = threading.Event()
         handler_fn = CMD_HANDLERS[cmd]
+
+        # FIX v4.2: Pass reply_media via closure to avoid race condition
+        local_reply_media = reply_media  # Capture in closure
+
         def run_handler():
             if ACTIVE_THREADS.acquire(timeout=30):
                 try:
-                    handler_fn(chat_id, user_id, username, first_name, last_name, args)
+                    if cmd == '/msg':
+                        handle_msg(chat_id, user_id, username, first_name, last_name, args, local_reply_media)
+                    elif handler_fn is not None:
+                        handler_fn(chat_id, user_id, username, first_name, last_name, args)
                 except Exception as e:
                     print(f"[Handler Error] {cmd}: {e}")
                     log_error("handler", f"{cmd} by user {user_id}: {e}")
