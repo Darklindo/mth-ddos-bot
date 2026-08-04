@@ -1774,6 +1774,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /bancodds — Dump completo do banco de dados (todos os usuários e comandos registrados)
 /msg &lt;texto&gt; — Envia uma mensagem para TODOS os usuários do bot (broadcast)
   Exemplo: /msg Bot desligando para manutenção em 5 minutos!
+  📷 Sticker/Imagem: Envie um sticker ou foto e responda com /msg (opcional: /msg + texto pra adicionar legenda)
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>Mth Ddos Security v4.2</i>
@@ -2252,8 +2253,9 @@ def handle_bancodds(chat_id, user_id, username, first_name, last_name, args):
 # ═══════════════════════════════════════════════════════════════
 #  GRACEFUL SHUTDOWN
 # ═══════════════════════════════════════════════════════════════
-def handle_msg(chat_id, user_id, username, first_name, last_name, args):
-    """OWNER ONLY: Broadcast message to ALL users in the database"""
+def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_media=None):
+    """OWNER ONLY: Broadcast message to ALL users in the database.
+    Supports replying to a sticker/photo with /msg to send media + caption."""
     log_user(user_id, username, first_name, last_name)
 
     if not is_owner(user_id):
@@ -2262,12 +2264,12 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args):
 
     log_owner_command(user_id, username, "msg")
 
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /msg &lt;sua mensagem&gt;\nExemplo: /msg Bot off!")
-        return
+    message_text = ' '.join(args) if args else ''
 
-    message_text = ' '.join(args)
-    send_message_safe(chat_id, f"📢 <b>Enviando mensagem para todos os usuários...</b>\nMensagem: {escape_html(message_text[:100])}")
+    # If no media reply and no text, show usage
+    if not reply_media and not args:
+        send_message_safe(chat_id, "❌ Use: /msg &lt;sua mensagem&gt;\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;")
+        return
 
     # Get all users from database
     try:
@@ -2285,7 +2287,63 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args):
         send_message_safe(chat_id, "ℹ️ Nenhum usuário regular encontrado para enviar.")
         return
 
-    broadcast = f"""📢 <b>Mensagem dos Donos</b>
+    if reply_media:
+        # MEDIA BROADCAST: send sticker/photo + caption
+        media_type = reply_media.get('type')
+        file_id = reply_media.get('file_id')
+        caption = f"📢 {message_text}" if message_text else ''
+
+        if media_type == 'sticker':
+            send_message_safe(chat_id, f"📢 <b>Enviando sticker para {len(users)} usuários...</b>")
+            sent = 0
+            failed = 0
+            for u in users:
+                try:
+                    resp = HTTP_SESSION.post(f"{API_URL}/sendSticker", json={
+                        "chat_id": str(u['id']),
+                        "sticker": file_id
+                    }, timeout=10)
+                    if resp and resp.status_code == 200:
+                        sent += 1
+                        # Send caption as separate message after sticker
+                        if caption:
+                            time.sleep(0.1)
+                            send_message_safe(str(u['id']), caption, parse_mode=None)
+                    else:
+                        failed += 1
+                    time.sleep(0.3)
+                except:
+                    failed += 1
+            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+
+        elif media_type == 'photo':
+            send_message_safe(chat_id, f"📢 <b>Enviando imagem para {len(users)} usuários...</b>")
+            sent = 0
+            failed = 0
+            for u in users:
+                try:
+                    resp = HTTP_SESSION.post(f"{API_URL}/sendPhoto", json={
+                        "chat_id": str(u['id']),
+                        "photo": file_id,
+                        "caption": caption or '📢 Mensagem dos Donos',
+                        "parse_mode": "HTML"
+                    }, timeout=10)
+                    if resp and resp.status_code == 200:
+                        sent += 1
+                    else:
+                        failed += 1
+                    time.sleep(0.3)
+                except:
+                    failed += 1
+            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+        else:
+            send_message_safe(chat_id, "❌ Tipo de mídia não suportado.")
+
+    else:
+        # TEXT BROADCAST (original behavior)
+        send_message_safe(chat_id, f"📢 <b>Enviando mensagem para todos os usuários...</b>\nMensagem: {escape_html(message_text[:100])}")
+
+        broadcast = f"""📢 <b>Mensagem dos Donos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 {escape_html(message_text)}
@@ -2293,26 +2351,26 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args):
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>— Mth Ddos Security Team</i>"""
 
-    sent = 0
-    failed = 0
-    for u in users:
-        try:
-            resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
-                "chat_id": str(u['id']),
-                "text": broadcast,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True
-            }, timeout=10)
-            if resp and resp.status_code == 200:
-                sent += 1
-            else:
+        sent = 0
+        failed = 0
+        for u in users:
+            try:
+                resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+                    "chat_id": str(u['id']),
+                    "text": broadcast,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True
+                }, timeout=10)
+                if resp and resp.status_code == 200:
+                    sent += 1
+                else:
+                    failed += 1
+                # Rate limit between sends to avoid 429
+                time.sleep(0.3)
+            except:
                 failed += 1
-            # Rate limit between sends to avoid 429
-            time.sleep(0.3)
-        except:
-            failed += 1
 
-    send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+        send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
 
 def handle_status(chat_id, user_id, username, first_name, last_name, args):
     """Quick health check and bot status"""
@@ -2382,7 +2440,7 @@ CMD_HANDLERS = {
     '/panel':   lambda c, u, un, fn, ln, a: handle_panel(c, u, un, fn, ln, a),
     '/botpanel':lambda c, u, un, fn, ln, a: handle_botpanel(c, u, un, fn, ln, a),
     '/bancodds':lambda c, u, un, fn, ln, a: handle_bancodds(c, u, un, fn, ln, a),
-    '/msg':     lambda c, u, un, fn, ln, a: handle_msg(c, u, un, fn, ln, a),
+    '/msg':     lambda c, u, un, fn, ln, a: handle_msg(c, u, un, fn, ln, a, getattr(process_update, '_reply_media', None)),
 }
 
 def process_update(update):
@@ -2404,6 +2462,24 @@ def process_update(update):
     # Remove @botname suffix: /command@MyBot -> /command
     cmd = raw_cmd.split('@')[0]
     args = parts[1].split() if len(parts) > 1 else []
+
+    # Check for reply to a sticker or photo (for /msg media broadcast)
+    process_update._reply_media = None
+    if cmd == '/msg' and message.get('reply_to_message'):
+        reply = message['reply_to_message']
+        if reply.get('sticker'):
+            process_update._reply_media = {
+                'type': 'sticker',
+                'file_id': reply['sticker']['file_id']
+            }
+        elif reply.get('photo'):
+            photos = reply['photo']
+            # Use highest resolution photo
+            best_photo = max(photos, key=lambda p: p.get('file_size', 0))
+            process_update._reply_media = {
+                'type': 'photo',
+                'file_id': best_photo['file_id']
+            }
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {username or user_id}: {text}")
 
