@@ -282,8 +282,6 @@ def set_cached_result(cmd, target, result):
             del RESULT_CACHE[k]
 
 # Error log file
-ERROR_LOG_PATH = os.path.join(DB_DIR, "error_log.txt")
-
 def log_error(module, error):
     """Log error to file with timestamp"""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -351,6 +349,7 @@ def finish_progress(msg_id, chat_id, final_message):
 DB_DIR = os.path.join(os.path.expanduser("~"), ".mega3_bot")
 os.makedirs(DB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DB_DIR, "mega3_bot.db")
+ERROR_LOG_PATH = os.path.join(DB_DIR, "error_log.txt")
 
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:
