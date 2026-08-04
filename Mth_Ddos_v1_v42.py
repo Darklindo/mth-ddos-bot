@@ -1005,7 +1005,7 @@ def tool_directory_scanner(url):
         'Makefile', 'composer.json', 'package.json',
         'README.md', 'CHANGELOG.md',
         'public', 'private', 'tmp',
-        'staging', 'dev', 'staging',
+        'staging', 'dev', 'test-env',
         'old', 'archive', 'legacy',
         'db', 'database', 'sql',
     ]
@@ -1117,7 +1117,11 @@ def tool_subdomain_scanner(domain):
             # Just resolving DNS is not enough — check if HTTP server is alive
             try:
                 http_resp = _safe_get(f"http://{full}", timeout=3)
-                if http_resp.status_code in [400, 401, 403, 404, 500, 502, 503]:
+                if http_resp is None:
+                    # Connection refused or timeout = subdomain doesn't serve HTTP
+                    # But it might still be a real subdomain (e.g., mail server)
+                    pass
+                elif http_resp.status_code in [400, 401, 403, 404, 500, 502, 503]:
                     # Error responses mean HTTP is running — subdomain exists
                     pass
                 elif http_resp.status_code == 200:
@@ -1127,8 +1131,7 @@ def tool_subdomain_scanner(domain):
                     # Redirect = definitely alive
                     pass
                 else:
-                    # Connection refused or timeout = subdomain doesn't serve HTTP
-                    # But it might still be a real subdomain (e.g., mail server)
+                    # Unknown status — subdomain might still exist
                     pass
             except:
                 # Connection error = subdomain doesn't have HTTP, but might still exist
