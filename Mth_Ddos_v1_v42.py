@@ -1731,7 +1731,7 @@ Digite <b>/help</b> para ver a lista completa de comandos.
 
     send_message_safe(chat_id, msg)
 
-def handle_help(chat_id, user_id, username, first_name, last_name):
+def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
 
     msg = """🔧 <b>Mth Ddos Security v4.2 — Comandos</b>
@@ -1778,7 +1778,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name):
 
     send_message_safe(chat_id, msg)
 
-def handle_about(chat_id, user_id, username, first_name, last_name):
+def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
     msg = """🛡️ <b>Mth Ddos Security</b>
 ━━━━━━━━━━━━━━━━━━━━━━
