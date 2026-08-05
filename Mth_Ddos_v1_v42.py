@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════╗
-║  MTH DDOS SECURITY - TELEGRAM BOT v4.2                    ║
+║  MTH DDOS SECURITY - TELEGRAM BOT v4.3                    ║
 ║  Advanced Security Testing Tools                          ║
 ║  Credits: @OnlyExaltarei, @Thebesty9, @PETER_DNS          ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -29,7 +29,7 @@ CHANGELOG v4.1:
 - IMPROVE: /wp — detect known vuln plugins
 - IMPROVE: /dns — added SOA record query
 
-CHANGELOG v4.2:
+CHANGELOG v4.3:
 - FIX: /panel restored to Painel Admin Finder (encontrar painéis de sites)
 - NEW: /botpanel — Painel admin do bot (donos)
 - NEW: /panel agora é comando PÚBLICO para encontrar painéis admin
@@ -40,6 +40,15 @@ CHANGELOG v4.2:
 - IMPROVE: /cms — added Squarespace, Weebly detection
 - IMPROVE: /panel — shows DB file size
 - IMPROVE: /bancodds — better formatting
+- NEW: /feedback — Enviar feedback/sugestões para o canal dos donos
+- NEW: /report — Reportar bugs para o canal dos donos
+- NEW: /stop — Parar scans ativos (donos)
+- NEW: /rescan — Inline button para reescanear (sem precisar digitar novamente)
+- IMPROVE: /sqli — verbose mode (/sqli url verbose) mostra cada payload testado
+- IMPROVE: /xss — verbose mode (/xss url verbose) mostra cada payload testado
+- IMPROVE: Resultados dos scanners agora incluem inline buttons (🔄 Rescan)
+- IMPROVE: Cache de resultados salvo no banco (scan_cache table)
+- NEW: DB tables: feedback, bug_reports, scan_cache, scan_tasks
 
 CHANGELOG v3.6:
 - FIX: SQLi scanner — safe="" in requests.utils.quote to encode quotes properly
@@ -229,6 +238,16 @@ USER_CMD_WINDOW = 60  # 60 second window
 #  NEW FEATURES: Cache, Ban, Error Log, Progress
 # ═══════════════════════════════════════════════════════════════
 
+# V4.3: Feedback channel (from user)
+FEEDBACK_CHANNEL = "-1004392422665"
+
+# V4.3: Active scans tracking (for /stop)
+ACTIVE_SCANS = {}  # scan_id -> threading.Event (set to stop)
+STOP_EVENTS = {}   # user_id -> threading.Event
+
+# V4.3: DB-backed cache TTL (seconds)
+DB_CACHE_TTL = 300  # 5 minutes
+
 # Result cache: (command, target) -> (result_text, timestamp)
 RESULT_CACHE = {}
 CACHE_TTL = 300  # 5 minutes cache
@@ -390,6 +409,49 @@ def init_db():
             username TEXT,
             command TEXT,
             timestamp TEXT
+        )''')
+        # V4.3: Feedback channel
+        c.execute('''CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            first_name TEXT,
+            message TEXT,
+            timestamp TEXT,
+            channel_msg_id INTEGER DEFAULT 0
+        )''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_feedback_user_id ON feedback(user_id)')
+        # V4.3: Bug reports channel
+        c.execute('''CREATE TABLE IF NOT EXISTS bug_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            first_name TEXT,
+            message TEXT,
+            timestamp TEXT,
+            channel_msg_id INTEGER DEFAULT 0
+        )''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_bug_reports_user_id ON bug_reports(user_id)')
+        # V4.3: DB-backed result cache
+        c.execute('''CREATE TABLE IF NOT EXISTS scan_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cmd TEXT NOT NULL,
+            target TEXT NOT NULL,
+            result TEXT,
+            created_at REAL,
+            UNIQUE(cmd, target)
+        )''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_scan_cache_key ON scan_cache(cmd, target)')
+        # V4.3: Active scan tasks (for /stop)
+        c.execute('''CREATE TABLE IF NOT EXISTS scan_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            scan_type TEXT NOT NULL,
+            target TEXT NOT NULL,
+            started_at REAL,
+            status TEXT DEFAULT 'running',
+            progress_msg_id INTEGER DEFAULT 0,
+            chat_id TEXT DEFAULT ''
         )''')
         conn.commit()
 
@@ -630,6 +692,86 @@ def send_long_message(chat_id, text, prefix=""):
     for chunk in chunks:
         send_message_safe(chat_id, chunk)
 
+def send_message_with_buttons(chat_id, text, buttons, parse_mode="HTML"):
+    """Send message with inline keyboard buttons"""
+    _rate_limit_wait(chat_id)
+    try:
+        # buttons is list of lists: [[{"text": "Rescan", "callback_data": "/rescan sqli url"}, ...]]
+        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": parse_mode,
+            "disable_web_page_preview": True,
+            "reply_markup": {"inline_keyboard": buttons}
+        }, timeout=10)
+        return resp
+    except Exception as e:
+        print(f"[Send Buttons Error] {e}")
+        return None
+
+
+def send_feedback_to_channel(user_id, username, first_name, message, channel_type="feedback"):
+    """Forward feedback/bug report to the channel and return channel message_id"""
+    if channel_type == "feedback":
+        emoji = "🔰"
+        title = "NOVO FEEDBACK DE AGENTE"
+    else:
+        emoji = "🐛"
+        title = "NOVO BUG REPORTADO"
+
+    channel_msg = f"""━━━━━━━━━━━━━━━━━━━━━━━━
+{emoji} 📨 {title}
+━━━━━━━━━━━━━━━━━━━━━━━━
+│ 👤 Nome: {escape_html(first_name)}
+│ 🔗 Username: @{escape_html(username) or 'Sem Username'}
+│ 🆔 ID: {user_id}
+│ 💬 Mensagem:
+│ {escape_html(message[:500])}
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+    try:
+        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+            "chat_id": FEEDBACK_CHANNEL,
+            "text": channel_msg,
+            "parse_mode": "HTML"
+        }, timeout=10)
+        if resp and resp.status_code == 200:
+            data = resp.json().get('result', {})
+            return data.get('message_id', 0)
+    except Exception as e:
+        print(f"[Channel Error] {channel_type}: {e}")
+    return 0
+
+
+def db_cache_get(cmd, target):
+    """Get cached result from DB. Returns result text or None."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT result FROM scan_cache WHERE cmd = ? AND target = ? AND (strftime('%s', 'now') - created_at) < ?",
+                      (cmd, target, DB_CACHE_TTL))
+            row = c.fetchone()
+            if row:
+                return row['result']
+    except Exception as e:
+        print(f"[DB Cache Error] get: {e}")
+    return None
+
+
+def db_cache_set(cmd, target, result):
+    """Store result in DB cache"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("INSERT OR REPLACE INTO scan_cache (cmd, target, result, created_at) VALUES (?, ?, ?, ?)",
+                      (cmd, target, result, time.time()))
+            conn.commit()
+    except Exception as e:
+        print(f"[DB Cache Error] set: {e}")
+
+
 def escape_html(text):
     """Escape HTML special chars in dynamic content"""
     if text is None:
@@ -718,8 +860,8 @@ def tool_website_info(url):
         results = f"❌ Erro: {escape_html(str(e))}"
     return results
 
-def tool_sqli(url):
-    """SQL Injection Scanner v3.6 - 22 payloads, baseline comparison, ANTI-FALSE-POSITIVE"""
+def tool_sqli(url, verbose=False):
+    """SQL Injection Scanner v4.3 - 28 payloads, baseline comparison, ANTI-FALSE-POSITIVE, verbose mode"""
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
 
@@ -768,6 +910,7 @@ def tool_sqli(url):
     ]
 
     results = []
+    verbose_log = []
     found = 0
 
     # Get baseline: response without any payload
@@ -777,6 +920,8 @@ def tool_sqli(url):
         return "❌ Não foi possível acessar o site para análise SQLi"
     baseline_len = len(baseline_resp.content)
     baseline_text = baseline_resp.text.lower()
+    baseline_status = baseline_resp.status_code
+    verbose_log.append(f"📊 <b>Baseline:</b> Status {baseline_status} | Len: {baseline_len}")
 
     def check_payload(payload):
         try:
@@ -785,12 +930,19 @@ def tool_sqli(url):
             test_url = url + encoded
             response = _safe_get(test_url, timeout=5)
             if not response:
+                if verbose:
+                    verbose_log.append(f"  ❌ Timeout/Erro: <code>{escape_html(payload[:30])}</code>")
                 return None
             body = response.text.lower()
             body_len = len(response.content)
 
+            if verbose:
+                verbose_log.append(f"  [{response.status_code}] <code>{escape_html(payload[:30])}</code> Len: {body_len}")
+
             # BASELINE FILTER: If response is identical to baseline, the payload had no effect
             if body_len == baseline_len and abs(len(body) - len(baseline_text)) < 10:
+                if verbose:
+                    verbose_log.append(f"    ↳ Idêntico ao baseline — descartado")
                 return None
 
             # Check for error signs
@@ -798,6 +950,8 @@ def tool_sqli(url):
                 if sign in body:
                     # Verify the error isn't in the baseline too (false positive)
                     if sign not in baseline_text:
+                        if verbose:
+                            verbose_log.append(f"    ⚠️ VULNERÁVEL! Sign: '{escape_html(sign)}'")
                         return payload, True
         except:
             pass
@@ -812,13 +966,17 @@ def tool_sqli(url):
             results.append(f"⚠️ <b>Vulnerável!</b> Payload: <code>{escape_html(result[0][:50])}</code>")
 
     if found == 0:
+        if verbose:
+            return "✅ Nenhuma vulnerabilidade SQLi detectada\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(verbose_log)
         return "✅ Nenhuma vulnerabilidade SQLi detectada"
     else:
         header = f"🚨 <b>{found} vulnerabilidade(s) SQLi encontrada(s)!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        if verbose:
+            return header + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n📋 <b>Log Detalhado:</b>\n" + "\n".join(verbose_log)
         return header + "\n".join(results)
 
-def tool_xss_scanner(url):
-    """XSS Scanner v3.6 - 14 payloads, STRICT unescaped reflection only, ANTI-FALSE-POSITIVE"""
+def tool_xss_scanner(url, verbose=False):
+    """XSS Scanner v4.3 - 18 payloads, STRICT unescaped reflection only, ANTI-FALSE-POSITIVE, verbose mode"""
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
 
@@ -847,6 +1005,7 @@ def tool_xss_scanner(url):
     ]
 
     results = []
+    verbose_log = []
     found = 0
 
     # Get baseline: response without any payload
@@ -855,6 +1014,9 @@ def tool_xss_scanner(url):
     if not baseline_resp:
         return "❌ Não foi possível acessar o site para análise XSS"
     baseline_text = baseline_resp.text
+    baseline_len = len(baseline_text)
+    if verbose:
+        verbose_log.append(f"📊 <b>Baseline:</b> Len: {baseline_len}")
 
     def check_payload(payload):
         try:
@@ -862,37 +1024,49 @@ def tool_xss_scanner(url):
             test_url = url + encoded
             response = _safe_get(test_url, timeout=5)
             if not response:
+                if verbose:
+                    verbose_log.append(f"  ❌ Timeout: <code>{escape_html(payload[:30])}</code>")
                 return None
             body = response.text
 
+            if verbose:
+                verbose_log.append(f"  [{response.status_code}] <code>{escape_html(payload[:30])}</code> Len: {len(body)}")
+
             # BASELINE FILTER: If response is identical to baseline, payload had no effect
             if body == baseline_text:
+                if verbose:
+                    verbose_log.append(f"    ↳ Idêntico ao baseline — descartado")
                 return None
 
             # FIX: STRICT unescaped reflection check
             # 1. Full payload must appear as-is (unescaped)
             if payload in body:
+                if verbose:
+                    verbose_log.append(f"    ⚠️ VULNERÁVEL! (reflexão completa)")
                 return payload, True
 
             # 2. Check for escaped version — if ALL versions are escaped, NOT vulnerable
             escaped_payload = html_lib.escape(payload)
             if escaped_payload in body and payload not in body:
+                if verbose:
+                    verbose_log.append(f"    ↳ Escapado — seguro")
                 return None  # Fully escaped = safe
 
             # 3. Check for partial unescaped reflection of KEY EVENT HANDLERS
-            # Only flag if the event handler appears WITHOUT the &lt;/&gt; wrapping
             event_handlers = ['onerror=', 'onload=', 'onfocus=', 'onmouseover=', 'ontoggle=', 'onstart=']
             for handler in event_handlers:
                 if handler in payload and handler in body:
-                    # Verify it's NOT in the baseline (false positive check)
                     if handler not in baseline_text:
-                        # Check it's not escaped (no &lt; before it)
                         idx = body.find(handler)
                         if idx > 0:
                             context_start = max(0, idx - 10)
                             context = body[context_start:idx]
                             if '&lt;' in context:
+                                if verbose:
+                                    verbose_log.append(f"    ↳ Handler escapado — seguro")
                                 continue  # Escaped, skip
+                        if verbose:
+                            verbose_log.append(f"    ⚠️ VULNERÁVEL! (handler: {escape_html(handler)})")
                         return payload, True
         except:
             pass
@@ -907,9 +1081,13 @@ def tool_xss_scanner(url):
             results.append(f"⚠️ <b>XSS Refletido!</b> Payload: <code>{escape_html(result[0][:40])}</code>")
 
     if found == 0:
+        if verbose:
+            return "✅ Nenhuma vulnerabilidade XSS detectada\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(verbose_log)
         return "✅ Nenhuma vulnerabilidade XSS detectada"
     else:
         header = f"🚨 <b>{found} vulnerabilidade(s) XSS encontrada(s)!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        if verbose:
+            return header + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n📋 <b>Log Detalhado:</b>\n" + "\n".join(verbose_log)
         return header + "\n".join(results)
 
 def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
@@ -1872,17 +2050,17 @@ Olá {escape_html(first_name)}! Bem-vindo ao bot de segurança!
 
 <b>👑 Créditos:</b> @OnlyExaltarei, @Thebesty9, @PETER_DNS
 
-Este bot possui <b>14 ferramentas avançadas</b> para testes de segurança.
+Este bot possui <b>16 ferramentas avançadas</b> para testes de segurança.
 Digite <b>/help</b> para ver a lista completa de comandos.
 
-<i>Mth Ddos Security v4.2</i>"""
+<i>Mth Ddos Security v4.3</i>"""
 
     send_message_safe(chat_id, msg)
 
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
 
-    msg = """🔧 <b>Mth Ddos Security v4.2 — Comandos</b>
+    msg = """🔧 <b>Mth Ddos Security v4.3 — Comandos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📡 Info & Recon:</b>
@@ -1893,8 +2071,8 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /emails &lt;url&gt; — Extrai todos os emails encontrados na página do site
 
 <b>⚡ Scanners de Vulnerabilidade:</b>
-/sqli &lt;url&gt; — Testa SQL Injection com 30 payloads diferentes + baseline comparison (só reporta se o payload realmente mudar a resposta)
-/xss &lt;url&gt; — Testa XSS Refletido com 18 payloads + verificação de escape (só alerta se o payload não foi sanitizado)
+/sqli &lt;url&gt; [verbose] — Testa SQL Injection com 30 payloads diferentes + baseline comparison
+/xss &lt;url&gt; [verbose] — Testa XSS Refletido com 18 payloads + verificação de escape
 /admin &lt;url&gt; — Encontra painéis de administração (testa ~25 paths comuns como /wp-admin, /phpmyadmin, /admin)
 /panel &lt;url&gt; — Painel Admin Finder COMPLETO (testa 100+ paths incluindo WordPress, Joomla, Drupal, cPanel, Django, Flask, ASP.NET e custom)
   ⚠️ /admin = versão rápida | /panel = versão completa com mais paths
@@ -1903,6 +2081,10 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /sub &lt;domain&gt; — Descobre subdomínios (38 subdomínios conhecidos + verificação DNS para confirmar)
 /wp &lt;url&gt; — WordPress Scanner: verifica se é WP, versão, plugins, themes, WP REST API e xmlrpc
 /ftpssh &lt;ip&gt; — Testa conexão FTP e SSH, extrai banner de versão do serviço
+
+<b>🆕 Novos Recursos (Todos):</b>
+/feedback &lt;mensagem&gt; — Envie sugestões, elogios ou críticas para os donos
+/report &lt;mensagem&gt; — Reporte bugs e erros encontrados nas ferramentas
 
 <b>📋 Sistema:</b>
 /ping — Mostra latência do bot (quanto tempo leva pra responder) + latência da API Telegram (separados)
@@ -1925,6 +2107,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /unban &lt;id&gt; — Desbanir usuário
 /export — Exportar lista completa de usuários para TXT
 /listdn — Mostrar todos os comandos exclusivos dos donos
+/stop [id] — Parar scan ativo (ou listar scans em execução)
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <b>⏱️ Sistema (Todos):</b>
@@ -1934,7 +2117,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /about — Informações sobre o bot
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Mth Ddos Security v4.2</i>
+<i>Mth Ddos Security v4.3</i>
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
 
     send_message_safe(chat_id, msg)
@@ -1951,7 +2134,7 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 
 <b>Versão:</b> 4.2
 <b>Plataforma:</b> Telegram Bot (Python)
-<b>Ferramentas:</b> 14 ferramentas avançadas com anti-false-positive
+<b>Ferramentas:</b> 16 ferramentas avançadas com anti-false-positive
 <b>Banco:</b> SQLite com índices e otimizações
 <b>Segurança:</b> Sistema de donos com controle de acesso
 
@@ -1990,28 +2173,71 @@ def handle_info(chat_id, user_id, username, first_name, last_name, args):
     send_message_safe(chat_id, result)
 
 def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
+    """SQLi Scanner with verbose mode, DB cache, and inline buttons"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /sqli &lt;url&gt;\nExemplo: /sqli example.com/?id=1")
+        send_message_safe(chat_id, "❌ Use: /sqli &lt;url&gt; [verbose]\nExemplo: /sqli example.com/?id=1\nExemplo: /sqli example.com/?id=1 verbose")
         return
     target = args[0]
+    verbose = len(args) > 1 and args[1].lower() == 'verbose'
     log_command(user_id, username, "sqli", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scanner SQLi iniciado</b> em {escape_html(clean_target)}...")
-    result = tool_sqli(target)
-    send_message_safe(chat_id, result)
+
+    # V4.3: Check DB cache first (unless verbose)
+    if not verbose:
+        cached = db_cache_get("sqli", target)
+        if cached:
+            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"}]]
+            send_message_with_buttons(chat_id, cached, buttons)
+            return
+
+    if verbose:
+        send_message_safe(chat_id, f"🔍 <b>Scanner SQLi (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
+    else:
+        send_message_safe(chat_id, f"🔍 <b>Scanner SQLi iniciado</b> em {escape_html(clean_target)}...")
+
+    result = tool_sqli(target, verbose=verbose)
+
+    # V4.3: Store in DB cache
+    db_cache_set("sqli", target, result)
+
+    # V4.3: Add inline button for rescan
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"}]]
+    send_message_with_buttons(chat_id, result, buttons)
+
 
 def handle_xss(chat_id, user_id, username, first_name, last_name, args):
+    """XSS Scanner with verbose mode, DB cache, and inline buttons"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /xss &lt;url&gt;\nExemplo: /xss example.com/?q=")
+        send_message_safe(chat_id, "❌ Use: /xss &lt;url&gt; [verbose]\nExemplo: /xss example.com/?q=\nExemplo: /xss example.com/?q= verbose")
         return
     target = args[0]
+    verbose = len(args) > 1 and args[1].lower() == 'verbose'
     log_command(user_id, username, "xss", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scanner XSS iniciado</b> em {escape_html(clean_target)}...")
-    result = tool_xss_scanner(target)
-    send_message_safe(chat_id, result)
+
+    # V4.3: Check DB cache first (unless verbose)
+    if not verbose:
+        cached = db_cache_get("xss", target)
+        if cached:
+            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"}]]
+            send_message_with_buttons(chat_id, cached, buttons)
+            return
+
+    if verbose:
+        send_message_safe(chat_id, f"🔍 <b>Scanner XSS (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
+    else:
+        send_message_safe(chat_id, f"🔍 <b>Scanner XSS iniciado</b> em {escape_html(clean_target)}...")
+
+    result = tool_xss_scanner(target, verbose=verbose)
+
+    # V4.3: Store in DB cache
+    db_cache_set("xss", target, result)
+
+    # V4.3: Add inline button for rescan
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"}]]
+    send_message_with_buttons(chat_id, result, buttons)
 
 def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
@@ -2196,7 +2422,7 @@ def handle_ping(chat_id, user_id, username, first_name, last_name, args):
         speed_icon = "🔴"
         speed_label = "Muito lento"
 
-    msg = f"""🏓 <b>Ping — Mth Ddos Security v4.2</b>
+    msg = f"""🏓 <b>Ping — Mth Ddos Security v4.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📡 <b>Latência do Bot:</b> {bot_latency:.1f}ms
@@ -2357,7 +2583,7 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
     except:
         db_size_str = "N/D"
 
-    msg = f"""📊 <b>Painel do Bot — Mth Ddos Security v4.2</b>
+    msg = f"""📊 <b>Painel do Bot — Mth Ddos Security v4.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Estatísticas:</b>
@@ -2655,7 +2881,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
         except:
             top_users = []
 
-        msg = f"""📊 <b>Mth Ddos Security v4.2 — Estatísticas</b>
+        msg = f"""📊 <b>Mth Ddos Security v4.3 — Estatísticas</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Gerais:</b>
@@ -2816,7 +3042,7 @@ def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
 
     log_owner_command(user_id, username, "listdn")
 
-    msg = """👑 <b>Comandos de Dono — Mth Ddos v4.2</b>
+    msg = """👑 <b>Comandos de Dono — Mth Ddos v4.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📊 <b>Administrativos:</b>
@@ -2856,7 +3082,7 @@ def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
     mins = (uptime_secs % 3600) // 60
     secs = uptime_secs % 60
 
-    msg = f"""⏱️ <b>Mth Ddos Security v4.2 — Uptime</b>
+    msg = f"""⏱️ <b>Mth Ddos Security v4.3 — Uptime</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🟢 <b>Online há:</b>
@@ -2889,7 +3115,7 @@ def handle_status(chat_id, user_id, username, first_name, last_name, args):
         db_size = 0
     active_threads = threading.active_count()
 
-    msg = f"""📊 <b>Mth Ddos Security v4.2 — Status</b>
+    msg = f"""📊 <b>Mth Ddos Security v4.3 — Status</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 🟢 <b>Online</b> | Uptime: {hours}h {mins}m {secs}s
 👥 Usuários: {stats['total']} (Donos: {stats['owners']})
@@ -2899,6 +3125,219 @@ def handle_status(chat_id, user_id, username, first_name, last_name, args):
 🗃️ Banco: {db_size:.1f} KB
 ━━━━━━━━━━━━━━━━━━━━━━"""
     send_message_safe(chat_id, msg)
+
+
+def handle_feedback(chat_id, user_id, username, first_name, last_name, args):
+    """Send feedback to the channel. Available to everyone."""
+    log_user(user_id, username, first_name, last_name)
+
+    if not args:
+        send_message_safe(chat_id, "❌ Use: /feedback &lt;sua mensagem&gt;\nExemplo: /feedback Bot está muito rápido!")
+        return
+
+    message_text = ' '.join(args)
+    log_command(user_id, username, "feedback", "")
+
+    # Count existing feedbacks from this user for ID
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM feedback WHERE user_id = ?", (user_id,))
+            user_feedback_count = c.fetchone()[0] + 1
+    except:
+        user_feedback_count = 1
+
+    # Send to channel
+    channel_msg_id = send_feedback_to_channel(user_id, username, first_name, message_text, "feedback")
+
+    # Save to DB
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO feedback (user_id, username, first_name, message, timestamp, channel_msg_id) VALUES (?, ?, ?, ?, ?, ?)",
+                      (user_id, username, first_name, message_text, now, channel_msg_id))
+            conn.commit()
+    except Exception as e:
+        print(f"[DB Error] handle_feedback: {e}")
+
+    msg = f"""━━━━━━━━━━━━━━━━━━━━━━
+🔰 ✅ FEEDBACK ENVIADO
+━━━━━━━━━━━━━━━━━━━━━━
+│ Obrigado, {escape_html(first_name)}!
+│ Sua mensagem foi registrada com sucesso.
+│ ID do feedback: #{user_feedback_count}
+━━━━━━━━━━━━━━━━━━━━━━"""
+    send_message_safe(chat_id, msg)
+
+
+def handle_report(chat_id, user_id, username, first_name, last_name, args):
+    """Report a bug to the channel. Available to everyone."""
+    log_user(user_id, username, first_name, last_name)
+
+    if not args:
+        send_message_safe(chat_id, "❌ Use: /report &lt;descrição do bug&gt;\nExemplo: /report /sqli não funciona com https")
+        return
+
+    message_text = ' '.join(args)
+    log_command(user_id, username, "report", "")
+
+    # Count existing reports from this user for ID
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM bug_reports WHERE user_id = ?", (user_id,))
+            user_report_count = c.fetchone()[0] + 1
+    except:
+        user_report_count = 1
+
+    # Send to channel
+    channel_msg_id = send_feedback_to_channel(user_id, username, first_name, message_text, "report")
+
+    # Save to DB
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO bug_reports (user_id, username, first_name, message, timestamp, channel_msg_id) VALUES (?, ?, ?, ?, ?, ?)",
+                      (user_id, username, first_name, message_text, now, channel_msg_id))
+            conn.commit()
+    except Exception as e:
+        print(f"[DB Error] handle_report: {e}")
+
+    msg = f"""━━━━━━━━━━━━━━━━━━━━━━
+🐛 ✅ BUG REPORTADO
+━━━━━━━━━━━━━━━━━━━━━━
+│ Obrigado, {escape_html(first_name)}!
+│ Seu relatório de bug foi registrado.
+│ ID do relatório: #{user_report_count}
+│ Os donos serão notificados.
+━━━━━━━━━━━━━━━━━━━━━━"""
+    send_message_safe(chat_id, msg)
+
+
+def handle_stop(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Stop a running scan"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+        return
+
+    log_owner_command(user_id, username, "stop")
+
+    if args:
+        # Stop a specific user's scan
+        target_user_id = int(args[0]) if args[0].isdigit() else None
+        if target_user_id and target_user_id in STOP_EVENTS:
+            STOP_EVENTS[target_user_id].set()
+            # Also stop in ACTIVE_SCANS
+            for scan_id, event in list(ACTIVE_SCANS.items()):
+                if str(target_user_id) in scan_id:
+                    event.set()
+            send_message_safe(chat_id, f"✅ <b>Scan do usuário {target_user_id} parado!</b>")
+        else:
+            send_message_safe(chat_id, f"❌ Nenhum scan ativo encontrado para o ID {target_user_id}.")
+    else:
+        # Show active scans
+        if not STOP_EVENTS:
+            send_message_safe(chat_id, "📋 <b>Nenhum scan ativo no momento.</b>")
+            return
+
+        msg = "📋 <b>Scans Ativos</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        for uid, event in STOP_EVENTS.items():
+            msg += f"  👤 ID: {uid} — {'Rodando' if not event.is_set() else 'Parando...'}\n"
+        msg += "━━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "Use /stop &lt;user_id&gt; para parar um scan específico."
+        send_message_safe(chat_id, msg)
+
+
+def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
+    """Handle inline button 'Rescan' callback"""
+    log_user(user_id, username, first_name, last_name)
+
+    if not args:
+        send_message_safe(chat_id, "❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\nExemplo: /rescan sqli example.com")
+        return
+
+    if len(args) < 2:
+        send_message_safe(chat_id, "❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\nExemplo: /rescan sqli example.com")
+        return
+
+    scan_cmd = '/' + args[0]
+    target = args[1]
+    scan_id = f"rescan_{user_id}_{time.time()}"
+
+    # Set stop event
+    STOP_EVENTS[user_id] = threading.Event()
+
+    if scan_cmd == '/sqli':
+        send_message_safe(chat_id, f"🔍 <b>Rescan SQLi</b> em {escape_html(target)}...")
+        result = tool_sqli(target)
+        db_cache_set("sqli", target, result)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/xss':
+        send_message_safe(chat_id, f"🔍 <b>Rescan XSS</b> em {escape_html(target)}...")
+        result = tool_xss_scanner(target)
+        db_cache_set("xss", target, result)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/admin':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Admin</b> em {escape_html(target)}...")
+        result = tool_admin_finder(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/panel':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Painel Admin</b> em {escape_html(target)}...")
+        progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
+        result = tool_admin_finder(target, chat_id, progress_msg_id)
+        finish_progress(progress_msg_id, chat_id, result)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/ports':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Portas</b> em {escape_html(target)}...")
+        result = tool_port_scanner(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/dirs':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Diretórios</b> em {escape_html(target)}...")
+        result = tool_directory_scanner(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/sub':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Subdomínios</b> em {escape_html(target)}...")
+        result = tool_subdomain_scanner(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/wp':
+        send_message_safe(chat_id, f"🔍 <b>Rescan WordPress</b> em {escape_html(target)}...")
+        result = tool_wordpress_scanner(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/dns':
+        send_message_safe(chat_id, f"🔍 <b>Rescan DNS</b> de {escape_html(target)}...")
+        result = tool_dns_tools(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/cms':
+        send_message_safe(chat_id, f"🔍 <b>Rescan CMS</b> em {escape_html(target)}...")
+        result = tool_cms_detector(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/reverse':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Reverse IP</b> de {escape_html(target)}...")
+        result = tool_reverse_ip(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/ftpssh':
+        send_message_safe(chat_id, f"🔍 <b>Rescan FTP/SSH</b> em {escape_html(target)}...")
+        result = tool_ftp_ssh(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/info':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Info</b> de {escape_html(target)}...")
+        result = tool_website_info(target)
+        send_message_safe(chat_id, result)
+    elif scan_cmd == '/emails':
+        send_message_safe(chat_id, f"🔍 <b>Rescan Emails</b> de {escape_html(target)}...")
+        result = tool_email_scraper(target)
+        send_message_safe(chat_id, result)
+    else:
+        send_message_safe(chat_id, f"❌ Comando /{args[0]} não suportado para rescan.")
+
+    # Cleanup stop event
+    if user_id in STOP_EVENTS:
+        del STOP_EVENTS[user_id]
+
 
 def signal_handler(signum, frame):
     global SHUTDOWN_FLAG
@@ -2946,6 +3385,10 @@ CMD_HANDLERS = {
     '/export':  lambda c, u, un, fn, ln, a: handle_export(c, u, un, fn, ln, a),
     '/uptime':  lambda c, u, un, fn, ln, a: handle_uptime(c, u, un, fn, ln, a),
     '/listdn':  lambda c, u, un, fn, ln, a: handle_listdn(c, u, un, fn, ln, a),
+    '/feedback':lambda c, u, un, fn, ln, a: handle_feedback(c, u, un, fn, ln, a),
+    '/report':  lambda c, u, un, fn, ln, a: handle_report(c, u, un, fn, ln, a),
+    '/stop':    lambda c, u, un, fn, ln, a: handle_stop(c, u, un, fn, ln, a),
+    '/rescan':  lambda c, u, un, fn, ln, a: handle_rescan(c, u, un, fn, ln, a),
 }
 
 def process_update(update):
@@ -3029,7 +3472,7 @@ def process_update(update):
         handler_done = threading.Event()
         handler_fn = CMD_HANDLERS[cmd]
 
-        # FIX v4.2: Pass reply_media via closure to avoid race condition
+        # FIX v4.3: Pass reply_media via closure to avoid race condition
         local_reply_media = reply_media  # Capture in closure
 
         def run_handler():
@@ -3062,7 +3505,7 @@ def long_polling():
     consecutive_errors = 0
     max_consecutive_errors = 30  # Stop after 30 consecutive errors (~5 min)
 
-    print("🚀 Mth Ddos Security v4.2 started (long polling mode)")
+    print("🚀 Mth Ddos Security v4.3 started (long polling mode)")
     print(f"👑 Owners: {OWNERS}")
     print(f"📱 DB: {DB_PATH}")
 
@@ -3124,7 +3567,7 @@ def long_polling():
             print(f"[Polling] Too many consecutive errors ({consecutive_errors}). Stopping.")
             break
 
-    print("🛑 Mth Ddos Security v4.2 stopped.")
+    print("🛑 Mth Ddos Security v4.3 stopped.")
 
 
 def set_webhook(url):
@@ -3201,7 +3644,7 @@ if __name__ == "__main__":
             # Start bot with auto-restart
             run_with_restart()
         elif sys.argv[1] == "test":
-            print("Mth Ddos Security v4.2")
+            print("Mth Ddos Security v4.3")
             print(f"Owners: {OWNERS}")
             print(f"DB: {DB_PATH}")
             stats = get_user_stats()
