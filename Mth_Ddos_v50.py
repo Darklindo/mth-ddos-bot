@@ -5885,8 +5885,9 @@ def _translate_broadcast_text(text: str, target_lang: str, source_lang: str = 'p
     return text
 
 
-def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, owner_user_id):
+def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, owner_user_id, init_text=None):
     """Execute a broadcast loop with per-user language translation.
+    init_text: if provided, send this as the initial message and edit it with progress.
     Returns (sent, failed_trans, blocked)."""
     sent = 0
     failed = 0
@@ -5894,18 +5895,31 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
     total = len(users)
     update_interval = max(10, total // 10)  # edit every ~10% or at least every 10
     # Send initial progress message and capture its ID for editing
-    progress_text = f"📢 <b>Broadcast em andamento...</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📊 Progresso: 0/{total} (0%)\n✅ Enviados: 0 | ⚠️ Bloqueados: 0 | ❌ Falhas: 0"
+    progress_text = init_text or f"📢 <b>Broadcast em andamento...</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📊 Progresso: 0/{total} (0%)\n✅ Enviados: 0 | ⚠️ Bloqueados: 0 | ❌ Falhas: 0"
     progress_msg_id = None
-    try:
-        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
-            "chat_id": owner_chat_id,
-            "text": progress_text,
-            "parse_mode": "HTML"
-        }, timeout=10)
-        if resp and resp.status_code == 200:
-            progress_msg_id = resp.json().get('result', {}).get('message_id')
-    except:
-        pass
+    if init_text:
+        try:
+            resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+                "chat_id": owner_chat_id,
+                "text": init_text,
+                "parse_mode": "HTML"
+            }, timeout=10)
+            if resp and resp.status_code == 200:
+                progress_msg_id = resp.json().get('result', {}).get('message_id')
+        except:
+            pass
+    else:
+        # Fallback: send a generic progress message
+        try:
+            resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+                "chat_id": owner_chat_id,
+                "text": progress_text,
+                "parse_mode": "HTML"
+            }, timeout=10)
+            if resp and resp.status_code == 200:
+                progress_msg_id = resp.json().get('result', {}).get('message_id')
+        except:
+            pass
 
     def _edit_progress(sent, failed, blocked, current, total):
         """Edit the single progress message with updated stats."""
@@ -6012,12 +6026,12 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
         send_msg(user_id, chat_id, "❌ Use: /msg &lt;sua mensagem&gt;\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;")
         return
 
-    # Get all users from database (including owners so everyone gets notified)
+    # Get all users from database (excluding the sender themselves)
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute("SELECT id, username, first_name, language_code FROM users")
+            c.execute("SELECT id, username, first_name, language_code FROM users WHERE id != ?", (user_id,))
             users = [dict(r) for r in c.fetchall()]
     except Exception as e:
         print(f"[DB Error] handle_msg: {e}")
@@ -6043,19 +6057,19 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
             'video': 'vídeo',
         }.get(media_type, 'mídia')
 
-        send_msg(user_id, chat_id,
-            f"📢 <b>Broadcast de {type_label} iniciado!</b>\n👥 Total de usuários: {total}\n━━━━━━━━━━━━━━━━━━━━━━\n<i>O progresso será atualizado em uma única mensagem...</i>")
-        sent, failed, blocked = _do_broadcast(media_type, file_id, caption, users, chat_id, user_id)
+        # Send initial message that will be edited with progress (single message)
+        init_text = f"📢 <b>Broadcast de {type_label} iniciado!</b>\n👥 Total de usuários: {total}\n━━━━━━━━━━━━━━━━━━━━━━\n<i>O progresso será atualizado em uma única mensagem...</i>"
+        sent, failed, blocked = _do_broadcast(media_type, file_id, caption, users, chat_id, user_id, init_text)
     else:
         # TEXT BROADCAST
-        send_msg(user_id, chat_id,
-            f"📢 <b>Broadcast iniciado!</b>\n👥 Total de usuários: {total}\n📝 Mensagem: {escape_html(message_text[:100])}\n━━━━━━━━━━━━━━━━━━━━━━\n<i>O progresso será atualizado em uma única mensagem...</i>")
         broadcast = f"""📢 <b>Mensagem dos Donos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 {escape_html(message_text)}
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>— Mth Ddos Security Team</i>"""
-        sent, failed, blocked = _do_broadcast(None, None, broadcast, users, chat_id, user_id)
+        # Send initial message that will be edited with progress (single message)
+        init_text = f"📢 <b>Broadcast iniciado!</b>\n👥 Total de usuários: {total}\n📝 Mensagem: {escape_html(message_text[:100])}\n━━━━━━━━━━━━━━━━━━━━━━\n<i>O progresso será atualizado em uma única mensagem...</i>"
+        sent, failed, blocked = _do_broadcast(None, None, broadcast, users, chat_id, user_id, init_text)
     final_pct = ((sent + failed + blocked) / total * 100) if total else 0
     # Replace the progress message with final result
     send_msg(user_id, chat_id,
@@ -10093,7 +10107,7 @@ def scheduled_task_loop():
                         msg = target
                         try:
                             c2 = conn.cursor()
-                            c2.execute("SELECT id, language_code FROM users")
+                            c2.execute("SELECT id, language_code FROM users WHERE id != ?", (t['user_id'],))
                             users = [dict(r) for r in c2.fetchall()]
                             total = len(users)
                             sent = 0
