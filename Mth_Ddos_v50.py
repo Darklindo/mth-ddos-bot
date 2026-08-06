@@ -6556,8 +6556,9 @@ def handle_dashboard(chat_id, user_id, username, first_name, last_name, args):
             today_vulns = row[0] if row and row[0] else 0
             c.execute("SELECT target, COUNT(*) as cnt FROM scan_history WHERE created_at > ? GROUP BY target ORDER BY cnt DESC LIMIT 5", (today_start,))
             top_targets = [(r[0], r[1]) for r in c.fetchall()]
-    except:
-        pass
+    except Exception as e:
+        print(f"[Dashboard Error] scan_history query: {e}")
+        log_error("dashboard", f"scan_history query: {e}")
     # System resources
     try:
         import shutil
@@ -10956,7 +10957,7 @@ def backup_loop():
         if SHUTDOWN_FLAG:
             break
         try:
-            now = datetime.utcnow()
+            now = datetime.now(datetime.timezone.utc)
             if now.hour == 3 and now.day != last_backup_day:
                 last_backup_day = now.day
                 backup_name = f"db_backup_{now.strftime('%Y%m%d_%H%M%S')}.db"
