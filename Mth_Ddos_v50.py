@@ -4637,7 +4637,7 @@ def handle_report(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
 
     if not args:
-        send_message_safe(chat_id, "❌ Use: /report &lt;descrição do bug&gt;\nExemplo: /report /sqli não funciona com https")
+        send_message_safe(chat_id, "❌ Use: /bugreport &lt;descrição do bug&gt;\nExemplo: /bugreport /sqli não funciona com https")
         return
 
     message_text = ' '.join(args)
