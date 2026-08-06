@@ -319,7 +319,7 @@ def get_user_lang(user_id: int) -> str:
 
 def set_user_lang(user_id: int, lang: str):
     """Persist a user's language preference in memory."""
-    if lang in ('pt', 'en', 'es'):
+    if lang in ('pt', 'en', 'es', 'vi', 'id'):
         USER_LANG[user_id] = lang
 
 # Language map: Telegram language_code -> our code
@@ -327,6 +327,7 @@ _LANG_MAP = {
     'pt': 'pt', 'pt-br': 'pt', 'pt-pt': 'pt',
     'en': 'en',
     'es': 'es', 'es-419': 'es', 'es-ar': 'es', 'es-mx': 'es', 'es-es': 'es',
+    'vi': 'vi', 'id': 'id',
     'fr': 'en', 'de': 'en', 'it': 'en', 'ru': 'en',  # fallback to EN
     'ja': 'en', 'zh': 'en', 'ko': 'en',  # fallback to EN
 }
@@ -346,141 +347,209 @@ _TRANSLATIONS: dict = {
     # Common errors
     'comando desconhecido.': {
         'en': 'unknown command.',
+        'vi': 'lệnh không xác định.',
+        'id': 'perintah tidak dikenal.',
         'es': 'comando desconocido.',
     },
     'use /help para ver os comandos disponíveis.': {
         'en': 'use /help to see available commands.',
+        'vi': 'sử dụng /help để xem các lệnh có sẵn.',
+        'id': 'gunakan /help untuk melihat perintah yang tersedia.',
         'es': 'use /help para ver los comandos disponibles.',
     },
     'não foi possível acessar o site': {
         'en': 'could not access the site',
+        'vi': 'không thể truy cập trang web',
+        'id': 'tidak dapat mengakses situs web',
         'es': 'no se pudo acceder al sitio',
     },
     '❌ id inválido. use o número do id do usuário.': {
         'en': '❌ Invalid ID. Use the numeric user ID.',
+        'vi': '❌ ID không hợp lệ. Sử dụng số ID người dùng.',
+        'id': '❌ ID tidak valid. Gunakan nomor ID pengguna.',
         'es': '❌ ID inválido. Use el número de ID del usuario.',
     },
     '❌ parâmetros inválidos. use números inteiros.': {
         'en': '❌ Invalid parameters. Use integers.',
+        'vi': '❌ Tham số không hợp lệ. Sử dụng số nguyên.',
+        'id': '❌ Parameter tidak valid. Gunakan bilangan bulat.',
         'es': '❌ Parámetros inválidos. Use números enteros.',
     },
     '❌ intervalo deve ser um número válido em minutos.': {
         'en': '❌ Interval must be a valid number of minutes.',
+        'vi': '❌ Khoảng thời gian phải là số phút hợp lệ.',
+        'id': '❌ Interval harus berupa menit yang valid.',
         'es': '❌ El intervalo debe ser un número válido de minutos.',
     },
     '❌ minutos devem ser um número válido.': {
         'en': '❌ Minutes must be a valid number.',
+        'vi': '❌ Phút phải là một số hợp lệ.',
+        'id': '❌ Menit harus berupa angka yang valid.',
         'es': '❌ Los minutos deben ser un número válido.',
     },
     '❌ tipo de mídia não suportado.': {
         'en': '❌ Unsupported media type.',
+        'vi': '❌ Loại phương tiện không được hỗ trợ.',
+        'id': '❌ Jenis media tidak didukung.',
         'es': '❌ Tipo de medio no soportado.',
     },
     '❌ traceroute não disponível neste servidor.': {
         'en': '❌ Traceroute not available on this server.',
+        'vi': '❌ Traceroute không có sẵn trên máy chủ này.',
+        'id': '❌ Traceroute tidak tersedia di server ini.',
         'es': '❌ Traceroute no disponible en este servidor.',
     },
     '❌ não foi possível obter informações do site.': {
         'en': '❌ Could not get site information.',
+        'vi': '❌ Không thể lấy thông tin trang web.',
+        'id': '❌ Tidak dapat mendapatkan informasi situs.',
         'es': '❌ No se pudo obtener información del sitio.',
     },
     '❌ servidor ocupado. tente novamente em alguns segundos.': {
         'en': '❌ Server busy. Try again in a few seconds.',
+        'vi': '❌ Máy chủ bận. Vui lòng thử lại sau vài giây.',
+        'id': '❌ Server sibuk. Coba lagi dalam beberapa detik.',
         'es': '❌ Servidor ocupado. Inténtelo de nuevo en unos segundos.',
     },
     '❌ acesso negado! este comando é restrito aos donos do bot.': {
         'en': '❌ Access denied! This command is restricted to bot owners.',
+        'vi': '❌ Truy cập bị từ chối! Lệnh này chỉ dành cho chủ bot.',
+        'id': '❌ Akses ditolak! Perintah ini khusus untuk pemilik bot.',
         'es': '❌ Acceso denegado! Este comando está restringido a los dueños del bot.',
     },
     '❌ erro ao buscar estatísticas.': {
         'en': '❌ Error fetching stats.',
+        'vi': '❌ Lỗi khi lấy thống kê.',
+        'id': '❌ Error saat mengambil statistik.',
         'es': '❌ Error al obtener estadísticas.',
     },
     '❌ erro ao buscar lista de usuários.': {
         'en': '❌ Error fetching user list.',
+        'vi': '❌ Lỗi khi lấy danh sách người dùng.',
+        'id': '❌ Error saat mengambil daftar pengguna.',
         'es': '❌ Error al obtener la lista de usuarios.',
     },
     '❌ erro ao exportar lista.': {
         'en': '❌ Error exporting list.',
+        'vi': '❌ Lỗi khi xuất danh sách.',
+        'id': '❌ Error saat mengekspor daftar.',
         'es': '❌ Error al exportar la lista.',
     },
     '❌ erro ao desbanir usuário.': {
         'en': '❌ Error unbanning user.',
+        'vi': '❌ Lỗi khi bỏ cấm người dùng.',
+        'id': '❌ Error saat membatalkan ban pengguna.',
         'es': '❌ Error al desbanear usuario.',
     },
     '❌ falha ao enviar o arquivo.': {
         'en': '❌ Failed to send file.',
+        'vi': '❌ Không gửi được tệp.',
+        'id': '❌ Gagal mengirim file.',
         'es': '❌ Fallo al enviar el archivo.',
     },
     '❌ falha ao enviar o relatório.': {
         'en': '❌ Failed to send report.',
+        'vi': '❌ Không gửi được báo cáo.',
+        'id': '❌ Gagal mengirim laporan.',
         'es': '❌ Fallo al enviar el informe.',
     },
     '❌ falha ao enviar relatório.': {
         'en': '❌ Failed to send report.',
+        'vi': '❌ Không gửi được báo cáo.',
+        'id': '❌ Gagal mengirim laporan.',
         'es': '❌ Fallo al enviar el informe.',
     },
     '❌ erro ao banir usuário.': {
         'en': '❌ Error banning user.',
+        'vi': '❌ Lỗi khi cấm người dùng.',
+        'id': '❌ Error saat membanned pengguna.',
         'es': '❌ Error al banear usuario.',
     },
     '❌ falha ao enviar o dump do banco.': {
         'en': '❌ Failed to send database dump.',
+        'vi': '❌ Không gửi được dump cơ sở dữ liệu.',
+        'id': '❌ Gagal mengirim dump database.',
         'es': '❌ Fallo al enviar el dump de la base de datos.',
     },
     # Progress / status messages
     'nenhum scan encontrado para este target.': {
         'en': 'No scan found for this target.',
+        'vi': 'Không tìm thấy scan nào cho mục tiêu này.',
+        'id': 'Tidak ada scan ditemukan untuk target ini.',
         'es': 'No se encontró ningún scan para este objetivo.',
     },
     'nenhum scan registrado ainda.': {
         'en': 'No scans registered yet.',
+        'vi': 'Chưa có scan nào được ghi lại.',
+        'id': 'Belum ada scan yang tercatat.',
         'es': 'Aún no hay scans registrados.',
     },
     'nenhum usuário encontrado.': {
         'en': 'No users found.',
+        'vi': 'Không tìm thấy người dùng nào.',
+        'id': 'Tidak ada pengguna ditemukan.',
         'es': 'No se encontraron usuarios.',
     },
     'nenhum usuário regular encontrado para enviar.': {
         'en': 'No regular users found to send to.',
+        'vi': 'Không tìm thấy người dùng thường để gửi.',
+        'id': 'Tidak ada pengguna reguler ditemukan untuk dikirim.',
         'es': 'No se encontraron usuarios regulares para enviar.',
     },
     'nenhum scan em andamento.': {
         'en': 'No scans in progress.',
+        'vi': 'Không có scan nào đang chạy.',
+        'id': 'Tidak ada scan yang sedang berjalan.',
         'es': 'No hay scans en progreso.',
     },
     'exportando lista de usuários...': {
         'en': 'Exporting user list...',
+        'vi': 'Đang xuất danh sách người dùng...',
+        'id': 'Mengekspor daftar pengguna...',
         'es': 'Exportando lista de usuarios...',
     },
     'gerando dump do banco de dados...': {
         'en': 'Generating database dump...',
+        'vi': 'Đang tạo dump cơ sở dữ liệu...',
+        'id': 'Membuat dump database...',
         'es': 'Generando dump de la base de datos...',
     },
     'traceroute expirou (timeout 30s).': {
         'en': 'Traceroute timed out (30s timeout).',
+        'vi': 'Traceroute hết thời gian (timeout 30s).',
+        'id': 'Traceroute habis waktu (timeout 30s).',
         'es': 'Traceroute agotó el tiempo de espera (30s).',
     },
     'nenhum scan ativo no momento.': {
         'en': 'No active scans at the moment.',
+        'vi': 'Không có scan hoạt động lúc này.',
+        'id': 'Tidak ada scan aktif saat ini.',
         'es': 'No hay scans activos en este momento.',
     },
     # Bot states
     'bot em manutenção. tente novamente em breve.': {
         'en': 'Bot is under maintenance. Please try again later.',
+        'vi': 'Bot đang bảo trì. Vui lòng thử lại sau.',
+        'id': 'Bot sedang dalam pemeliharaan. Silakan coba lagi nanti.',
         'es': 'Bot en mantenimiento. Inténtelo de nuevo más tarde.',
     },
     'você foi banido deste bot.': {
         'en': 'You have been banned from this bot.',
+        'vi': 'Bạn đã bị cấm khỏi bot này.',
+        'id': 'Anda telah dibanned dari bot ini.',
         'es': 'Has sido baneado de este bot.',
     },
     'rate limit excedido. tente novamente em 1 minuto.': {
         'en': 'Rate limit exceeded. Try again in 1 minute.',
+        'vi': 'Đã vượt quá giới hạn tốc độ. Thử lại sau 1 phút.',
+        'id': 'Batas kecepatan terlampaui. Coba lagi dalam 1 menit.',
         'es': 'Límite de velocidad excedido. Inténtelo de nuevo en 1 minuto.',
     },
     # Quick scan message
     'quick scan finalizado': {
         'en': 'Quick Scan completed!',
+        'vi': 'Quick Scan hoàn tất!',
+        'id': 'Quick Scan selesai!',
         'es': '¡Quick Scan completado!',
     },
     '❌ Falha ao enviar o arquivo.': {
@@ -785,14 +854,20 @@ _TRANSLATIONS: dict = {
     },
     'não suportado para rescan.': {
         'en': 'not supported for rescan.',
+        'vi': 'không được hỗ trợ để scan lại.',
+        'id': 'tidak didukung untuk rescan.',
         'es': 'no soportado para rescan.',
     },
     'não suportado em batch.': {
         'en': 'not supported in batch mode.',
+        'vi': 'không được hỗ trợ trong batch.',
+        'id': 'tidak didukung dalam batch.',
         'es': 'no soportado en modo batch.',
     },
     'não suportado em modo stealth.': {
         'en': 'not supported in stealth mode.',
+        'vi': 'không được hỗ trợ trong chế độ stealth.',
+        'id': 'tidak didukung dalam mode stealth.',
         'es': 'no soportado en modo stealth.',
     },
     'não suportado para PDF.': {
@@ -801,6 +876,8 @@ _TRANSLATIONS: dict = {
     },
     'não suportado em scans agendados.': {
         'en': 'not supported in scheduled scans.',
+        'vi': 'không được hỗ trợ trong scan lên lịch.',
+        'id': 'tidak didukung dalam scan terjadwal.',
         'es': 'no soportado en scans programados.',
     },
     'Comandos aceitos: ': {
@@ -8763,26 +8840,28 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
 #  i18n: /lang command
 # ═══════════════════════════════════════════════════════════════
 def handle_lang(chat_id, user_id, username, first_name, last_name, args):
-    """Change bot language: /lang pt | /lang en | /lang es"""
+    """Change bot language: /lang pt | /lang en | /lang es | /lang vi | /lang id"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         lang = get_user_lang(user_id)
-        lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español'}[lang]
+        lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia'}[lang]
         msg = (
             f"🌐 <b>Idioma atual:</b> {lang_name}\n\n"
             f"Uso: /lang &lt;idioma&gt;\n"
             f"  /lang pt — Português\n"
             f"  /lang en — English\n"
-            f"  /lang es — Español"
+            f"  /lang es — Español\n"
+            f"  /lang vi — Tiếng Việt\n"
+            f"  /lang id — Bahasa Indonesia"
         )
     else:
         lang_input = args[0].lower()
-        if lang_input not in ('pt', 'en', 'es'):
-            msg = "❌ Idiomas disponíveis: pt, en, es\nUso: /lang &lt;idioma&gt;"
+        if lang_input not in ('pt', 'en', 'es', 'vi', 'id'):
+            msg = "❌ Idiomas disponíveis: pt, en, es, vi, id\nUso: /lang &lt;idioma&gt;"
         else:
             set_user_lang(user_id, lang_input)
-            lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español'}[lang_input]
-            msg = f"✅ <b>Idioma alterado para {lang_name}!</b>\n<i>Language changed to {lang_name}!</i>\n<i>Idioma cambiado a {lang_name}!</i>"
+            lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia'}[lang_input]
+            msg = f"✅ <b>Idioma alterado para {lang_name}!</b>\n<i>Language changed to {lang_name}!</i>"
     send_msg(user_id, chat_id, msg)
 
 def signal_handler(signum, frame):

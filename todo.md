@@ -105,7 +105,10 @@
 - [x] Cache inteligente (10 min TTL)
 - [x] /cancel para parar scan em andamento
 - [x] /batch url1.com url2.com /sqli — Scan em lote
-## MULTILINGUAL SUPPORT (PT/EN/ES)
+## MULTILINGUAL SUPPORT (PT/EN/ES/VI/ID)
+- [ ] Adicionar suporte ao idioma vietnamita (vi)
+- [ ] Adicionar suporte ao idioma indonésio (id)
+- [ ] Atualizar /lang command com vi e id
 - [ ] Language detection system (username locale / Telegram user lang)
 - [ ] Translation dictionary for all user-facing messages
 - [ ] Replace hardcoded PT messages with translated versions
