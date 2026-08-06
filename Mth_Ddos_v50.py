@@ -1596,34 +1596,33 @@ def send_message_with_buttons(chat_id, text, buttons, parse_mode="HTML"):
 
 
 
-def edit_menu(chat_id, text, buttons, parse_mode="HTML"):
+def edit_menu(chat_id, user_id, text, buttons, parse_mode="HTML"):
     """Edit an existing menu message instead of sending a new one.
-    Falls back to send_message_with_buttons if no message_id is tracked."""
-    # Find user_id for this chat_id
-    for uid, mid in MENU_MSG_IDS.items():
-        if mid:  # Only edit if we have a message_id
-            try:
-                resp = HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
-                    "chat_id": chat_id,
-                    "message_id": mid,
-                    "text": text,
-                    "parse_mode": parse_mode,
-                    "disable_web_page_preview": True,
-                    "reply_markup": {"inline_keyboard": buttons}
-                }, timeout=10)
-                if resp and resp.status_code == 200:
-                    return resp
-                # If edit fails (e.g., message was deleted), send new
-            except:
-                pass
-            break  # Only try one user's message_id per chat
+    Falls back to send_message_with_buttons if no message_id is tracked.
+    Now requires user_id to correctly match the user's menu message."""
+    # Try to edit the specific user's tracked message
+    mid = MENU_MSG_IDS.get(user_id, 0)
+    if mid:
+        try:
+            resp = HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+                "chat_id": chat_id,
+                "message_id": mid,
+                "text": text,
+                "parse_mode": parse_mode,
+                "disable_web_page_preview": True,
+                "reply_markup": {"inline_keyboard": buttons}
+            }, timeout=10)
+            if resp and resp.status_code == 200:
+                return resp
+        except:
+            pass
     # Fallback: send new message
     resp = send_message_with_buttons(chat_id, text, buttons, parse_mode)
     if resp and resp.status_code == 200:
         try:
             mid = resp.json().get('result', {}).get('message_id')
             if mid:
-                MENU_MSG_IDS[chat_id] = mid
+                MENU_MSG_IDS[user_id] = mid
         except:
             pass
     return resp
@@ -2765,11 +2764,11 @@ def tool_dns_tools(domain):
 
     # ── DNS QUERY HELPER ──
     # Try dig → nslookup → Cloudflare DoH (always works, no tools needed)
-    def dns_query_via_doh(record_type):
+    def dns_query_via_doh(name, record_type):
         """Query DNS via Cloudflare DNS-over-HTTPS (works everywhere, no tools needed)"""
         try:
             resp = _safe_get(
-                f"https://cloudflare-dns.com/dns-query?name={domain}&type={record_type}",
+                f"https://cloudflare-dns.com/dns-query?name={name}&type={record_type}",
                 headers={'Accept': 'application/dns-json'},
                 timeout=5
             )
@@ -2808,7 +2807,7 @@ def tool_dns_tools(domain):
 
     if not mx_found:
         # FIX v3.9: Fallback to Cloudflare DoH — works on ANY device, no tools needed
-        mx_data = dns_query_via_doh('MX')
+        mx_data = dns_query_via_doh(domain, 'MX')
         if mx_data:
             results += f"\n📧 <b>MX Records:</b>\n"
             for line in mx_data[:5]:
@@ -2844,7 +2843,7 @@ def tool_dns_tools(domain):
 
     if not ns_found:
         # FIX v3.9: Fallback to Cloudflare DoH
-        ns_data = dns_query_via_doh('NS')
+        ns_data = dns_query_via_doh(domain, 'NS')
         if ns_data:
             results += f"\n🖥️ <b>NS Records:</b>\n"
             for line in ns_data[:5]:
@@ -2880,7 +2879,7 @@ def tool_dns_tools(domain):
 
     if not txt_found:
         # FIX v3.9: Fallback to Cloudflare DoH
-        txt_data = dns_query_via_doh('TXT')
+        txt_data = dns_query_via_doh(domain, 'TXT')
         if txt_data:
             results += f"\n📝 <b>TXT Records:</b>\n"
             for line in txt_data[:5]:
@@ -2957,7 +2956,8 @@ def tool_dns_tools(domain):
 
     # V5.1: DMARC check
     try:
-        dmarc_data = dns_query_via_doh('TXT')
+        dmarc_domain = f"_dmarc.{domain}"
+        dmarc_data = dns_query_via_doh(dmarc_domain, 'TXT')
         dmarc_found = False
         for d in dmarc_data:
             if d.lower().startswith('v=dmarc1'):
@@ -2971,18 +2971,18 @@ def tool_dns_tools(domain):
 
     # V5.1: DKIM check (check _domainkey subdomain)
     try:
-        dkim_data = dns_query_via_doh('TXT')
         dkim_found = False
-        for d in dkim_data:
-            if 'dkim' in d.lower() or d.lower().startswith('v=dkim1'):
-                results += f"\n📧 <b>DKIM:</b> Detectado ✅\n"
+        dkim_selectors = []
+        # Check common DKIM selectors
+        for selector in ['default', 'google', 'selector1', 'selector2', 'mail']:
+            dkim_sel_data = dns_query_via_doh(f'{selector}._domainkey.{domain}', 'TXT')
+            if dkim_sel_data:
+                dkim_selectors.append(selector)
                 dkim_found = True
-                break
-        # Also check common DKIM selectors
-        for selector in ['default', 'google', 'selector1', 'selector2', 'mail', 'default._domainkey']:
-            dkim_sel_data = dns_query_via_doh(f'TXT')  # placeholder, real check would need full name
-        if not dkim_found:
-            results += f"\n📧 <b>DKIM:</b> Não detectado via TXT público\n"
+        if dkim_found:
+            results += f"\n📧 <b>DKIM:</b> Detectado ✅ (selectors: {', '.join(dkim_selectors)})\n"
+        else:
+            results += f"\n📧 <b>DKIM:</b> Não detectado (nenhum selector comum encontrado)\n"
     except:
         pass
 
@@ -3350,7 +3350,7 @@ def tool_ssl_audit(url):
             # V5.1: SAN (Subject Alternative Names)
             san = cert.get('subjectAltName', [])
             if san:
-                sans = [v for k, v in san if _ == 'DNS']
+                sans = [v for k, v in san if k == 'DNS']
                 if len(sans) > 1:
                     results += f"  → SANs: {len(sans)} domínios\n"
         tls2.close()
@@ -4651,18 +4651,7 @@ def show_main_menu(chat_id, user_id, username='', first_name=''):
     ])
     lang_labels = {'pt': '🌐 Idioma', 'en': '🌐 Language', 'es': '🌐 Idioma', 'vi': '🌐 Ngôn ngữ', 'id': '🌐 Bahasa'}
     buttons.append([{"text": lang_labels.get(lang, '🌐 Idioma'), "callback_data": "menu:lang"}])
-    resp = edit_menu(chat_id,
-        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"<b>{b['exclusive']}</b>\n\n"
-        f"{b['enter']}",
-        buttons)
-    if resp and resp.status_code == 200:
-        try:
-            mid = resp.json().get('result', {}).get('message_id')
-            if mid:
-                MENU_MSG_IDS[user_id] = mid
-        except:
-            pass
+    resp = edit_menu(chat_id, user_id, msg, buttons)
     if resp and resp.status_code == 200:
         try:
             mid = resp.json().get('result', {}).get('message_id')
@@ -4699,7 +4688,7 @@ def show_menu_vulns(chat_id, user_id):
          {"text": b['deep'], "callback_data": "target:deep:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    resp = edit_menu(chat_id,
+    resp = edit_menu(chat_id, user_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
     if resp and resp.status_code == 200:
@@ -4735,7 +4724,7 @@ def show_menu_recon(chat_id, user_id):
          {"text": b['emails'], "callback_data": "target:emails:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    resp = edit_menu(chat_id,
+    resp = edit_menu(chat_id, user_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
     if resp and resp.status_code == 200:
@@ -4768,7 +4757,7 @@ def show_menu_audit(chat_id, user_id):
          {"text": b['sitemap'], "callback_data": "target:sitemap:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    resp = edit_menu(chat_id,
+    resp = edit_menu(chat_id, user_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
     if resp and resp.status_code == 200:
@@ -4803,7 +4792,7 @@ def show_menu_files(chat_id, user_id):
          {"text": b['wp'], "callback_data": "target:wp:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    resp = edit_menu(chat_id,
+    resp = edit_menu(chat_id, user_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
     if resp and resp.status_code == 200:
@@ -4846,7 +4835,7 @@ def show_menu_vip(chat_id, user_id):
          {"text": b['robots'], "callback_data": "target:robots:vip"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    resp = edit_menu(chat_id,
+    resp = edit_menu(chat_id, user_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>{b['access']}:</b> {badge}\n\n"
         f"{b['enter']}",
@@ -4900,7 +4889,7 @@ def show_menu_owner(chat_id, user_id):
          {"text": b['shell'], "callback_data": "target:shell:owner"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    resp = edit_menu(chat_id,
+    resp = edit_menu(chat_id, user_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>{b['exclusive']}</b>\n\n"
         f"{b['enter']}",
@@ -7497,10 +7486,10 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
         try:
             with sqlite3.connect(DB_PATH) as conn:
                 c = conn.cursor()
-                c.execute("DELETE FROM site_monitor WHERE user_id = ?", (user_id,))
+                c.execute("DELETE FROM site_monitor WHERE user_id = ? AND watch_type = 'status'", (user_id,))
                 deleted = c.rowcount
                 conn.commit()
-            send_msg(user_id, chat_id, f"🔕 <b>Notificações desativadas!</b>\nRemovidos: {deleted} monitoramentos.")
+            send_msg(user_id, chat_id, f"🔕 <b>Notificações de status desativadas!</b>\nRemovidos: {deleted} monitoramentos.\n<i>Monitores de conteúdo (/watch) permanecem ativos.</i>")
         except Exception as e:
             send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
         return
@@ -7715,7 +7704,7 @@ def _run_deep_owner(chat_id, user_id, target):
 
 def _run_admin_normal(chat_id, user_id, target):
     """Run admin scanner in normal mode"""
-    log_command(user_id, '', 'admin', '', target)
+    log_command(user_id, '', 'admin', target)
     handle_admin_panel(chat_id, user_id, '', '', '', [target])
 
 
@@ -7732,7 +7721,7 @@ def _run_admin_vip(chat_id, user_id, target):
 
 def _run_admin_owner(chat_id, user_id, target):
     """Run admin scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'admin', '', target)
+    log_command(user_id, '', 'admin', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7742,7 +7731,7 @@ def _run_admin_owner(chat_id, user_id, target):
 
 def _run_ports_normal(chat_id, user_id, target):
     """Run ports scanner in normal mode"""
-    log_command(user_id, '', 'ports', '', target)
+    log_command(user_id, '', 'ports', target)
     handle_ports(chat_id, user_id, '', '', '', [target])
 
 
@@ -7759,7 +7748,7 @@ def _run_ports_vip(chat_id, user_id, target):
 
 def _run_ports_owner(chat_id, user_id, target):
     """Run ports scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'ports', '', target)
+    log_command(user_id, '', 'ports', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7769,7 +7758,7 @@ def _run_ports_owner(chat_id, user_id, target):
 
 def _run_dirs_normal(chat_id, user_id, target):
     """Run dirs scanner in normal mode"""
-    log_command(user_id, '', 'dirs', '', target)
+    log_command(user_id, '', 'dirs', target)
     handle_dirs(chat_id, user_id, '', '', '', [target])
 
 
@@ -7786,7 +7775,7 @@ def _run_dirs_vip(chat_id, user_id, target):
 
 def _run_dirs_owner(chat_id, user_id, target):
     """Run dirs scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'dirs', '', target)
+    log_command(user_id, '', 'dirs', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7796,7 +7785,7 @@ def _run_dirs_owner(chat_id, user_id, target):
 
 def _run_sub_normal(chat_id, user_id, target):
     """Run sub scanner in normal mode"""
-    log_command(user_id, '', 'sub', '', target)
+    log_command(user_id, '', 'sub', target)
     handle_sub(chat_id, user_id, '', '', '', [target])
 
 
@@ -7813,7 +7802,7 @@ def _run_sub_vip(chat_id, user_id, target):
 
 def _run_sub_owner(chat_id, user_id, target):
     """Run sub scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'sub', '', target)
+    log_command(user_id, '', 'sub', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7823,7 +7812,7 @@ def _run_sub_owner(chat_id, user_id, target):
 
 def _run_wp_normal(chat_id, user_id, target):
     """Run wp scanner in normal mode"""
-    log_command(user_id, '', 'wp', '', target)
+    log_command(user_id, '', 'wp', target)
     handle_wp(chat_id, user_id, '', '', '', [target])
 
 
@@ -7840,7 +7829,7 @@ def _run_wp_vip(chat_id, user_id, target):
 
 def _run_wp_owner(chat_id, user_id, target):
     """Run wp scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'wp', '', target)
+    log_command(user_id, '', 'wp', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7850,7 +7839,7 @@ def _run_wp_owner(chat_id, user_id, target):
 
 def _run_emails_normal(chat_id, user_id, target):
     """Run emails scanner in normal mode"""
-    log_command(user_id, '', 'emails', '', target)
+    log_command(user_id, '', 'emails', target)
     handle_emails(chat_id, user_id, '', '', '', [target])
 
 
@@ -7867,7 +7856,7 @@ def _run_emails_vip(chat_id, user_id, target):
 
 def _run_emails_owner(chat_id, user_id, target):
     """Run emails scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'emails', '', target)
+    log_command(user_id, '', 'emails', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7877,7 +7866,7 @@ def _run_emails_owner(chat_id, user_id, target):
 
 def _run_dns_normal(chat_id, user_id, target):
     """Run dns scanner in normal mode"""
-    log_command(user_id, '', 'dns', '', target)
+    log_command(user_id, '', 'dns', target)
     handle_dns(chat_id, user_id, '', '', '', [target])
 
 
@@ -7894,7 +7883,7 @@ def _run_dns_vip(chat_id, user_id, target):
 
 def _run_dns_owner(chat_id, user_id, target):
     """Run dns scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'dns', '', target)
+    log_command(user_id, '', 'dns', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7904,7 +7893,7 @@ def _run_dns_owner(chat_id, user_id, target):
 
 def _run_cms_normal(chat_id, user_id, target):
     """Run cms scanner in normal mode"""
-    log_command(user_id, '', 'cms', '', target)
+    log_command(user_id, '', 'cms', target)
     handle_cms(chat_id, user_id, '', '', '', [target])
 
 
@@ -7921,7 +7910,7 @@ def _run_cms_vip(chat_id, user_id, target):
 
 def _run_cms_owner(chat_id, user_id, target):
     """Run cms scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'cms', '', target)
+    log_command(user_id, '', 'cms', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7931,7 +7920,7 @@ def _run_cms_owner(chat_id, user_id, target):
 
 def _run_reverse_normal(chat_id, user_id, target):
     """Run reverse scanner in normal mode"""
-    log_command(user_id, '', 'reverse', '', target)
+    log_command(user_id, '', 'reverse', target)
     handle_reverse(chat_id, user_id, '', '', '', [target])
 
 
@@ -7948,7 +7937,7 @@ def _run_reverse_vip(chat_id, user_id, target):
 
 def _run_reverse_owner(chat_id, user_id, target):
     """Run reverse scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'reverse', '', target)
+    log_command(user_id, '', 'reverse', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7958,7 +7947,7 @@ def _run_reverse_owner(chat_id, user_id, target):
 
 def _run_ftpssh_normal(chat_id, user_id, target):
     """Run ftpssh scanner in normal mode"""
-    log_command(user_id, '', 'ftpssh', '', target)
+    log_command(user_id, '', 'ftpssh', target)
     handle_ftpssh(chat_id, user_id, '', '', '', [target])
 
 
@@ -7975,7 +7964,7 @@ def _run_ftpssh_vip(chat_id, user_id, target):
 
 def _run_ftpssh_owner(chat_id, user_id, target):
     """Run ftpssh scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'ftpssh', '', target)
+    log_command(user_id, '', 'ftpssh', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -7985,7 +7974,7 @@ def _run_ftpssh_owner(chat_id, user_id, target):
 
 def _run_tech_normal(chat_id, user_id, target):
     """Run tech scanner in normal mode"""
-    log_command(user_id, '', 'tech', '', target)
+    log_command(user_id, '', 'tech', target)
     handle_tech(chat_id, user_id, '', '', '', [target])
 
 
@@ -8002,7 +7991,7 @@ def _run_tech_vip(chat_id, user_id, target):
 
 def _run_tech_owner(chat_id, user_id, target):
     """Run tech scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'tech', '', target)
+    log_command(user_id, '', 'tech', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8012,7 +8001,7 @@ def _run_tech_owner(chat_id, user_id, target):
 
 def _run_whois_normal(chat_id, user_id, target):
     """Run whois scanner in normal mode"""
-    log_command(user_id, '', 'whois', '', target)
+    log_command(user_id, '', 'whois', target)
     handle_whois(chat_id, user_id, '', '', '', [target])
 
 
@@ -8029,7 +8018,7 @@ def _run_whois_vip(chat_id, user_id, target):
 
 def _run_whois_owner(chat_id, user_id, target):
     """Run whois scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'whois', '', target)
+    log_command(user_id, '', 'whois', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8039,7 +8028,7 @@ def _run_whois_owner(chat_id, user_id, target):
 
 def _run_rate_normal(chat_id, user_id, target):
     """Run rate scanner in normal mode"""
-    log_command(user_id, '', 'rate', '', target)
+    log_command(user_id, '', 'rate', target)
     handle_rate(chat_id, user_id, '', '', '', [target])
 
 
@@ -8056,7 +8045,7 @@ def _run_rate_vip(chat_id, user_id, target):
 
 def _run_rate_owner(chat_id, user_id, target):
     """Run rate scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'rate', '', target)
+    log_command(user_id, '', 'rate', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8066,7 +8055,7 @@ def _run_rate_owner(chat_id, user_id, target):
 
 def _run_headers_normal(chat_id, user_id, target):
     """Run headers scanner in normal mode"""
-    log_command(user_id, '', 'headers', '', target)
+    log_command(user_id, '', 'headers', target)
     handle_headers(chat_id, user_id, '', '', '', [target])
 
 
@@ -8083,7 +8072,7 @@ def _run_headers_vip(chat_id, user_id, target):
 
 def _run_headers_owner(chat_id, user_id, target):
     """Run headers scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'headers', '', target)
+    log_command(user_id, '', 'headers', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8093,7 +8082,7 @@ def _run_headers_owner(chat_id, user_id, target):
 
 def _run_cors_normal(chat_id, user_id, target):
     """Run cors scanner in normal mode"""
-    log_command(user_id, '', 'cors', '', target)
+    log_command(user_id, '', 'cors', target)
     handle_cors(chat_id, user_id, '', '', '', [target])
 
 
@@ -8110,7 +8099,7 @@ def _run_cors_vip(chat_id, user_id, target):
 
 def _run_cors_owner(chat_id, user_id, target):
     """Run cors scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'cors', '', target)
+    log_command(user_id, '', 'cors', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8120,7 +8109,7 @@ def _run_cors_owner(chat_id, user_id, target):
 
 def _run_robots_normal(chat_id, user_id, target):
     """Run robots scanner in normal mode"""
-    log_command(user_id, '', 'robots', '', target)
+    log_command(user_id, '', 'robots', target)
     handle_robots(chat_id, user_id, '', '', '', [target])
 
 
@@ -8137,7 +8126,7 @@ def _run_robots_vip(chat_id, user_id, target):
 
 def _run_robots_owner(chat_id, user_id, target):
     """Run robots scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'robots', '', target)
+    log_command(user_id, '', 'robots', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8147,7 +8136,7 @@ def _run_robots_owner(chat_id, user_id, target):
 
 def _run_sitemap_normal(chat_id, user_id, target):
     """Run sitemap scanner in normal mode"""
-    log_command(user_id, '', 'sitemap', '', target)
+    log_command(user_id, '', 'sitemap', target)
     handle_sitemap(chat_id, user_id, '', '', '', [target])
 
 
@@ -8164,7 +8153,7 @@ def _run_sitemap_vip(chat_id, user_id, target):
 
 def _run_sitemap_owner(chat_id, user_id, target):
     """Run sitemap scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'sitemap', '', target)
+    log_command(user_id, '', 'sitemap', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8172,11 +8161,11 @@ def _run_sitemap_owner(chat_id, user_id, target):
     handle_sitemap(chat_id, user_id, '', '', '', [target])
 def _run_info_normal(chat_id, user_id, target):
     """Run info scanner in normal mode"""
-    log_command(user_id, '', 'info', '', target)
+    log_command(user_id, '', 'info', target)
     handle_info(chat_id, user_id, '', '', '', [target])
 def _run_info_vip(chat_id, user_id, target):
     """Run info scanner in VIP mode (enhanced analysis)"""
-    log_command(user_id, '', 'info', '', target)
+    log_command(user_id, '', 'info', target)
     if not is_vip(user_id) and not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
         return
@@ -8184,7 +8173,7 @@ def _run_info_vip(chat_id, user_id, target):
     handle_info(chat_id, user_id, '', '', '', [target])
 def _run_info_owner(chat_id, user_id, target):
     """Run info scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'info', '', target)
+    log_command(user_id, '', 'info', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8192,7 +8181,7 @@ def _run_info_owner(chat_id, user_id, target):
     handle_info(chat_id, user_id, '', '', '', [target])
 def _run_exposed_normal(chat_id, user_id, target):
     """Run exposed scanner in normal mode"""
-    log_command(user_id, '', 'exposed', '', target)
+    log_command(user_id, '', 'exposed', target)
     handle_exposed(chat_id, user_id, '', '', '', [target])
 
 
@@ -8209,7 +8198,7 @@ def _run_exposed_vip(chat_id, user_id, target):
 
 def _run_exposed_owner(chat_id, user_id, target):
     """Run exposed scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'exposed', '', target)
+    log_command(user_id, '', 'exposed', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8219,7 +8208,7 @@ def _run_exposed_owner(chat_id, user_id, target):
 
 def _run_backup_normal(chat_id, user_id, target):
     """Run backup scanner in normal mode"""
-    log_command(user_id, '', 'backup', '', target)
+    log_command(user_id, '', 'backup', target)
     handle_backup(chat_id, user_id, '', '', '', [target])
 
 
@@ -8236,7 +8225,7 @@ def _run_backup_vip(chat_id, user_id, target):
 
 def _run_backup_owner(chat_id, user_id, target):
     """Run backup scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'backup', '', target)
+    log_command(user_id, '', 'backup', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8246,7 +8235,7 @@ def _run_backup_owner(chat_id, user_id, target):
 
 def _run_api_normal(chat_id, user_id, target):
     """Run api scanner in normal mode"""
-    log_command(user_id, '', 'api', '', target)
+    log_command(user_id, '', 'api', target)
     handle_api(chat_id, user_id, '', '', '', [target])
 
 
@@ -8263,7 +8252,7 @@ def _run_api_vip(chat_id, user_id, target):
 
 def _run_api_owner(chat_id, user_id, target):
     """Run api scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'api', '', target)
+    log_command(user_id, '', 'api', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8273,7 +8262,7 @@ def _run_api_owner(chat_id, user_id, target):
 
 def _run_shell_normal(chat_id, user_id, target):
     """Run shell scanner in normal mode"""
-    log_command(user_id, '', 'shell', '', target)
+    log_command(user_id, '', 'shell', target)
     handle_shell(chat_id, user_id, '', '', '', [target])
 
 
@@ -8290,7 +8279,7 @@ def _run_shell_vip(chat_id, user_id, target):
 
 def _run_shell_owner(chat_id, user_id, target):
     """Run shell scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'shell', '', target)
+    log_command(user_id, '', 'shell', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8300,7 +8289,7 @@ def _run_shell_owner(chat_id, user_id, target):
 
 def _run_config_normal(chat_id, user_id, target):
     """Run config scanner in normal mode"""
-    log_command(user_id, '', 'config', '', target)
+    log_command(user_id, '', 'config', target)
     handle_config(chat_id, user_id, '', '', '', [target])
 
 
@@ -8317,7 +8306,7 @@ def _run_config_vip(chat_id, user_id, target):
 
 def _run_config_owner(chat_id, user_id, target):
     """Run config scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'config', '', target)
+    log_command(user_id, '', 'config', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8327,7 +8316,7 @@ def _run_config_owner(chat_id, user_id, target):
 
 def _run_http_normal(chat_id, user_id, target):
     """Run http scanner in normal mode"""
-    log_command(user_id, '', 'http', '', target)
+    log_command(user_id, '', 'http', target)
     handle_http(chat_id, user_id, '', '', '', [target])
 
 
@@ -8344,7 +8333,7 @@ def _run_http_vip(chat_id, user_id, target):
 
 def _run_http_owner(chat_id, user_id, target):
     """Run http scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'http', '', target)
+    log_command(user_id, '', 'http', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8354,7 +8343,7 @@ def _run_http_owner(chat_id, user_id, target):
 
 def _run_sslchain_normal(chat_id, user_id, target):
     """Run sslchain scanner in normal mode"""
-    log_command(user_id, '', 'sslchain', '', target)
+    log_command(user_id, '', 'sslchain', target)
     handle_sslchain(chat_id, user_id, '', '', '', [target])
 
 
@@ -8371,7 +8360,7 @@ def _run_sslchain_vip(chat_id, user_id, target):
 
 def _run_sslchain_owner(chat_id, user_id, target):
     """Run sslchain scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'sslchain', '', target)
+    log_command(user_id, '', 'sslchain', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8381,7 +8370,7 @@ def _run_sslchain_owner(chat_id, user_id, target):
 
 def _run_ssl_normal(chat_id, user_id, target):
     """Run ssl scanner in normal mode"""
-    log_command(user_id, '', 'ssl', '', target)
+    log_command(user_id, '', 'ssl', target)
     handle_ssl(chat_id, user_id, '', '', '', [target])
 
 
@@ -8398,7 +8387,7 @@ def _run_ssl_vip(chat_id, user_id, target):
 
 def _run_ssl_owner(chat_id, user_id, target):
     """Run ssl scanner in Owner mode (maximum analysis)"""
-    log_command(user_id, '', 'ssl', '', target)
+    log_command(user_id, '', 'ssl', target)
     if not is_owner(user_id):
         send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
         return
@@ -8916,7 +8905,7 @@ def handle_http(chat_id, user_id, username, first_name, last_name, args):
     try:
         import time as t_module
         start = t_module.time()
-        resp = _safe_get(url, timeout=10, allow_redirects=True)
+        resp = _safe_get(url, timeout=10)
         elapsed = (t_module.time() - start) * 1000
         if not resp:
             results += "❌ Não foi possível acessar o site\n"
@@ -9450,7 +9439,7 @@ def process_update(update):
                 [{"text": "🇮🇩 Bahasa Indonesia", "callback_data": "setlang:id"}],
                 [{"text": "🔙 Voltar", "callback_data": "menu:back"}],
             ]
-            send_message_with_buttons(chat_id, 
+            edit_menu(chat_id, user_id,
                 "🌐 <b>Selecione seu idioma</b>\n━━━━━━━━━━━━━━━━━━━━━━\n",
                 buttons)
             return
@@ -9549,7 +9538,7 @@ def process_update(update):
                     "text": "❌ <b>Scan cancelado.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
                             "Volte ao menu principal para selecionar outra ferramenta.",
                     "parse_mode": "HTML",
-                    "reply_markup": '{"inline_keyboard": [[{"text": "🔙 Menu Principal", "callback_data": "menu:back"}]]}'
+                    "reply_markup": {"inline_keyboard": [[{"text": "🔙 Menu Principal", "callback_data": "menu:back"}]]}
                 }, timeout=5)
             except:
                 pass
@@ -9577,7 +9566,7 @@ def process_update(update):
                         _run_sqli_owner(chat_id, user_id, target)
                     else:
                         _run_sqli_normal(chat_id, user_id, target)
-                    show_main_menu(chat_id, user_id)
+                    show_main_menu(chat_id, user_id, username, first_name)
                 elif scan_cmd == 'xss':
                     if tier == 'vip':
                         _run_xss_vip(chat_id, user_id, target)
@@ -9585,7 +9574,7 @@ def process_update(update):
                         _run_xss_owner(chat_id, user_id, target)
                     else:
                         _run_xss_normal(chat_id, user_id, target)
-                    show_main_menu(chat_id, user_id)
+                    show_main_menu(chat_id, user_id, username, first_name)
                 elif scan_cmd == 'scanall':
                     if tier == 'vip':
                         _run_scanall_vip(chat_id, user_id, target)
@@ -9593,7 +9582,7 @@ def process_update(update):
                         _run_scanall_owner(chat_id, user_id, target)
                     else:
                         _run_scanall_normal(chat_id, user_id, target)
-                    show_main_menu(chat_id, user_id)
+                    show_main_menu(chat_id, user_id, username, first_name)
                 elif scan_cmd == 'deep':
                     if tier == 'vip':
                         _run_deep_vip(chat_id, user_id, target)
@@ -9601,7 +9590,7 @@ def process_update(update):
                         _run_deep_owner(chat_id, user_id, target)
                     else:
                         _run_deep_normal(chat_id, user_id, target)
-                    show_main_menu(chat_id, user_id)
+                    show_main_menu(chat_id, user_id, username, first_name)
                 else:
                     send_msg(user_id, chat_id, f"❌ Scanner /{scan_cmd} não suportado em tier mode.")
             return
@@ -9671,15 +9660,15 @@ def process_update(update):
         # Owner commands (forensic/pentest/osint) — route to handlers directly
         if scan_cmd == 'forensic':
             handle_forensic(chat_id, user_id, username, first_name, last_name, [target])
-            show_main_menu(chat_id, user_id)
+            show_main_menu(chat_id, user_id, username, first_name)
             return
         if scan_cmd == 'pentest':
             handle_pentest(chat_id, user_id, username, first_name, last_name, [target])
-            show_main_menu(chat_id, user_id)
+            show_main_menu(chat_id, user_id, username, first_name)
             return
         if scan_cmd == 'osint':
             handle_osint(chat_id, user_id, username, first_name, last_name, [target])
-            show_main_menu(chat_id, user_id)
+            show_main_menu(chat_id, user_id, username, first_name)
             return
         # Map scan commands to handler functions
         SCAN_MAP = {
@@ -9733,7 +9722,7 @@ def process_update(update):
             fn = globals().get(fn_name)
             if fn:
                 fn(chat_id, user_id, target)
-                show_main_menu(chat_id, user_id)
+                show_main_menu(chat_id, user_id, username, first_name)
                 return
             else:
                 # Fallback to normal
@@ -9741,7 +9730,7 @@ def process_update(update):
                 fn = globals().get(fn_name)
                 if fn:
                     fn(chat_id, user_id, target)
-                    show_main_menu(chat_id, user_id)
+                    show_main_menu(chat_id, user_id, username, first_name)
                     return
         
         # Non-tiered scanners: use handle_* functions
@@ -9768,7 +9757,7 @@ def process_update(update):
         
         if scan_cmd in handler_map:
             handler_map[scan_cmd](chat_id, user_id, username, first_name, last_name, [target])
-            show_main_menu(chat_id, user_id)
+            show_main_menu(chat_id, user_id, username, first_name)
             return
     
 
@@ -10006,11 +9995,18 @@ def site_monitor_loop():
                 c = conn.cursor()
                 c.execute("SELECT * FROM site_monitor")
                 monitors = c.fetchall()
+                now = time.time()
                 for m in monitors:
                     md = dict(m)
                     target = md['target']
                     last_status = md['last_status']
                     chat_id = md['chat_id']
+                    last_check = md.get('last_check', 0)
+                    watch_interval = md.get('watch_interval', 1) or 1  # minutes, default 1
+
+                    # Respect per-row watch_interval (only check if enough time has passed)
+                    if (now - last_check) < (watch_interval * 60):
+                        continue
 
                     # Check if site is online
                     url = target
@@ -10066,12 +10062,9 @@ def scheduled_task_loop():
         'cors': tool_cors_test, 'robots': tool_robots_txt, 'sitemap': tool_sitemap,
         'tech': tool_tech_detect, 'exposed': tool_exposed_files, 'backup': tool_backup_finder,
         'api': tool_api_discovery, 'shell': tool_webshell_hunter, 'config': tool_config_scanner,
-        # V5.1: Aggregated tools
-        'scanall': lambda t: handle_scanall(None, None, None, None, None, [t]),
-        'deep': lambda t: handle_deep(None, None, None, None, None, [t]),
-        'quick': lambda t: handle_quick(None, None, None, None, None, [t]),
-        'http': lambda t: handle_http(None, None, None, None, None, [t]),
-        'sslchain': lambda t: handle_sslchain(None, None, None, None, None, [t]),
+        # V5.1: Aggregated tools (lambda captures t only; chat_id/user_id passed at call time)
+        'scanall': 'aggregated', 'deep': 'aggregated',
+        'quick': 'aggregated', 'http': 'aggregated', 'sslchain': 'aggregated',
     }
     while not SHUTDOWN_FLAG:
         time.sleep(15)  # Check every 15 seconds
@@ -10140,22 +10133,41 @@ def scheduled_task_loop():
                                 f"❌ Falhas: {failed}")
                         except Exception as e:
                             print(f"[Schedule Error] broadcast: {e}")
+                            t['_failed'] = True
                     else:
                         # Regular scan
-                        tool_fn = tool_map.get(cmd)
-                        if tool_fn:
+                        tool_entry = tool_map.get(cmd)
+                        if tool_entry:
                             try:
                                 send_message_safe(str(chat_id), f"⏰ <b>Scan agendado executando:</b> /{cmd} {escape_html(extract_hostname(target))}")
-                                result = tool_fn(target)
-                                send_message_safe(str(chat_id), result)
-                                db_cache_set(cmd, target, result)
+                                if tool_entry == 'aggregated':
+                                    # Aggregated commands need full handler with chat_id/user_id
+                                    aggregated_map = {
+                                        'scanall': handle_scanall, 'deep': handle_deep,
+                                        'quick': handle_quick, 'http': handle_http,
+                                        'sslchain': handle_sslchain,
+                                    }
+                                    handler = aggregated_map.get(cmd)
+                                    if handler:
+                                        handler(str(chat_id), t['user_id'], '', '', '', [target])
+                                    else:
+                                        send_message_safe(str(chat_id), f"❌ Handler /{cmd} não encontrado.")
+                                else:
+                                    result = tool_entry(target)
+                                    send_message_safe(str(chat_id), result)
+                                    db_cache_set(cmd, target, result)
                             except Exception as e:
                                 send_message_safe(str(chat_id), f"❌ Erro no scan agendado: {escape_html(str(e))}")
+                                t['_failed'] = True
                         else:
                             send_message_safe(str(chat_id), f"❌ Comando /{cmd} não suportado em scans agendados.")
+                            t['_failed'] = True
 
-                    # Mark as completed
-                    c.execute("UPDATE scheduled_tasks SET status = 'completed' WHERE id = ?", (t['id'],))
+                    # Mark as completed or failed
+                    if t.get('_failed'):
+                        c.execute("UPDATE scheduled_tasks SET status = 'failed' WHERE id = ?", (t['id'],))
+                    else:
+                        c.execute("UPDATE scheduled_tasks SET status = 'completed' WHERE id = ?", (t['id'],))
                     conn.commit()
 
             # Cleanup old completed tasks (older than 24h)
@@ -10242,5 +10254,10 @@ if __name__ == "__main__":
         # Start health check in background
         health_thread = threading.Thread(target=health_check_loop, daemon=True)
         health_thread.start()
+        # V5.2 FIX: Start site monitor and scheduled task threads in default mode too
+        monitor_thread = threading.Thread(target=site_monitor_loop, daemon=True)
+        monitor_thread.start()
+        sched_thread = threading.Thread(target=scheduled_task_loop, daemon=True)
+        sched_thread.start()
         # Start bot with auto-restart
         run_with_restart()

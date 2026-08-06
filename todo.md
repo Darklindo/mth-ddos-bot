@@ -218,9 +218,19 @@
 - [x] show_main_menu after owner commands
 - [x] show_main_menu after /batch and /quick
 ## BROADCAST AUTO-TRANSLATION (v5.2)
-- [ ] Add language_code column to users table
-- [ ] Store detected language_code when user interacts with bot
-- [ ] Implement auto-translate in handle_msg broadcast
-- [ ] Translate text broadcasts per-user language
-- [ ] Translate media captions per-user language
-- [ ] Fallback to PT if translation fails
+- [x] Add language_code column to users table
+- [x] Store detected language_code when user interacts with bot
+- [x] Implement auto-translate in handle_msg broadcast
+- [x] Translate text broadcasts per-user language
+- [x] Translate media captions per-user language
+- [x] Fallback to PT if translation fails
+## BUG REVIEW - COMPLETE CODE AUDIT (v5.2)
+- [ ] Review imports, constants, config and DB schema (lines 1-400)
+- [ ] Review utility functions, translation, rate limit, helpers (lines 400-1000)
+- [ ] Review scan handlers (sqli, xss, ports, dirs, sub, wp, etc.) (lines 1000-5000)
+- [ ] Review admin/broadcast handlers (msg, ban, export, etc.) (lines 5000-7000)
+- [ ] Review monitor/schedule/owner handlers (lines 7000-9000)
+- [ ] Review main loop, process_update and polling (lines 9000-10247)
+- [ ] Consolidate all bugs and prepare fix list
+- [ ] Fix all bugs found
+- [ ] Verify syntax, tests and push to GitHub
