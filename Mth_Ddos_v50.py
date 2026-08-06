@@ -3447,9 +3447,6 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /report &lt;url&gt; — Relatório completo em TXT
 
 <b>🔍 Ferramentas Extras:</b>
-/traceroute &lt;ip&gt; — Rastreamento de rota
-/whois &lt;domain&gt; — Informações do domínio
-/ip &lt;ip&gt; — GeoIP avançado (ISP, ASN, proxy)
 /rate &lt;url&gt; — Nota de segurança geral (0-100)
 /compare &lt;url1&gt; &lt;url2&gt; — Comparar segurança de 2 sites
 /history &lt;url&gt; — Histórico de scans
@@ -3467,29 +3464,10 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /rescan &lt;comando&gt; &lt;url&gt; — Refazer scan
 /stop [id] — Parar scan
 
-<b>━━━━━━━━━━━━━━━━━━━━━━</b>
+━━━━━━━━━━━━━━━━━━━━━━
 <b>👑 Donos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
 ━━━━━━━━━━━━━━━━━━━━━━
 
-<b>👑 Comandos exclusivos dos Donos:</b>
-/botpanel — Painel do bot
-/logs — Histórico de comandos
-/bancodds — Dump do banco
-/msg &lt;texto&gt; — Broadcast pra todos
-/stats — Estatísticas
-/ban &lt;id&gt; [motivo] — Banir usuário
-/unban &lt;id&gt; — Desbanir
-/export — Exportar usuários
-/listdn — Lista de dono
-/maintenance [on/off] — Modo manutenção
-/cooldown &lt;id&gt; &lt;limite&gt; — Rate limit
-/vip add/remove &lt;id&gt; — Gerenciar VIPs
-/log &lt;user_id&gt; — Audit logs
-/clearlogs — Limpar logs
-/broadcast &lt;min&gt; &lt;texto&gt; — Agendar broadcast
-/top — Top sites escaneados
-
-━━━━━━━━━━━━━━━━━━━━━━
 <i>Mth Ddos Security v5.1</i>
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
 
@@ -3507,7 +3485,7 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 
 <b>Versão:</b> 5.1
 <b>Plataforma:</b> Telegram Bot (Python)
-<b>Ferramentas:</b> 46 ferramentas avançadas com anti-false-positive
+<b>Ferramentas:</b> 55+ ferramentas avançadas com anti-false-positive
 <b>Banco:</b> SQLite com índices, otimizações e cache inteligente
 <b>Segurança:</b> Sistema de donos + VIP + rate limit custom
 
