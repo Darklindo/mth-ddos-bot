@@ -8995,10 +8995,10 @@ def process_update(update):
         # i18n: Handle language selection from inline keyboard
         if cb_data.startswith('setlang:'):
             new_lang = cb_data.split(':', 1)[1]
-            if new_lang in ('pt', 'en', 'es'):
+            if new_lang in ('pt', 'en', 'es', 'vi', 'id'):
                 set_user_lang(user_id, new_lang)
-                lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español'}
-                flags = {'pt': '🇧🇷', 'en': '🇺🇸', 'es': '🇪🇸'}
+                lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia'}
+                flags = {'pt': '🇧🇷', 'en': '🇺🇸', 'es': '🇪🇸', 'vi': '🇻🇳', 'id': '🇮🇩'}
                 try:
                     HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
                         "chat_id": chat_id,
@@ -9081,8 +9081,10 @@ def process_update(update):
         if cb_data == 'menu:lang':
             buttons = [
                 [{"text": "🇧🇷 Português", "callback_data": "setlang:pt"},
-                 {"text": "🇺🇸 English", "callback_data": "setlang:en"},
-                 {"text": "🇪🇸 Español", "callback_data": "setlang:es"}],
+                 {"text": "🇺🇸 English", "callback_data": "setlang:en"}],
+                [{"text": "🇪🇸 Español", "callback_data": "setlang:es"},
+                 {"text": "🇻🇳 Tiếng Việt", "callback_data": "setlang:vi"}],
+                [{"text": "🇮🇩 Bahasa Indonesia", "callback_data": "setlang:id"}],
                 [{"text": "🔙 Voltar", "callback_data": "menu:back"}],
             ]
             send_message_with_buttons(chat_id, 
