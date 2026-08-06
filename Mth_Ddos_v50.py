@@ -251,6 +251,207 @@ CACHE_TTL = 300  # 5 minutes cache
 # Banned users
 BANNED_USERS = set()  # user_ids banned by /ban
 
+# ═══════════════════════════════════════════════════════════════
+#  i18n — MULTILINGUAL SUPPORT (PT / EN / ES)
+# ═══════════════════════════════════════════════════════════════
+# USER_LANG[user_id] = 'pt' | 'en' | 'es'
+# Auto-detected from Telegram language_code; overridable via /lang
+USER_LANG: dict = {}  # user_id -> language code
+
+def get_user_lang(user_id: int) -> str:
+    """Return the user's preferred language code ('pt', 'en', or 'es')."""
+    return USER_LANG.get(user_id, 'pt')  # default to Portuguese
+
+def set_user_lang(user_id: int, lang: str):
+    """Persist a user's language preference in memory."""
+    if lang in ('pt', 'en', 'es'):
+        USER_LANG[user_id] = lang
+
+# Language map: Telegram language_code -> our code
+_LANG_MAP = {
+    'pt': 'pt', 'pt-br': 'pt', 'pt-pt': 'pt',
+    'en': 'en',
+    'es': 'es', 'es-419': 'es', 'es-ar': 'es', 'es-mx': 'es', 'es-es': 'es',
+    'fr': 'en', 'de': 'en', 'it': 'en', 'ru': 'en',  # fallback to EN
+    'ja': 'en', 'zh': 'en', 'ko': 'en',  # fallback to EN
+}
+
+def detect_lang(message) -> str:
+    """Extract Telegram language_code from a message and return our lang code."""
+    try:
+        code = message.get('from', {}).get('language_code', '')
+        return _LANG_MAP.get(code, 'pt')
+    except:
+        return 'pt'
+
+# ── Translation dictionary ──
+# Keys are the Portuguese source string (lowered, trimmed).
+# Values are dicts {en: ..., es: ...}.
+_TRANSLATIONS: dict = {
+    # Common errors
+    'comando desconhecido.': {
+        'en': 'unknown command.',
+        'es': 'comando desconocido.',
+    },
+    'use /help para ver os comandos disponíveis.': {
+        'en': 'use /help to see available commands.',
+        'es': 'use /help para ver los comandos disponibles.',
+    },
+    'não foi possível acessar o site': {
+        'en': 'could not access the site',
+        'es': 'no se pudo acceder al sitio',
+    },
+    '❌ id inválido. use o número do id do usuário.': {
+        'en': '❌ Invalid ID. Use the numeric user ID.',
+        'es': '❌ ID inválido. Use el número de ID del usuario.',
+    },
+    '❌ parâmetros inválidos. use números inteiros.': {
+        'en': '❌ Invalid parameters. Use integers.',
+        'es': '❌ Parámetros inválidos. Use números enteros.',
+    },
+    '❌ intervalo deve ser um número válido em minutos.': {
+        'en': '❌ Interval must be a valid number of minutes.',
+        'es': '❌ El intervalo debe ser un número válido de minutos.',
+    },
+    '❌ minutos devem ser um número válido.': {
+        'en': '❌ Minutes must be a valid number.',
+        'es': '❌ Los minutos deben ser un número válido.',
+    },
+    '❌ tipo de mídia não suportado.': {
+        'en': '❌ Unsupported media type.',
+        'es': '❌ Tipo de medio no soportado.',
+    },
+    '❌ traceroute não disponível neste servidor.': {
+        'en': '❌ Traceroute not available on this server.',
+        'es': '❌ Traceroute no disponible en este servidor.',
+    },
+    '❌ não foi possível obter informações do site.': {
+        'en': '❌ Could not get site information.',
+        'es': '❌ No se pudo obtener información del sitio.',
+    },
+    '❌ servidor ocupado. tente novamente em alguns segundos.': {
+        'en': '❌ Server busy. Try again in a few seconds.',
+        'es': '❌ Servidor ocupado. Inténtelo de nuevo en unos segundos.',
+    },
+    '❌ acesso negado! este comando é restrito aos donos do bot.': {
+        'en': '❌ Access denied! This command is restricted to bot owners.',
+        'es': '❌ Acceso denegado! Este comando está restringido a los dueños del bot.',
+    },
+    '❌ erro ao buscar estatísticas.': {
+        'en': '❌ Error fetching stats.',
+        'es': '❌ Error al obtener estadísticas.',
+    },
+    '❌ erro ao buscar lista de usuários.': {
+        'en': '❌ Error fetching user list.',
+        'es': '❌ Error al obtener la lista de usuarios.',
+    },
+    '❌ erro ao exportar lista.': {
+        'en': '❌ Error exporting list.',
+        'es': '❌ Error al exportar la lista.',
+    },
+    '❌ erro ao desbanir usuário.': {
+        'en': '❌ Error unbanning user.',
+        'es': '❌ Error al desbanear usuario.',
+    },
+    '❌ falha ao enviar o arquivo.': {
+        'en': '❌ Failed to send file.',
+        'es': '❌ Fallo al enviar el archivo.',
+    },
+    '❌ falha ao enviar o relatório.': {
+        'en': '❌ Failed to send report.',
+        'es': '❌ Fallo al enviar el informe.',
+    },
+    '❌ falha ao enviar relatório.': {
+        'en': '❌ Failed to send report.',
+        'es': '❌ Fallo al enviar el informe.',
+    },
+    '❌ erro ao banir usuário.': {
+        'en': '❌ Error banning user.',
+        'es': '❌ Error al banear usuario.',
+    },
+    '❌ falha ao enviar o dump do banco.': {
+        'en': '❌ Failed to send database dump.',
+        'es': '❌ Fallo al enviar el dump de la base de datos.',
+    },
+    # Progress / status messages
+    'nenhum scan encontrado para este target.': {
+        'en': 'No scan found for this target.',
+        'es': 'No se encontró ningún scan para este objetivo.',
+    },
+    'nenhum scan registrado ainda.': {
+        'en': 'No scans registered yet.',
+        'es': 'Aún no hay scans registrados.',
+    },
+    'nenhum usuário encontrado.': {
+        'en': 'No users found.',
+        'es': 'No se encontraron usuarios.',
+    },
+    'nenhum usuário regular encontrado para enviar.': {
+        'en': 'No regular users found to send to.',
+        'es': 'No se encontraron usuarios regulares para enviar.',
+    },
+    'nenhum scan em andamento.': {
+        'en': 'No scans in progress.',
+        'es': 'No hay scans en progreso.',
+    },
+    'exportando lista de usuários...': {
+        'en': 'Exporting user list...',
+        'es': 'Exportando lista de usuarios...',
+    },
+    'gerando dump do banco de dados...': {
+        'en': 'Generating database dump...',
+        'es': 'Generando dump de la base de datos...',
+    },
+    'traceroute expirou (timeout 30s).': {
+        'en': 'Traceroute timed out (30s timeout).',
+        'es': 'Traceroute agotó el tiempo de espera (30s).',
+    },
+    'nenhum scan ativo no momento.': {
+        'en': 'No active scans at the moment.',
+        'es': 'No hay scans activos en este momento.',
+    },
+    # Bot states
+    'bot em manutenção. tente novamente em breve.': {
+        'en': 'Bot is under maintenance. Please try again later.',
+        'es': 'Bot en mantenimiento. Inténtelo de nuevo más tarde.',
+    },
+    'você foi banido deste bot.': {
+        'en': 'You have been banned from this bot.',
+        'es': 'Has sido baneado de este bot.',
+    },
+    'rate limit excedido. tente novamente em 1 minuto.': {
+        'en': 'Rate limit exceeded. Try again in 1 minute.',
+        'es': 'Límite de velocidad excedido. Inténtelo de nuevo en 1 minuto.',
+    },
+    # Quick scan message
+    'quick scan finalizado': {
+        'en': 'Quick Scan completed!',
+        'es': '¡Quick Scan completado!',
+    },
+}
+
+def _translate(text: str, lang: str) -> str:
+    """Translate a message string. Falls back to original PT text if no translation."""
+    if lang == 'pt' or not text:
+        return text
+    key = text.lower().strip().rstrip('.')
+    if key not in _TRANSLATIONS:
+        # Try with punctuation removed
+        key2 = key.rstrip('.!?')
+        if key2 in _TRANSLATIONS:
+            key = key2
+        else:
+            return text
+    t_dict = _TRANSLATIONS[key]
+    return t_dict.get(lang, text)
+
+
+def t(user_id: int, pt_text: str) -> str:
+    """Translate a message for the given user's language.
+    Usage: t(user_id, "Acess negado!") -> returns EN/ES/PT version."""
+    lang = get_user_lang(user_id)
+    return _translate(pt_text, lang)
+
 def load_vip_users():
     """Load VIP users from DB on startup"""
     try:
@@ -676,6 +877,15 @@ def send_message(chat_id, text, parse_mode="HTML"):
     except Exception as e:
         print(f"[Send Error] {e}")
         return None
+
+def send_msg(user_id, chat_id, text, parse_mode="HTML"):
+    """Translation-aware send_message_safe wrapper.
+    Auto-translates known strings based on user's language.
+    Falls back to original PT text if no translation exists."""
+    lang = get_user_lang(user_id)
+    if lang != 'pt' and text:
+        text = _translate(text, lang)
+    return send_message_safe(chat_id, text, parse_mode)
 
 def send_message_safe(chat_id, text, parse_mode="HTML"):
     """Send message with fallback to plain text if HTML fails"""
@@ -3258,7 +3468,37 @@ def tool_config_scanner(url):
 def handle_start(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
 
-    msg = f"""🛡️ <b>Mth Ddos Security</b>
+    lang = get_user_lang(user_id)
+    if lang == 'en':
+        msg = f"""🛡️ <b>Mth Ddos Security</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+Hello {escape_html(first_name)}! Welcome to the security bot!
+
+<b>👑 Credits:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
+
+This bot has <b>55+ advanced tools</b> for security testing.
+Type <b>/help</b> to see the full command list.
+
+🌐 Use <b>/lang en</b> to change language (pt/en/es)
+
+<i>Mth Ddos Security v5.1</i>"""
+    elif lang == 'es':
+        msg = f"""🛡️ <b>Mth Ddos Security</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+¡Hola {escape_html(first_name)}! ¡Bienvenido al bot de seguridad!
+
+<b>👑 Créditos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
+
+Este bot tiene <b>55+ herramientas avanzadas</b> para pruebas de seguridad.
+Escribe <b>/help</b> para ver la lista completa de comandos.
+
+🌐 Usa <b>/lang es</b> para cambiar idioma (pt/en/es)
+
+<i>Mth Ddos Security v5.1</i>"""
+    else:
+        msg = f"""🛡️ <b>Mth Ddos Security</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 Olá {escape_html(first_name)}! Bem-vindo ao bot de segurança!
@@ -3268,6 +3508,8 @@ Olá {escape_html(first_name)}! Bem-vindo ao bot de segurança!
 Este bot possui <b>55+ ferramentas avançadas</b> para testes de segurança.
 Digite <b>/help</b> para ver a lista completa de comandos.
 
+🌐 Use <b>/lang pt</b> para mudar idioma (pt/en/es)
+
 <i>Mth Ddos Security v5.1</i>"""
 
     send_message_safe(chat_id, msg)
@@ -3275,7 +3517,149 @@ Digite <b>/help</b> para ver a lista completa de comandos.
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
 
-    msg = """🔧 <b>Mth Ddos Security v5.1 — Comandos</b>
+    lang = get_user_lang(user_id)
+    if lang == 'en':
+        msg = """🔧 <b>Mth Ddos Security v5.1 — Commands</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>📡 Info & Recon:</b>
+/info &lt;url&gt; — Full site information
+/dns &lt;domain&gt; — DNS analysis: A, MX, NS, TXT, DKIM, DNSSEC, PTR
+/cms &lt;url&gt; — CMS detection (30+ CMS)
+/reverse &lt;ip&gt; — IP hostname + GeoIP
+/emails &lt;url&gt; — Extract emails from page
+
+<b>⚡ Vulnerability Scanners:</b>
+/sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
+/xss &lt;url&gt; [verbose] — Reflected XSS (18+ payloads, WAF detection)
+/admin &lt;url&gt; — Admin panels (100+ paths)
+/panel &lt;url&gt; — Admin Panel Finder (100+ paths)
+/ports &lt;ip&gt; — 50+ ports with banner grabbing
+/dirs &lt;url&gt; — Exposed directories (80+ paths)
+/sub &lt;domain&gt; — Subdomains (100+ subs + permutations)
+/wp &lt;url&gt; — WordPress Scanner + CVE check
+/ftpssh &lt;ip&gt; — FTP/SSH banner
+
+<b>🛡️ V5.0 Scanners:</b>
+/ssl &lt;url&gt; — SSL/TLS audit + OCSP + chain
+/headers &lt;url&gt; — Security Headers + suggestions
+/cors &lt;url&gt; — CORS misconfiguration
+/robots &lt;url&gt; — Robots.txt + hidden directories
+/sitemap &lt;url&gt; — Sitemap.xml + exposed URLs
+/tech &lt;url&gt; — Technologies (frameworks, CDNs, analytics)
+/exposed &lt;url&gt; — Sensitive files (.env, .git, etc.)
+/backup &lt;url&gt; — Exposed backups (.sql, .zip, etc.)
+/api &lt;url&gt; — API endpoints (/api/v1, /graphql, etc.)
+/shell &lt;url&gt; — Webshells (c99, r57, c100, etc.)
+/config &lt;url&gt; — Exposed configs (config.php, settings.json)
+
+<b>⚡ Quick Commands V5.1:</b>
+/quick &lt;url&gt; — Quick scan (info + headers)
+/scanall &lt;url&gt; — Full scan (6 tools)
+/deep &lt;url&gt; — Deep vuln scan (6 scanners)
+/http &lt;url&gt; — Full HTTP response analysis
+/sslchain &lt;url&gt; — SSL certificate chain
+/batch &lt;cmd&gt; &lt;urls...&gt; — Scan multiple targets
+/watch &lt;url&gt; [min] — Monitor content changes
+/cancel — Cancel active scan
+/report &lt;url&gt; — Full report in TXT
+
+<b>🔍 Extra Tools:</b>
+/rate &lt;url&gt; — Security score (0-100)
+/compare &lt;url1&gt; &lt;url2&gt; — Compare 2 sites
+/history &lt;url&gt; — Scan history
+/pdf &lt;cmd&gt; &lt;url&gt; — Export TXT report
+/schedule &lt;min&gt; &lt;cmd&gt; &lt;url&gt; — Schedule scan
+/stealth &lt;cmd&gt; &lt;url&gt; — Slow scan (anti-detect)
+/notify &lt;url&gt; — Notify on status change
+
+<b>📋 System:</b>
+/ping — Bot latency
+/status — Health check
+/about — About the bot
+/feedback &lt;msg&gt; — Send feedback
+/bugreport &lt;msg&gt; — Report a bug
+/rescan &lt;cmd&gt; &lt;url&gt; — Rescan
+/lang &lt;pt/en/es&gt; — Change language
+
+━━━━━━━━━━━━━━━━━━━━━━
+<i>Use /listdn to see owner-only commands.</i>
+<b>👑 Owners:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
+━━━━━━━━━━━━━━━━━━━━━━
+<i>Mth Ddos Security v5.1</i>
+<i>For educational and authorized security testing purposes only.</i>"""
+    elif lang == 'es':
+        msg = """🔧 <b>Mth Ddos Security v5.1 — Comandos</b>
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>📡 Info & Recon:</b>
+/info &lt;url&gt; — Información completa del sitio
+/dns &lt;domain&gt; — Análisis DNS: A, MX, NS, TXT, DKIM, DNSSEC, PTR
+/cms &lt;url&gt; — Detección CMS (30+ CMS)
+/reverse &lt;ip&gt; — Hostname de IP + GeoIP
+/emails &lt;url&gt; — Extrae emails de la página
+
+<b>⚡ Scanners de Vulnerabilidad:</b>
+/sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
+/xss &lt;url&gt; [verbose] — XSS Reflejado (18+ payloads, WAF detection)
+/admin &lt;url&gt; — Paneles admin (100+ paths)
+/panel &lt;url&gt; — Admin Panel Finder (100+ paths)
+/ports &lt;ip&gt; — 50+ puertos con banner grabbing
+/dirs &lt;url&gt; — Directorios expuestos (80+ paths)
+/sub &lt;domain&gt; — Subdominios (100+ subs + permutaciones)
+/wp &lt;url&gt; — WordPress Scanner + CVE check
+/ftpssh &lt;ip&gt; — Banner FTP/SSH
+
+<b>🛡️ Scanners V5.0:</b>
+/ssl &lt;url&gt; — Auditoría SSL/TLS + OCSP + chain
+/headers &lt;url&gt; — Security Headers + sugerencias
+/cors &lt;url&gt; — CORS misconfiguration
+/robots &lt;url&gt; — Robots.txt + directorios ocultos
+/sitemap &lt;url&gt; — Sitemap.xml + URLs expuestas
+/tech &lt;url&gt; — Tecnologías (frameworks, CDNs, analytics)
+/exposed &lt;url&gt; — Archivos sensibles (.env, .git, etc.)
+/backup &lt;url&gt; — Backups expuestos (.sql, .zip, etc.)
+/api &lt;url&gt; — Endpoints de API (/api/v1, /graphql, etc.)
+/shell &lt;url&gt; — Webshells (c99, r57, c100, etc.)
+/config &lt;url&gt; — Configs expuestas (config.php, settings.json)
+
+<b>⚡ Comandos Rápidos V5.1:</b>
+/quick &lt;url&gt; — Scan rápido (info + headers)
+/scanall &lt;url&gt; — Scan completo (6 herramientas)
+/deep &lt;url&gt; — Deep scan vulns (6 scanners)
+/http &lt;url&gt; — Análisis HTTP response completa
+/sslchain &lt;url&gt; — Cadena de certificados SSL
+/batch &lt;cmd&gt; &lt;urls...&gt; — Scan múltiples targets
+/watch &lt;url&gt; [min] — Monitorear cambios de contenido
+/cancel — Cancelar scan activo
+/report &lt;url&gt; — Reporte completo en TXT
+
+<b>🔍 Herramientas Extras:</b>
+/rate &lt;url&gt; — Nota de seguridad general (0-100)
+/compare &lt;url1&gt; &lt;url2&gt; — Comparar seguridad de 2 sitios
+/history &lt;url&gt; — Historial de scans
+/pdf &lt;cmd&gt; &lt;url&gt; — Exportar reporte TXT
+/schedule &lt;min&gt; &lt;cmd&gt; &lt;url&gt; — Agendar scan
+/stealth &lt;cmd&gt; &lt;url&gt; — Scan lento (anti-detect)
+/notify &lt;url&gt; — Notificar cambio de estado
+
+<b>📋 Sistema:</b>
+/ping — Latencia del bot
+/status — Health check
+/about — Sobre el bot
+/feedback &lt;msg&gt; — Enviar sugerencia
+/bugreport &lt;msg&gt; — Reportar bug
+/rescan &lt;cmd&gt; &lt;url&gt; — Refazer scan
+/lang &lt;pt/en/es&gt; — Cambiar idioma
+
+━━━━━━━━━━━━━━━━━━━━━━
+<i>Usa /listdn para ver comandos exclusivos de dueños.</i>
+<b>👑 Dueños:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
+━━━━━━━━━━━━━━━━━━━━━━
+<i>Mth Ddos Security v5.1</i>
+<i>Uso solo para fines educativos y de seguridad autorizada.</i>"""
+    else:
+        msg = """🔧 <b>Mth Ddos Security v5.1 — Comandos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📡 Info & Recon:</b>
@@ -3336,6 +3720,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /feedback &lt;msg&gt; — Enviar sugestão
 /bugreport &lt;msg&gt; — Reportar bug
 /rescan &lt;comando&gt; &lt;url&gt; — Refazer scan
+/lang &lt;pt/en/es&gt; — Mudar idioma
 
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>Use /listdn para ver comandos exclusivos de donos.</i>
@@ -6028,6 +6413,32 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
         send_message_safe(chat_id, "❌ Falha ao enviar relatório.")
 
 
+# ═══════════════════════════════════════════════════════════════
+#  i18n: /lang command
+# ═══════════════════════════════════════════════════════════════
+def handle_lang(chat_id, user_id, username, first_name, last_name, args):
+    """Change bot language: /lang pt | /lang en | /lang es"""
+    log_user(user_id, username, first_name, last_name)
+    if not args:
+        lang = get_user_lang(user_id)
+        lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español'}[lang]
+        msg = (
+            f"🌐 <b>Idioma atual:</b> {lang_name}\n\n"
+            f"Uso: /lang &lt;idioma&gt;\n"
+            f"  /lang pt — Português\n"
+            f"  /lang en — English\n"
+            f"  /lang es — Español"
+        )
+    else:
+        lang_input = args[0].lower()
+        if lang_input not in ('pt', 'en', 'es'):
+            msg = "❌ Idiomas disponíveis: pt, en, es\nUso: /lang &lt;idioma&gt;"
+        else:
+            set_user_lang(user_id, lang_input)
+            lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español'}[lang_input]
+            msg = f"✅ <b>Idioma alterado para {lang_name}!</b>\n<i>Language changed to {lang_name}!</i>\n<i>Idioma cambiado a {lang_name}!</i>"
+    send_message_safe(chat_id, msg)
+
 def signal_handler(signum, frame):
     global SHUTDOWN_FLAG
     SHUTDOWN_FLAG = True
@@ -6077,6 +6488,7 @@ CMD_HANDLERS = {
     '/feedback':lambda c, u, un, fn, ln, a: handle_feedback(c, u, un, fn, ln, a),
     '/stop':    lambda c, u, un, fn, ln, a: handle_stop(c, u, un, fn, ln, a),
     '/rescan':  lambda c, u, un, fn, ln, a: handle_rescan(c, u, un, fn, ln, a),
+    '/lang':    lambda c, u, un, fn, ln, a: handle_lang(c, u, un, fn, ln, a),
     # V5.0: New scanner handlers
     '/ssl':     lambda c, u, un, fn, ln, a: handle_ssl(c, u, un, fn, ln, a),
     '/headers': lambda c, u, un, fn, ln, a: handle_headers(c, u, un, fn, ln, a),
@@ -6133,6 +6545,10 @@ def process_update(update):
         first_name = callback_query['from'].get('first_name', '')
         last_name = callback_query['from'].get('last_name', '')
         cb_message_id = callback_query['message'].get('message_id')
+        # i18n: detect language from callback query
+        if user_id not in USER_LANG:
+            detected = _LANG_MAP.get(callback_query['from'].get('language_code', ''), 'pt')
+            USER_LANG[user_id] = detected
 
         # Acknowledge the callback to remove loading spinner
         try:
@@ -6172,6 +6588,11 @@ def process_update(update):
     username = message['from'].get('username', '')
     first_name = message['from'].get('first_name', '')
     last_name = message['from'].get('last_name', '')
+
+    # i18n: detect user language from Telegram language_code
+    if user_id not in USER_LANG:
+        detected = detect_lang(message)
+        USER_LANG[user_id] = detected
 
     text = message['text'].strip()
     parts = text.split(maxsplit=1)
@@ -6213,12 +6634,25 @@ def process_update(update):
 
     # Ban check (allow /start, /help, /ping to respond even if banned)
     if user_id in BANNED_USERS and cmd not in ('/start', '/help', '/about', '/ping', '/status'):
-        send_message_safe(chat_id, "🚫 <b>Voce foi banido deste bot.</b> Acesso negado.")
+        user_lang = get_user_lang(user_id)
+        if user_lang == 'en':
+            ban_msg = "🚫 <b>You have been banned from this bot.</b> Access denied."
+        elif user_lang == 'es':
+            ban_msg = "🚫 <b>Has sido baneado de este bot.</b> Acceso denegado."
+        else:
+            ban_msg = "🚫 <b>Voce foi banido deste bot.</b> Acesso negado."
+        send_message_safe(chat_id, ban_msg)
         return
 
     # V5.0: Maintenance mode check (only owners bypass)
-    if MAINTENANCE_MODE and cmd not in ('/start', '/help', '/about', '/ping', '/status', '/maintenance') and not is_owner(user_id):
-        msg = MAINTENANCE_MSG if MAINTENANCE_MSG else "🔧 <b>Bot em manutenção.</b> Tente novamente em breve."
+    if MAINTENANCE_MODE and cmd not in ('/start', '/help', '/about', '/ping', '/status', '/maintenance', '/lang') and not is_owner(user_id):
+        user_lang = get_user_lang(user_id)
+        if user_lang == 'en':
+            msg = "🔧 <b>Bot under maintenance.</b> Please try again later."
+        elif user_lang == 'es':
+            msg = "🔧 <b>Bot en mantenimiento.</b> Inténtelo de nuevo más tarde."
+        else:
+            msg = MAINTENANCE_MSG if MAINTENANCE_MSG else "🔧 <b>Bot em manutenção.</b> Tente novamente em breve."
         send_message_safe(chat_id, msg)
         return
 
@@ -6233,7 +6667,13 @@ def process_update(update):
     user_cmd_list = [t for t in user_cmd_list if now_ts - t < window]
     if len(user_cmd_list) >= limit and cmd not in bypass_cmds:
         remaining = int(window - (now_ts - user_cmd_list[0]))
-        send_message_safe(chat_id, f"⏳ <b>Rate limit atingido.</b> Aguarde {remaining}s.")
+        user_lang = get_user_lang(user_id)
+        if user_lang == 'en':
+            send_message_safe(chat_id, f"⏳ <b>Rate limit reached.</b> Wait {remaining}s.")
+        elif user_lang == 'es':
+            send_message_safe(chat_id, f"⏳ <b>Límite de velocidad alcanzado.</b> Espere {remaining}s.")
+        else:
+            send_message_safe(chat_id, f"⏳ <b>Rate limit atingido.</b> Aguarde {remaining}s.")
         return
     user_cmd_list.append(now_ts)
     USER_CMD_COUNT[user_id] = user_cmd_list
@@ -6269,14 +6709,25 @@ def process_update(update):
                 finally:
                     ACTIVE_THREADS.release()
             else:
-                send_message_safe(chat_id, "⏳ <b>Servidor ocupado.</b> Tente novamente em alguns segundos.")
+                if user_lang == 'en':
+                    send_message_safe(chat_id, "⏳ <b>Server busy.</b> Try again in a few seconds.")
+                elif user_lang == 'es':
+                    send_message_safe(chat_id, "⏳ <b>Servidor ocupado.</b> Inténtelo de nuevo en unos segundos.")
+                else:
+                    send_message_safe(chat_id, "⏳ <b>Servidor ocupado.</b> Tente novamente em alguns segundos.")
             handler_done.set()
 
         threading.Thread(target=run_handler, daemon=True).start()
         # FIX v3.7: Wait for handler to confirm before advancing offset
         handler_done.wait(timeout=5)
     else:
-        send_message_safe(chat_id, "❌ <b>Comando desconhecido.</b>\n\nUse /help para ver os comandos disponíveis.")
+        user_lang = get_user_lang(user_id)
+        if user_lang == 'en':
+            send_message_safe(chat_id, "❌ <b>Unknown command.</b>\n\nUse /help to see available commands.")
+        elif user_lang == 'es':
+            send_message_safe(chat_id, "❌ <b>Comando desconocido.</b>\n\nUse /help para ver los comandos disponibles.")
+        else:
+            send_message_safe(chat_id, "❌ <b>Comando desconhecido.</b>\n\nUse /help para ver os comandos disponíveis.")
 
 
 def long_polling():

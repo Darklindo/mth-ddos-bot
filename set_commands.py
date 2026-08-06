@@ -64,6 +64,7 @@ commands = [
     {"command": "status", "description": "Health check do bot"},
     {"command": "feedback", "description": "Enviar feedback"},
     {"command": "bugreport", "description": "Reportar bug"},
+    {"command": "lang", "description": "Change language (pt/en/es)"},
     {"command": "rescan", "description": "Refazer scan [cmd] [url]"},
     {"command": "stop", "description": "Parar scan ativo"},
     # Owner
