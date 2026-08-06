@@ -110,15 +110,16 @@
 - [x] Adicionar suporte ao idioma indonésio (id) — 39 traduções
 - [x] Atualizar /lang command com vi e id
 - [x] Auto-detectar vi/id pelo language_code do Telegram
-## DEEP BUG REVIEW
-- [ ] Fix: setlang mensagem de confirmação hard-coded em PT/EN/ES (não respeita idioma selecionado)
-- [ ] Fix: Mensagens do menu principal não estão traduzidas (menu de idioma, ferramentas DONO, etc.)
-- [ ] Fix: Mensagem "🎯 Explorar Vulnerabilidades" aparece em PT mesmo quando usuário mudou idioma
-- [ ] Revisão completa: todos os menus e botões devem respeitar idioma do usuário
-- [ ] Revisão completa: verificar erros de indentação
-- [ ] Revisão completa: verificar variáveis não definidas
-- [ ] Revisão completa: verificar imports faltando
-- [ ] Revisão completa: verificar edge cases nos handlers
+## DEEP BUG REVIEW (v5.2)
+- [x] Fix: setlang mensagem de confirmação agora responde no idioma selecionado
+- [x] Fix: show_main_menu — Full translation for all 5 languages
+- [x] Fix: show_menu_vip — Full translation for all 5 languages
+- [x] Fix: show_menu_owner — Full translation for all 5 languages
+- [x] Fix: handle_lang — Responds in user's current language
+- [x] Fix: Version consistency — All user-facing messages updated v5.1 → v5.2
+- [x] Fix: IndentationError in _TRANSLATIONS dict
+- [x] All 7 menus with get_user_lang verified
+- [x] 90 tier functions, 75 handlers, 15 callbacks verified
 
 ## MULTILINGUAL SUPPORT (PT/EN/ES/VI/ID)
 - [x] Adicionar suporte ao idioma vietnamita (vi) — 39 traduções
@@ -189,6 +190,16 @@
 - [x] Broadcast should edit a single message instead of sending multiple progress messages
 - [x] Fix progress spam in broadcast (10%, 20%, 30% etc sending new messages)
 
+## MENU CLEANUP & REORGANIZE
+- [x] Redesenhar show_main_menu — botões curtos, badge Owner/VIP, sem texto longo
+- [x] Redesenhar show_menu_vulns — emojis curtos (⚡ SQLi, ⚡ XSS) sem descrições
+- [x] Redesenhar show_menu_recon — botões curtos (🌐 Info, 📋 Whois)
+- [x] Redesenhar show_menu_audit — botões curtos (🔒 SSL, 📋 Headers)
+- [x] Redesenhar show_menu_files — botões curtos (🔑 Admin, 📁 Dirs)
+- [x] Redesenhar show_menu_vip — botões curtos com badge ⭐ VIP
+- [x] Redesenhar show_menu_owner — botões curtos com badge 👑 DONO
+- [x] Simplificar handle_help — apenas DONO, /start e comandos essenciais
+
 ## v5.2 BUG REVIEW (LINE BY LINE)
 - [x] Fix: handle_stats() missing args in menu:stats callback (already correct in v5.2)
 - [x] Fix: 'args' not defined in callback_query section (flow correctly falls through)
@@ -196,3 +207,20 @@
 - [x] Full line-by-line bug review of entire file
 - [x] All 30 _run_*_normal/vip/owner functions verified
 - [x] set_commands.py updated with forensic/pentest/osint
+## MENU NAVIGATION IMPROVEMENTS
+- [x] Editar mensagem do menu ao navegar entre categorias (em vez de enviar nova)
+- [x] Mostrar menu principal de volta após cada scan terminar
+- [x] Salvar message_id do menu para poder editá-lo depois
+- [x] edit_menu() function implemented
+- [x] MENU_MSG_IDS dict for tracking
+- [x] show_main_menu after tiered scanners (sqli, xss, scanall, deep)
+- [x] show_main_menu after non-tiered scanners
+- [x] show_main_menu after owner commands
+- [x] show_main_menu after /batch and /quick
+## BROADCAST AUTO-TRANSLATION (v5.2)
+- [ ] Add language_code column to users table
+- [ ] Store detected language_code when user interacts with bot
+- [ ] Implement auto-translate in handle_msg broadcast
+- [ ] Translate text broadcasts per-user language
+- [ ] Translate media captions per-user language
+- [ ] Fallback to PT if translation fails

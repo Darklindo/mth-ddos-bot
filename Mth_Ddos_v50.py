@@ -315,13 +315,35 @@ PENDING_TARGETS: dict = {}  # user_id -> {cmd, tier}
 MENU_MSG_IDS: dict = {}  # user_id -> message_id (for editing menu messages)
 
 def get_user_lang(user_id: int) -> str:
-    """Return the user's preferred language code ('pt', 'en', or 'es')."""
-    return USER_LANG.get(user_id, 'pt')  # default to Portuguese
+    """Return the user's preferred language code. Checks memory first, then DB, then default 'pt'."""
+    if user_id in USER_LANG:
+        return USER_LANG[user_id]
+    # Fallback to database
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("SELECT language_code FROM users WHERE id = ?", (user_id,))
+            row = c.fetchone()
+            if row and row[0]:
+                lang = row[0]
+                USER_LANG[user_id] = lang  # cache in memory
+                return lang
+    except:
+        pass
+    return 'pt'  # default to Portuguese
 
 def set_user_lang(user_id: int, lang: str):
-    """Persist a user's language preference in memory."""
+    """Persist a user's language preference in memory and database."""
     if lang in ('pt', 'en', 'es', 'vi', 'id'):
         USER_LANG[user_id] = lang
+        # Also persist to database for broadcast translation
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute("UPDATE users SET language_code = ? WHERE id = ?", (lang, user_id))
+                conn.commit()
+        except Exception as e:
+            print(f"[DB Error] set_user_lang: {e}")
 
 # Language map: Telegram language_code -> our code
 _LANG_MAP = {
@@ -1264,6 +1286,11 @@ def init_db():
             c.execute("ALTER TABLE site_monitor ADD COLUMN watch_type TEXT DEFAULT 'status'")
         except:
             pass
+        # V5.2: Add language_code to users for broadcast translation
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN language_code TEXT DEFAULT 'pt'")
+        except:
+            pass
         # V5.0: Audit log table
         c.execute('''CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1288,23 +1315,25 @@ def init_db():
         )''')
         conn.commit()
 
-def log_user(user_id, username, first_name, last_name):
+def log_user(user_id, username, first_name, last_name, language_code='pt'):
     is_owner = 1 if user_id in OWNERS else 0
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             # FIX v3.9: UPSERT now updates ALL fields including username/first_name/last_name
-            c.execute("""INSERT INTO users (id, username, first_name, last_name, is_owner, first_seen, last_seen, command_count)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            # V5.2: Also store language_code for broadcast translation
+            c.execute("""INSERT INTO users (id, username, first_name, last_name, is_owner, first_seen, last_seen, command_count, language_code)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
                          ON CONFLICT(id) DO UPDATE SET
                             username = excluded.username,
                             first_name = excluded.first_name,
                             last_name = excluded.last_name,
                             is_owner = excluded.is_owner,
                             last_seen = excluded.last_seen,
-                            command_count = command_count + 1""",
-                      (user_id, username, first_name, last_name, is_owner, now, now))
+                            command_count = command_count + 1,
+                            language_code = excluded.language_code""",
+                      (user_id, username, first_name, last_name, is_owner, now, now, language_code))
             conn.commit()
     except Exception as e:
         print(f"[DB Error] log_user: {e}")
@@ -4565,8 +4594,8 @@ def tool_deep_owner(url):
 #  COMMAND HANDLERS
 # ═══════════════════════════════════════════════════════════════
 
-def handle_start(chat_id, user_id, username, first_name, last_name, args=None):
-    log_user(user_id, username, first_name, last_name)
+def handle_start(chat_id, user_id, username, first_name, last_name, args=None, language_code='pt'):
+    log_user(user_id, username, first_name, last_name, language_code)
     show_main_menu(chat_id, user_id, username, first_name)
 
 
@@ -5845,8 +5874,30 @@ def _broadcast_retry_send(api_method, payload, max_retries=2):
     return False, False
 
 
+def _translate_broadcast_text(text: str, target_lang: str, source_lang: str = 'pt') -> str:
+    """Translate broadcast text using MyMemory free translation API.
+    Falls back to original text if translation fails or target is same as source."""
+    if target_lang == source_lang or target_lang == 'pt' or not text:
+        return text
+    try:
+        langpair = f"{source_lang}|{target_lang}"
+        resp = HTTP_SESSION.get(
+            "https://api.mymemory.translated.net/get",
+            params={"q": text, "langpair": langpair},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            translated = data.get('responseData', {}).get('translatedText', '')
+            if translated and len(translated) > len(text) * 0.3:
+                return translated
+    except:
+        pass
+    return text
+
+
 def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, owner_user_id):
-    """Execute a broadcast loop with a SINGLE edited progress message.
+    """Execute a broadcast loop with per-user language translation.
     Returns (sent, failed_trans, blocked)."""
     sent = 0
     failed = 0
@@ -5890,8 +5941,24 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
         except:
             pass
 
+    # Cache translations per language to avoid redundant API calls
+    _translation_cache: dict = {}  # (text, lang) -> translated_text
+
     for idx, u in enumerate(users):
         uid = str(u['id'])
+        user_lang = u.get('language_code', 'pt') or 'pt'
+        
+        # Translate text for this user's language
+        if user_lang != 'pt':
+            cache_key = (broadcast_text, user_lang)
+            if cache_key in _translation_cache:
+                translated_text = _translation_cache[cache_key]
+            else:
+                translated_text = _translate_broadcast_text(broadcast_text, user_lang)
+                _translation_cache[cache_key] = translated_text
+        else:
+            translated_text = broadcast_text
+
         success = False
         fatal = False
         if media_type:
@@ -5908,24 +5975,24 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
                 payload["sticker"] = file_id
             else:
                 payload[media_type] = file_id
-                payload["caption"] = broadcast_text or ''
+                payload["caption"] = translated_text or ''
                 payload["parse_mode"] = "HTML"
             success, fatal = _broadcast_retry_send(api_method, payload)
         else:
             payload = {
                 "chat_id": uid,
-                "text": broadcast_text,
+                "text": translated_text,
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True
             }
             success, fatal = _broadcast_retry_send('sendMessage', payload)
         if success:
             sent += 1
-            # For stickers, also send caption text after
-            if media_type == 'sticker' and broadcast_text:
+            # For stickers, also send caption text after (translated)
+            if media_type == 'sticker' and translated_text:
                 time.sleep(0.15)
                 _broadcast_retry_send('sendMessage', {
-                    "chat_id": uid, "text": broadcast_text, "parse_mode": None
+                    "chat_id": uid, "text": translated_text, "parse_mode": None
                 }, max_retries=0)
         elif fatal:
             blocked += 1
@@ -5961,7 +6028,7 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute("SELECT id, username, first_name FROM users")
+            c.execute("SELECT id, username, first_name, language_code FROM users")
             users = [dict(r) for r in c.fetchall()]
     except Exception as e:
         print(f"[DB Error] handle_msg: {e}")
@@ -9170,7 +9237,7 @@ ACTIVE_THREADS = threading.Semaphore(50)  # Max 50 concurrent command threads
 
 # PERF: Global handlers dict — no lambda creation per update
 CMD_HANDLERS = {
-    '/start':   lambda c, u, un, fn, ln, a: handle_start(c, u, un, fn, ln, a),
+    '/start':   lambda c, u, un, fn, ln, a: handle_start(c, u, un, fn, ln, a, get_user_lang(u)),
     '/help':    lambda c, u, un, fn, ln, a: handle_help(c, u, un, fn, ln, a),
     '/about':   lambda c, u, un, fn, ln, a: handle_about(c, u, un, fn, ln, a),
     '/status':  lambda c, u, un, fn, ln, a: handle_status(c, u, un, fn, ln, a),
@@ -9561,6 +9628,11 @@ def process_update(update):
     if user_id not in USER_LANG:
         detected = detect_lang(message)
         USER_LANG[user_id] = detected
+
+    # V5.2: Persist language_code to DB for broadcast translation
+    user_lang_code = get_user_lang(user_id)
+    # Log user with language_code to persist it to DB
+    log_user(user_id, username, first_name, last_name, user_lang_code)
 
     text = message['text'].strip()
     parts = text.split(maxsplit=1)
@@ -10028,16 +10100,29 @@ def scheduled_task_loop():
                         msg = target
                         try:
                             c2 = conn.cursor()
-                            c2.execute("SELECT id FROM users")
+                            c2.execute("SELECT id, language_code FROM users")
                             users = [dict(r) for r in c2.fetchall()]
                             total = len(users)
                             sent = 0
                             failed = 0
                             blocked = 0
-                            for u in users:
+                            # Cache translations per language
+                            _sched_cache = {}
+                            for user in users:
+                                uid = str(user['id'])
+                                user_lang = user.get('language_code', 'pt') or 'pt'
+                                if user_lang != 'pt':
+                                    cache_key = (msg, user_lang)
+                                    if cache_key in _sched_cache:
+                                        user_msg = _sched_cache[cache_key]
+                                    else:
+                                        user_msg = _translate_broadcast_text(msg, user_lang)
+                                        _sched_cache[cache_key] = user_msg
+                                else:
+                                    user_msg = msg
                                 success, fatal = _broadcast_retry_send(
                                     'sendMessage',
-                                    {"chat_id": str(u['id']), "text": msg, "parse_mode": "HTML", "disable_web_page_preview": True},
+                                    {"chat_id": uid, "text": user_msg, "parse_mode": "HTML", "disable_web_page_preview": True},
                                     max_retries=1
                                 )
                                 if success:
