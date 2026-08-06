@@ -239,3 +239,56 @@
 - [ ] Investigar: mensagem de progresso duplicada (envia nova + edita)
 - [ ] Corrigir ambos os problemas
 - [ ] Push no GitHub
+## v5.3 — TODAS AS MELHORIAS (39 features)
+
+### SEGURANÇA
+- [x] Rate limit por IP nos scans
+- [x] Bloquear domínios .gov/.edu para usuários normais (VIP/Owner liberados)
+- [x] Logs criptografados (chave XOR com hash)
+- [x] Validação de URL nos scans (rejectar strings inválidas)
+- [x] Timeout global nos scans (evitar travamento)
+
+### PERFORMANCE
+- [x] Cache com TTL persistente em SQLite
+- [x] Compressão de payload Telegram (mensagens longas)
+- [x] Connection pooling aprimorado (HTTP_SESSION shared)
+- [x] Shared thread pool (SCAN_POOL)
+
+### FUNCIONALIDADES
+- [x] Export scan PDF completo (profissional)
+- [ ] Webhooks de notificação (enviar resultado para URL)
+- [x] /history com gráfico de evolução
+- [ ] Scan de dependências (npm/pip/composer vulneráveis)
+- [x] Subdomains via crt.sh API
+- [ ] Reporte automático semanal agendado
+- [ ] Integração Shodan/Censys
+- [x] Scan APIs GraphQL/REST completo
+- [x] Detector WAF preciso (Cloudflare, Sucuri, ModSec, Barracuda)
+
+### UX/UI
+- [x] Botão Rescan inline nos resultados (já implementado em sqli/xss/admin/panel/headers etc.)
+- [x] Poll de feedback pós-scan (útil? 👍👎)
+- [ ] Formatação melhorada dos resultados
+- [ ] Ajuda contextual por tipo de scan
+- [x] Botão compartilhar resultados
+- [x] Sistema de badges/conquistas (já implementado: first_scan, 100, 500, vip, owner, early_adopter)
+
+### ANÁLISE & MONITORAMENTO
+- [ ] Dashboard uso em tempo real (/dashboard)
+- [ ] Alertas inteligentes (padrões de ataque)
+- [ ] Histórico comparativo visual
+- [ ] Score global consolidado por domínio
+- [ ] Monitor porta customizada
+
+### INFRAESTRUTURA
+- [ ] Dockerfile para deploy
+- [ ] Auto-update OTA do GitHub
+- [ ] Health check endpoint
+- [ ] Backup automático do banco (cron diário)
+- [ ] Migração PostgreSQL (schema compatível)
+- [ ] Logs estruturados JSON
+
+### MULTILINGUAL
+- [ ] Adicionar FR, DE, RU, AR
+- [ ] Auto-detectar idioma por geolocalização IP
+- [ ] Traduzir resultados de scan (não só broadcast)

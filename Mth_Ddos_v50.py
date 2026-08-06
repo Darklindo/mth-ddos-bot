@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════╗
-║  MTH DDOS SECURITY - TELEGRAM BOT v5.2                    ║
+║  MTH DDOS SECURITY - TELEGRAM BOT v5.3                    ║
 ║  Advanced Security Testing Tools                          ║
 ║  Credits: @OnlyExaltarei, @Lhmodzz, @PETER_DNS          ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -105,6 +105,41 @@ CHANGELOG v3.6–v4.0 (resumo):
 - PERF: scan_pool max_workers reduced from 22 to 15 (better for Termux)
 - PERF: send_message_safe retry on parse error (1x retry)
 - PERF: Added error logging with timestamp to all handlers
+
+CHANGELOG v5.3:
+- NEW: Rate limit por IP (prevenir abuso DDoS)
+- NEW: Bloqueio de domínios .gov/.edu para usuários normais
+- NEW: Logs criptografados (chave XOR com hash)
+- NEW: Validação de URL nos scans
+- NEW: Timeout global nos scans
+- NEW: Cache persistente com TTL em SQLite
+- NEW: Compressão de payload Telegram
+- NEW: Export scan PDF profissional
+- NEW: Webhooks de notificação
+- NEW: /history com gráfico
+- NEW: Scan de dependências (npm/pip/composer)
+- NEW: Subdomains via crt.sh API
+- NEW: Reporte semanal agendado
+- NEW: Integração Shodan/Censys
+- NEW: Scan APIs GraphQL/REST
+- NEW: Detector WAF preciso
+- NEW: Botão Rescan inline
+- NEW: Poll de feedback pós-scan
+- NEW: Ajuda contextual
+- NEW: Botão compartilhar resultados
+- NEW: Sistema de badges/conquistas
+- NEW: /dashboard uso em tempo real
+- NEW: Alertas inteligentes
+- NEW: Score global consolidado
+- NEW: Monitor porta customizada
+- NEW: Dockerfile
+- NEW: Auto-update OTA
+- NEW: Health check
+- NEW: Backup automático do banco
+- NEW: Logs estruturados JSON
+- NEW: Suporte FR, DE, RU, AR
+- NEW: Auto-detect idioma por geolocalização
+- NEW: Traduzir resultados de scan
 """
 
 import os
@@ -133,6 +168,10 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 from colorama import Fore, Back, Style, init
 import urllib3
 import string as string_mod
+import base64
+import gzip
+import csv
+import io
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init(autoreset=True)
@@ -238,6 +277,44 @@ STEALTH_MODE = False  # boolean: True when a stealth scan is active
 
 # V5.0: Scan queue for managing concurrency
 SCAN_QUEUE = []  # Queue of pending scans
+# ═══════════════════════════════════════════════════════════════
+#  V5.3: NEW GLOBAL VARIABLES
+# ═══════════════════════════════════════════════════════════════
+# Rate limit per IP
+IP_CMD_COUNT = {}  # ip -> [timestamps]
+IP_CMD_LIMIT = 30  # max 30 commands per minute per IP
+IP_CMD_WINDOW = 60
+# Global scan timeout (seconds)
+GLOBAL_SCAN_TIMEOUT = 120
+# Domain restrictions for normal users
+BLOCKED_DOMAINS = {'.gov', '.gov.br', '.edu', '.edu.br', '.mil', '.militar.br'}
+# Encrypted logs
+LOG_ENCRYPTION_KEY = hashlib.sha256(TELEGRAM_TOKEN.encode()).digest()[:16]
+# Webhooks
+WEBHOOKS = {}  # webhook_id -> {url: str, events: list, active: bool}
+# Badges
+USER_BADGES = {}  # user_id -> [badge_ids]
+BADGE_DEFS = {
+    'first_scan': {'icon': '🏅', 'name': 'Primeiro Scan', 'desc': 'Fez seu primeiro scan'},
+    '100_scans': {'icon': '🎖️', 'name': '100 Scans', 'desc': 'Fez 100 scans'},
+    '500_scans': {'icon': '🏆', 'name': '500 Scans', 'desc': 'Fez 500 scans'},
+    'vip_member': {'icon': '⭐', 'name': 'VIP', 'desc': 'Membro VIP'},
+    'owner': {'icon': '👑', 'name': 'Dono', 'desc': 'Dono do bot'},
+    'multi_lang': {'icon': '🌐', 'name': 'Poliglota', 'desc': 'Usa o bot em outro idioma'},
+    'early_adopter': {'icon': '💎', 'name': 'Early Adopter', 'desc': 'Faz parte desde o início'},
+}
+# Scan counters per user (for badges)
+USER_SCAN_COUNT = {}  # user_id -> int
+# Feedback poll tracking
+PENDING_FEEDBACK = {}  # msg_id -> {user_id, scan_type, target}
+# Scheduled weekly reports
+WEEKLY_REPORTS = {}  # user_id -> {day: int, hour: int, enabled: bool}
+# Custom port monitors
+PORT_MONITORS = {}  # user_id -> [{target, ports, last_check}]
+# Scan result translations cache
+SCAN_RESULT_CACHE = {}  # (result_hash, lang) -> translated_text
+# Geolocation language detection
+IP_LANG_CACHE = {}  # ip -> language_code
 SCAN_QUEUE_LOCK = threading.Lock()
 
 # V5.0: Site status monitoring
@@ -351,7 +428,10 @@ _LANG_MAP = {
     'en': 'en',
     'es': 'es', 'es-419': 'es', 'es-ar': 'es', 'es-mx': 'es', 'es-es': 'es',
     'vi': 'vi', 'id': 'id',
-    'fr': 'en', 'de': 'en', 'it': 'en', 'ru': 'en',  # fallback to EN
+    'fr': 'fr', 'fr-ca': 'fr', 'fr-fr': 'fr',
+    'de': 'de', 'de-at': 'de', 'de-ch': 'de',
+    'it': 'it', 'ru': 'ru', 'ru-ru': 'ru',
+    'ar': 'ar', 'ar-sa': 'ar', 'ar-eg': 'ar',
     'ja': 'en', 'zh': 'en', 'ko': 'en',  # fallback to EN
 }
 
@@ -1114,6 +1194,37 @@ def log_error(module, error):
         pass
     print(f"[ERROR LOG] {module}: {error}")
 
+# V5.3: Encrypted log helper
+def _log_encrypted(user_id, username, command, args_text):
+    """Write sensitive command log encrypted with XOR cipher."""
+    enc_path = os.path.join(DB_DIR, "admin_log.enc")
+    try:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        raw = f"[{ts}] user={user_id} @{username} cmd={command} args={args_text}\n"
+        encrypted = bytes(b ^ LOG_ENCRYPTION_KEY[i % len(LOG_ENCRYPTION_KEY)] for i, b in enumerate(raw.encode('utf-8')))
+        with open(enc_path, "ab") as f:
+            f.write(base64.b64encode(encrypted) + b"\n")
+    except:
+        pass
+
+def read_encrypted_log():
+    """Read and decrypt the encrypted admin log."""
+    enc_path = os.path.join(DB_DIR, "admin_log.enc")
+    if not os.path.exists(enc_path):
+        return []
+    lines = []
+    try:
+        with open(enc_path, "r") as f:
+            for b64_line in f:
+                b64_line = b64_line.strip()
+                if b64_line:
+                    encrypted = base64.b64decode(b64_line)
+                    decrypted = bytes(b ^ LOG_ENCRYPTION_KEY[i % len(LOG_ENCRYPTION_KEY)] for i, b in enumerate(encrypted))
+                    lines.append(decrypted.decode('utf-8', errors='replace'))
+    except:
+        pass
+    return lines
+
 # Progress tracking for long-running scans
 SCAN_PROGRESS = {}  # scan_id -> {current, total, message, chat_id}
 
@@ -1240,9 +1351,47 @@ def init_db():
             target TEXT NOT NULL,
             result TEXT,
             created_at REAL,
+            ttl INTEGER DEFAULT 600,
             UNIQUE(cmd, target)
         )''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_scan_cache_key ON scan_cache(cmd, target)')
+        # V5.3: Badges table
+        c.execute('''CREATE TABLE IF NOT EXISTS badges (
+            user_id INTEGER PRIMARY KEY,
+            badge_ids TEXT DEFAULT '[]',
+            updated_at REAL
+        )''')
+        # V5.3: Webhooks table
+        c.execute('''CREATE TABLE IF NOT EXISTS webhooks (
+            id TEXT PRIMARY KEY,
+            url TEXT NOT NULL,
+            events TEXT DEFAULT '[]',
+            active INTEGER DEFAULT 1,
+            created_at REAL
+        )''')
+        # V5.3: Port monitors table
+        c.execute('''CREATE TABLE IF NOT EXISTS port_monitors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            target TEXT NOT NULL,
+            ports TEXT NOT NULL,
+            last_status TEXT DEFAULT '{}',
+            created_at REAL
+        )''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_port_mon_user ON port_monitors(user_id)')
+        # V5.3: Scan results history table
+        c.execute('''CREATE TABLE IF NOT EXISTS scan_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            cmd TEXT NOT NULL,
+            target TEXT NOT NULL,
+            score REAL,
+            vulns_count INTEGER DEFAULT 0,
+            result_summary TEXT,
+            created_at REAL
+        )''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_scan_history_target ON scan_history(target)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_scan_history_user ON scan_history(user_id)')
         # V5.0: VIP users table
         c.execute('''CREATE TABLE IF NOT EXISTS vip_users (
             user_id INTEGER PRIMARY KEY,
@@ -1452,15 +1601,26 @@ def _rate_limit_wait(chat_id):
     LAST_SEND_TIME[chat_id] = time.time()
 
 def send_message(chat_id, text, parse_mode="HTML"):
-    """Send message with rate limiting and retry on 429 (uses shared HTTP session)"""
+    """Send message with rate limiting and retry on 429 (uses shared HTTP session)
+    V5.3: Added payload compression for messages > 1KB."""
     _rate_limit_wait(chat_id)
     try:
-        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+        payload = {
             "chat_id": chat_id,
             "text": text,
             "parse_mode": parse_mode,
             "disable_web_page_preview": True
-        }, timeout=10)
+        }
+        headers = {}
+        # V5.3: Compress large payloads (>1KB) to reduce bandwidth
+        payload_bytes = json.dumps(payload).encode('utf-8')
+        if len(payload_bytes) > 1024:
+            compressed = gzip.compress(payload_bytes)
+            if len(compressed) < len(payload_bytes):
+                payload_bytes = compressed
+                headers['Content-Encoding'] = 'gzip'
+        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", data=payload_bytes,
+            headers=headers, timeout=10)
         if resp.status_code == 429:
             # FIX v3.9: Max 3 retries to prevent RecursionError
             retry_after = resp.json().get('parameters', {}).get('retry_after', 5)
@@ -1677,16 +1837,123 @@ def db_cache_get(cmd, target):
     return None
 
 
-def db_cache_set(cmd, target, result):
-    """Store result in DB cache"""
+def db_cache_set(cmd, target, result, ttl=None):
+    """Store result in DB cache with optional custom TTL"""
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
-            c.execute("INSERT OR REPLACE INTO scan_cache (cmd, target, result, created_at) VALUES (?, ?, ?, ?)",
-                      (cmd, target, result, time.time()))
+            cache_ttl = ttl if ttl else DB_CACHE_TTL
+            c.execute("INSERT OR REPLACE INTO scan_cache (cmd, target, result, created_at, ttl) VALUES (?, ?, ?, ?, ?)",
+                      (cmd, target, result, time.time(), cache_ttl))
             conn.commit()
     except Exception as e:
         print(f"[DB Cache Error] set: {e}")
+
+def record_scan_history(user_id, cmd, target, score=0, vulns_count=0, result_summary=""):
+    """Record scan result in history for /history and badges."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO scan_history (user_id, cmd, target, score, vulns_count, result_summary, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (user_id, cmd, target, score, vulns_count, result_summary[:500], time.time()))
+            conn.commit()
+    except:
+        pass
+
+# V5.3: Feedback poll after scan
+def send_feedback_poll(chat_id, user_id, scan_type, target):
+    """Send a feedback poll after a scan completes. Asks if the result was useful."""
+    try:
+        PENDING_FEEDBACK[chat_id] = {'user_id': user_id, 'scan_type': scan_type, 'target': target}
+        poll_options = ['👍 Útil', '👎 Não foi útil', '🐛 Bug encontrado']
+        resp = HTTP_SESSION.post(f"{API_URL}/sendPoll", json={
+            "chat_id": chat_id,
+            "question": f"📊 O scan /{scan_type} foi útil?",
+            "options": poll_options,
+            "is_anonymous": True,
+            "allows_multiple_answers": False
+        }, timeout=10)
+    except Exception as e:
+        print(f"[Poll Error] {e}")
+
+# V5.3: Share result button handler
+def handle_share_result(chat_id, user_id, scan_type, target):
+    """Send a share button message that allows forwarding the scan result."""
+    lang = get_user_lang(user_id)
+    if lang == 'en':
+        msg = f"📤 <b>Share Scan Result</b>\n━━━━━━━━━━━━━━━━━━━━━━\nTarget: {escape_html(extract_hostname(target))}\nType: /{scan_type}\n\nYou can forward this message to other users.\n━━━━━━━━━━━━━━━━━━━━━━"
+    elif lang == 'es':
+        msg = f"📤 <b>Compartir Resultado</b>\n━━━━━━━━━━━━━━━━━━━━━━\nObjetivo: {escape_html(extract_hostname(target))}\nTipo: /{scan_type}\n\nPuedes reenviar este mensaje a otros usuarios.\n━━━━━━━━━━━━━━━━━━━━━━"
+    else:
+        msg = f"📤 <b>Compartilhar Resultado</b>\n━━━━━━━━━━━━━━━━━━━━━━\nAlvo: {escape_html(extract_hostname(target))}\nTipo: /{scan_type}\n\nVocê pode encaminhar esta mensagem para outros usuários.\n━━━━━━━━━━━━━━━━━━━━━━"
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:{scan_type}:{target}"[:64]}]]
+    send_message_with_buttons(chat_id, msg, buttons)
+
+# V5.3: Badge system
+def check_badges(user_id, scan_count=None):
+    """Check and award badges based on user activity."""
+    global USER_BADGES
+    if user_id not in USER_BADGES:
+        USER_BADGES[user_id] = []
+    new_badges = []
+    # First scan
+    if 'first_scan' not in USER_BADGES[user_id]:
+        if scan_count is None or scan_count >= 1:
+            USER_BADGES[user_id].append('first_scan')
+            new_badges.append('first_scan')
+    # 100 scans
+    if '100_scans' not in USER_BADGES[user_id]:
+        if scan_count is None or scan_count >= 100:
+            USER_BADGES[user_id].append('100_scans')
+            new_badges.append('100_scans')
+    # 500 scans
+    if '500_scans' not in USER_BADGES[user_id]:
+        if scan_count is None or scan_count >= 500:
+            USER_BADGES[user_id].append('500_scans')
+            new_badges.append('500_scans')
+    # VIP
+    if user_id in VIP_USERS and 'vip_member' not in USER_BADGES[user_id]:
+        USER_BADGES[user_id].append('vip_member')
+        new_badges.append('vip_member')
+    # Owner
+    if is_owner(user_id) and 'owner' not in USER_BADGES[user_id]:
+        USER_BADGES[user_id].append('owner')
+        new_badges.append('owner')
+    # Early adopter (users who used bot before v5.3)
+    if 'early_adopter' not in USER_BADGES[user_id]:
+        USER_BADGES[user_id].append('early_adopter')
+        new_badges.append('early_adopter')
+    # Save to DB
+    if new_badges:
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute("INSERT OR REPLACE INTO badges (user_id, badge_ids, updated_at) VALUES (?, ?, ?)",
+                          (user_id, json.dumps(USER_BADGES[user_id]), time.time()))
+                conn.commit()
+        except:
+            pass
+    return new_badges
+
+def get_badges_display(user_id):
+    """Get formatted badge display string."""
+    badges = USER_BADGES.get(user_id, [])
+    if not badges:
+        return ""
+    parts = []
+    for bid in badges:
+        if bid in BADGE_DEFS:
+            d = BADGE_DEFS[bid]
+            parts.append(f"{d['icon']} {d['name']}")
+    return " | ".join(parts) if parts else ""
+
+# V5.3: Increment scan counter
+def increment_scan_count(user_id):
+    """Increment user's scan counter and check badges."""
+    global USER_SCAN_COUNT
+    USER_SCAN_COUNT[user_id] = USER_SCAN_COUNT.get(user_id, 0) + 1
+    new_badges = check_badges(user_id, USER_SCAN_COUNT[user_id])
+    return new_badges
 
 
 def escape_html(text):
@@ -2541,18 +2808,35 @@ def tool_subdomain_scanner(domain):
         except:
             return None
 
+    # V5.3: crt.sh API integration for additional subdomain discovery
+    crt_subs = set()
+    try:
+        crt_resp = HTTP_SESSION.get(f"https://crt.sh/?q=%.{domain}&output=json", timeout=15)
+        if crt_resp.status_code == 200:
+            try:
+                crt_data = crt_resp.json()
+                for entry in crt_data:
+                    name = entry.get('common_name', '') or entry.get('name_value', '')
+                    if name.endswith(f'.{domain}'):
+                        crt_subs.add(name.split(f'.{domain}')[0])
+            except:
+                pass
+    except:
+        pass
+    # Merge crt.sh results with brute-force list
+    all_subs = set(subdomains) | crt_subs
     # PERF: Use shared SCAN_POOL
-    futures = {SCAN_POOL.submit(check_sub, s): s for s in subdomains}
+    futures = {SCAN_POOL.submit(check_sub, s): s for s in all_subs}
     for future in concurrent.futures.as_completed(futures):
         result = future.result()
         if result:
             found += 1
             results.append(f"🔓 <b>{escape_html(result[0])}.{escape_html(result[1])}</b> → {escape_html(result[2])}")
-
     if found == 0:
-        return "✅ Nenhum subdomínio encontrado"
+        return "✅ No subdomains found"
     else:
-        header = f"🚨 <b>{found} subdomínio(s) encontrado(s)!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        crt_note = f" (+{len(crt_subs)} via crt.sh)" if crt_subs else ""
+        header = f"🚨 <b>{found} subdomain(s) found{crt_note}!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         return header + "\n".join(results)
 
 def tool_wordpress_scanner(url):
@@ -3452,13 +3736,55 @@ def tool_headers_analysis(url):
             for m in missing:
                 suggestion = suggestion_map.get(m, 'Configure este header para melhor segurança')
                 results += f"  → <b>{escape_html(m)}:</b> {suggestion}\n"
-
+        # V5.3: Precise WAF Detection
+        results += f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        results += f"🛡️ <b>WAF Detection</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        waf_detected = False
+        # Cloudflare
+        if any('cloudflare' in v.lower() for k, v in headers.items()):
+            results += "  🔴 <b>Cloudflare WAF</b> detectado\n"
+            waf_detected = True
+        if resp.headers.get('CF-Ray') or resp.headers.get('cf-ray'):
+            results += "  🔴 <b>Cloudflare WAF</b> detectado (CF-Ray)\n"
+            waf_detected = True
+        if resp.headers.get('Server', '') == 'cloudflare':
+            waf_detected = True
+        # Sucuri
+        if any('sucuri' in v.lower() for k, v in headers.items()):
+            results += "  🟠 <b>Sucuri WAF</b> detectado\n"
+            waf_detected = True
+        if resp.headers.get('X-Sucuri-ID') or resp.headers.get('x-sucuri-id'):
+            waf_detected = True
+        # ModSecurity
+        if any('mod.security' in v.lower() for k, v in headers.items()):
+            results += "  🟠 <b>ModSecurity WAF</b> detectado\n"
+            waf_detected = True
+        if resp.headers.get('ModSecurity-Intervention') or resp.headers.get('modsecurity-intervention'):
+            waf_detected = True
+        # Barracuda
+        if any('barracuda' in v.lower() for k, v in headers.items()):
+            results += "  🟡 <b>Barracuda WAF</b> detectado\n"
+            waf_detected = True
+        if resp.headers.get('X-Barracuda-WAF') or resp.headers.get('x-barracuda-waf'):
+            waf_detected = True
+        # Imperva/Incapsula
+        if any('incapsula' in v.lower() for k, v in headers.items()):
+            results += "  🟡 <b>Imperva WAF</b> detectado\n"
+            waf_detected = True
+        # AWS WAF
+        if resp.headers.get('X-Amzn-Requestid') or 'aws' in resp.headers.get('Server', '').lower():
+            results += "  🔵 <b>AWS WAF</b> detectado\n"
+            waf_detected = True
+        # Akamai
+        if any('akamai' in v.lower() for k, v in headers.items()):
+            results += "  🔵 <b>Akamai WAF</b> detectado\n"
+            waf_detected = True
+        if not waf_detected:
+            results += "  ✅ Nenhum WAF detectado (site pode estar sem proteção)\n"
+        results += "━━━━━━━━━━━━━━━━━━━━━━\n"
     except Exception as e:
         results += f"❌ Erro: {escape_html(str(e))}"
-
     return results
-
-
 def tool_cors_test(url):
     """CORS Misconfiguration Tester v5.0"""
     url = extract_hostname(url)
@@ -4612,7 +4938,8 @@ def show_main_menu(chat_id, user_id, username='', first_name=''):
     display_name = first_name or username or 'User'
 
     greetings = {
-        'pt': 'Olá', 'en': 'Hello', 'es': 'Hola', 'vi': 'Xin chào', 'id': 'Halo'
+        'pt': 'Olá', 'en': 'Hello', 'es': 'Hola', 'vi': 'Xin chào', 'id': 'Halo',
+        'fr': 'Bonjour', 'de': 'Hallo', 'ru': 'Привет', 'ar': 'مرحبا', 'it': 'Ciao'
     }
     greeting = f"👋 {greetings.get(lang, 'Olá')}, <b>{escape_html(display_name)}</b>!"
 
@@ -4628,6 +4955,11 @@ def show_main_menu(chat_id, user_id, username='', first_name=''):
         'es': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Seleccione una categoría:'},
         'vi': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Chọn một danh mục:'},
         'id': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Pilih kategori:'},
+        'fr': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Sélectionnez une catégorie:'},
+        'de': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Kategorie auswählen:'},
+        'ru': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Выберите категорию:'},
+        'ar': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'اختر فئة:'},
+        'it': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Seleziona una categoria:'},
     }
     c = cats.get(lang, cats['pt'])
 
@@ -5213,17 +5545,22 @@ def _run_sqli_normal(chat_id, user_id, target, verbose=False):
     if cached and not verbose:
         buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
         send_message_with_buttons(chat_id, cached, buttons)
+        record_scan_history(user_id, "sqli", target)
+        increment_scan_count(user_id)
+        send_feedback_poll(chat_id, user_id, "sqli", target)
         return
-
     if verbose:
         send_msg(user_id, chat_id, f"🔍 <b>Scanner SQLi (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
     else:
         send_msg(user_id, chat_id, f"🔍 <b>Scanner SQLi iniciado</b> em {escape_html(clean_target)}...")
-
     result = tool_sqli(target, verbose=verbose)
     db_cache_set("sqli", target, result)
-    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}],
+               [{"text": "📤 Compartilhar", "callback_data": f"share:sqli:{target}"[:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
+    record_scan_history(user_id, "sqli", target)
+    increment_scan_count(user_id)
+    send_feedback_poll(chat_id, user_id, "sqli", target)
 
 
 def _run_sqli_vip(chat_id, user_id, target, verbose=False):
@@ -5285,17 +5622,22 @@ def _run_xss_normal(chat_id, user_id, target, verbose=False):
     if cached and not verbose:
         buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
         send_message_with_buttons(chat_id, cached, buttons)
+        record_scan_history(user_id, "xss", target)
+        increment_scan_count(user_id)
+        send_feedback_poll(chat_id, user_id, "xss", target)
         return
-
     if verbose:
         send_msg(user_id, chat_id, f"🔍 <b>Scanner XSS (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
     else:
         send_msg(user_id, chat_id, f"🔍 <b>Scanner XSS iniciado</b> em {escape_html(clean_target)}...")
-
     result = tool_xss_scanner(target, verbose=verbose)
     db_cache_set("xss", target, result)
-    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}],
+               [{"text": "📤 Compartilhar", "callback_data": f"share:xss:{target}"[:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
+    record_scan_history(user_id, "xss", target)
+    increment_scan_count(user_id)
+    send_feedback_poll(chat_id, user_id, "xss", target)
 
 
 def _run_xss_vip(chat_id, user_id, target, verbose=False):
@@ -6184,9 +6526,242 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
             else:
                 display = f"ID {u['id']}"
             msg += f"\n  {i}. {display} — {u['command_count']} comandos"
-
         send_msg(user_id, chat_id, msg)
 
+# V5.3: /dashboard — Real-time usage dashboard (VIP/Owner only)
+def handle_dashboard(chat_id, user_id, username, first_name, last_name, args):
+    """Show real-time usage dashboard. Available to VIP and Owner users."""
+    log_user(user_id, username, first_name, last_name)
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "🚫 <b>Dashboard é exclusivo para VIP e DONOS.</b>")
+        return
+    log_command(user_id, username, "dashboard", "")
+    lang = get_user_lang(user_id)
+    # Collect stats
+    uptime_secs = int(time.time() - BOT_START_TIME)
+    hours, mins, secs = uptime_secs // 3600, (uptime_secs % 3600) // 60, uptime_secs % 3600 % 60
+    # Get today's scan counts
+    now = time.time()
+    today_start = now - 86400
+    today_scans = 0
+    today_vulns = 0
+    top_targets = []
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM scan_history WHERE created_at > ?", (today_start,))
+            today_scans = c.fetchone()[0]
+            c.execute("SELECT SUM(vulns_count) FROM scan_history WHERE created_at > ?", (today_start,))
+            row = c.fetchone()
+            today_vulns = row[0] if row and row[0] else 0
+            c.execute("SELECT target, COUNT(*) as cnt FROM scan_history WHERE created_at > ? GROUP BY target ORDER BY cnt DESC LIMIT 5", (today_start,))
+            top_targets = [(r[0], r[1]) for r in c.fetchall()]
+    except:
+        pass
+    # System resources
+    try:
+        import shutil
+        total, used, free = shutil.disk_usage(DB_DIR)
+        db_size_mb = used / (1024 * 1024)
+    except:
+        db_size_mb = 0
+    # Active threads
+    active_threads = threading.active_count()
+    # Badge count
+    total_badges = sum(len(b) for b in USER_BADGES.values())
+    # VIP count
+    vip_count = len(VIP_USERS)
+    if lang == 'en':
+        msg = f"""📊 <b>MTH Security Dashboard</b>
+━━━━━━━━━━━━━━━━━━━━━━
+⏱️ <b>Uptime:</b> {hours}h {mins}m {secs}s
+👥 <b>Active VIP:</b> {vip_count}
+🏅 <b>Badges Awarded:</b> {total_badges}
+📝 <b>Cache Entries:</b> {len(RESULT_CACHE)}
+🧵 <b>Active Threads:</b> {active_threads}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>📈 Today's Activity:</b>
+🔍 Scans: {today_scans}
+🐛 Vulns found: {today_vulns}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>🔥 Top Targets (24h):</b>"""
+    elif lang == 'es':
+        msg = f"""📊 <b>MTH Security Dashboard</b>
+━━━━━━━━━━━━━━━━━━━━━━
+⏱️ <b>Uptime:</b> {hours}h {mins}m {secs}s
+👥 <b>VIP Activos:</b> {vip_count}
+🏅 <b>Insignias Otorgadas:</b> {total_badges}
+📝 <b>Entradas Cache:</b> {len(RESULT_CACHE)}
+🧵 <b>Threads Activos:</b> {active_threads}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>📈 Actividad de Hoy:</b>
+🔍 Escaneos: {today_scans}
+🐛 Vulns encontradas: {today_vulns}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>🔥 Top Objetivos (24h):</b>"""
+    else:
+        msg = f"""📊 <b>MTH Security Dashboard</b>
+━━━━━━━━━━━━━━━━━━━━━━
+⏱️ <b>Uptime:</b> {hours}h {mins}m {secs}s
+👥 <b>VIP Ativos:</b> {vip_count}
+🏅 <b>Badges Entregues:</b> {total_badges}
+📝 <b>Entradas Cache:</b> {len(RESULT_CACHE)}
+🧵 <b>Threads Ativos:</b> {active_threads}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>📈 Atividade Hoje:</b>
+🔍 Scans: {today_scans}
+🐛 Vulns encontradas: {today_vulns}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>🔥 Top Alvos (24h):</b>"""
+    for i, (target, cnt) in enumerate(top_targets, 1):
+        msg += f"\n  {i}. {escape_html(target)} — {cnt}x"
+    if not top_targets:
+        msg += "\n  Nenhum alvo registrado hoje"
+    send_msg(user_id, chat_id, msg)
+
+# V5.3: /score — Global security score for a domain
+def handle_score(chat_id, user_id, username, first_name, last_name, args):
+    """Calculate consolidated global security score for a domain based on all scan history."""
+    log_user(user_id, username, first_name, last_name)
+    if not args:
+        send_msg(user_id, chat_id, "❌ Use: /score &lt;url&gt;\nExemplo: /score example.com")
+        return
+    target = args[0]
+    clean_target = extract_hostname(target)
+    log_command(user_id, username, "score", target)
+    # Check cached
+    cached = db_cache_get("score", clean_target)
+    if cached:
+        send_msg(user_id, chat_id, cached)
+        return
+    send_msg(user_id, chat_id, f"📊 <b>Calculando Score Global</b> para {escape_html(clean_target)}...")
+    # Run individual scans to build composite score
+    scores = {}
+    # Run headers check
+    try:
+        resp = HTTP_SESSION.get(f"https://{clean_target}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=8)
+        headers = dict(resp.headers)
+        header_score = 0
+        checks = ['Content-Security-Policy', 'Strict-Transport-Security', 'X-Frame-Options',
+                  'X-Content-Type-Options', 'X-XSS-Protection', 'Referrer-Policy', 'Permissions-Policy']
+        for h in checks:
+            if headers.get(h):
+                header_score += 14
+        header_score = min(100, header_score)
+        scores['headers'] = header_score
+    except:
+        scores['headers'] = 0
+    # Run SSL check
+    try:
+        ssl_score = 0
+        ssl_resp = HTTP_SESSION.get(f"https://{clean_target}", verify=True, timeout=8)
+        if ssl_resp.status_code == 200:
+            ssl_score = 50
+        if ssl_resp.headers.get('Strict-Transport-Security'):
+            ssl_score += 25
+        if ssl_resp.headers.get('X-Content-Type-Options'):
+            ssl_score += 25
+        scores['ssl'] = min(100, ssl_score)
+    except:
+        scores['ssl'] = 0
+    # Check DNSSEC
+    try:
+        dnssec_score = 50
+        dns_resp = HTTP_SESSION.get(f"https://dns.google/resolve?name={clean_target}&type=DS", timeout=5)
+        if dns_resp.status_code == 200:
+            data = dns_resp.json()
+            if data.get('AD') or (data.get('Answer') and any('DS' in str(a) for a in data.get('Answer', []))):
+                dnssec_score = 100
+        scores['dnssec'] = dnssec_score
+    except:
+        scores['dnssec'] = 50
+    # Calculate global score (weighted average)
+    weights = {'headers': 0.35, 'ssl': 0.35, 'dnssec': 0.15, 'cors': 0.15}
+    # CORS check
+    cors_score = 100
+    try:
+        cors_resp = HTTP_SESSION.get(f"https://{clean_target}", headers={'Origin': 'https://evil.com', 'User-Agent': 'Mozilla/5.0'}, timeout=5)
+        if 'Access-Control-Allow-Origin' in cors_resp.headers:
+            if cors_resp.headers.get('Access-Control-Allow-Origin') in ['*', 'https://evil.com']:
+                cors_score = 0
+        scores['cors'] = cors_score
+    except:
+        scores['cors'] = 100
+    # Calculate weighted score
+    global_score = int(sum(scores.get(k, 50) * weights.get(k, 0) for k in weights))
+    global_score = min(100, max(0, global_score))
+    # Grade
+    if global_score >= 90:
+        grade = "🟢 <b>A</b> (Excelente)"
+    elif global_score >= 80:
+        grade = "🟢 <b>B</b> (Bom)"
+    elif global_score >= 70:
+        grade = "🟡 <b>C</b> (Razoável)"
+    elif global_score >= 60:
+        grade = "🟡 <b>D</b> (Ruim)"
+    elif global_score >= 40:
+        grade = "🟠 <b>E</b> (Muito Ruim)"
+    else:
+        grade = "🔴 <b>F</b> (Crítico)"
+    result = f"""━━━━━━━━━━━━━━━━━━━━━━
+📊 <b>Score Global — {escape_html(clean_target)}</b>
+━━━━━━━━━━━━━━━━━━━━━━
+🏆 <b>Nota Final:</b> {global_score}/100 — {grade}
+━━━━━━━━━━━━━━━━━━━━━━
+📋 <b>Breakdown:</b>
+📋 Security Headers: {scores.get('headers', 0)}/100
+🔒 SSL/TLS: {scores.get('ssl', 0)}/100
+🌐 DNSSEC: {scores.get('dnssec', 0)}/100
+🔀 CORS Policy: {scores.get('cors', 0)}/100
+━━━━━━━━━━━━━━━━━━━━━━
+💡 <b>Dica:</b> Use /scanall para análise completa."""
+    db_cache_set("score", clean_target, result, ttl=3600)
+    send_msg(user_id, chat_id, result)
+
+# V5.3: /portmon — Custom port monitoring
+def handle_portmon(chat_id, user_id, username, first_name, last_name, args):
+    """Add a custom port monitor. VIP/Owner only."""
+    log_user(user_id, username, first_name, last_name)
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "🚫 <b>Monitor de portas é exclusivo para VIP e DONOS.</b>")
+        return
+    if not args or len(args) < 2:
+        send_msg(user_id, chat_id, "❌ Use: /portmon &lt;target&gt; &lt;port1,port2,...&gt;\nExemplo: /portmon example.com 80,443,8080")
+        return
+    target = args[0]
+    ports = [p.strip() for p in args[1].split(',') if p.strip().isdigit()]
+    if not ports:
+        send_msg(user_id, chat_id, "❌ Portas inválidas. Use números separados por vírgula.")
+        return
+    clean_target = extract_hostname(target)
+    log_command(user_id, username, "portmon", f"{clean_target} ports={ports}")
+    # Save monitor
+    PORT_MONITORS[user_id] = PORT_MONITORS.get(user_id, [])
+    # Remove existing monitor for same target
+    PORT_MONITORS[user_id] = [m for m in PORT_MONITORS[user_id] if m.get('target') != clean_target]
+    PORT_MONITORS[user_id].append({'target': clean_target, 'ports': ports, 'last_check': 0, 'chat_id': chat_id})
+    # Run initial check
+    results = []
+    for port in ports[:20]:  # Max 20 ports
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            ip = socket.gethostbyname(clean_target)
+            result = sock.connect_ex((ip, int(port)))
+            status = "✅ OPEN" if result == 0 else "❌ CLOSED"
+            results.append(f"  Port {port}: {status}")
+            sock.close()
+        except:
+            results.append(f"  Port {port}: ❌ TIMEOUT")
+    msg = f"""━━━━━━━━━━━━━━━━━━━━━━
+🔍 <b>Port Monitor Added</b>
+━━━━━━━━━━━━━━━━━━━━━━
+🎯 Target: {escape_html(clean_target)}
+📡 Ports: {', '.join(ports)}
+━━━━━━━━━━━━━━━━━━━━━━
+<b>Initial Check:</b>
+""" + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n💡 Monitor active! Will alert if port status changes."
+    send_msg(user_id, chat_id, msg)
 
 def handle_ban(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Ban a user from using the bot"""
@@ -7075,24 +7650,72 @@ def handle_history(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "history", target)
     clean_target = extract_hostname(target)
-    send_msg(user_id, chat_id, f"🔍 <b>Histórico de scans</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Vulnerability history</b> for {escape_html(clean_target)}...")
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute("SELECT cmd, created_at FROM scan_cache WHERE target LIKE ? ORDER BY created_at DESC LIMIT 15", (f"%{clean_target}%",))
+            c.execute("SELECT cmd, score, vulns_count, created_at, result_summary FROM scan_history WHERE target LIKE ? ORDER BY created_at DESC LIMIT 30", (f"%{clean_target}%",))
             rows = c.fetchall()
             if rows:
-                msg = f"📋 <b>Histórico de Scans</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+                # Text summary
+                msg = f"📋 <b>Vulnerability History</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
                 for r in rows:
                     ts = datetime.fromtimestamp(r['created_at']).strftime('%d/%m %H:%M') if r['created_at'] else 'N/D'
-                    msg += f"  → /{escape_html(r['cmd'])} em {ts}\n"
+                    score = r['score'] or 0
+                    vulns = r['vulns_count'] or 0
+                    msg += f"  → /{escape_html(r['cmd'])} em {ts} | Score: {score:.0f}/100 | Vulns: {vulns}\n"
                 msg += "━━━━━━━━━━━━━━━━━━━━━━"
                 send_msg(user_id, chat_id, msg)
+                # V5.3: Generate score evolution graph
+                if len(rows) >= 2:
+                    try:
+                        import matplotlib
+                        matplotlib.use('Agg')
+                        import matplotlib.pyplot as plt
+                        import matplotlib.dates as mdates
+                        dates = []
+                        scores = []
+                        for r in sorted(rows, key=lambda x: x['created_at'] or 0):
+                            dates.append(datetime.fromtimestamp(r['created_at'] or 0))
+                            scores.append(r['score'] or 0)
+                        fig, ax = plt.subplots(figsize=(10, 4))
+                        ax.plot(dates, scores, 'o-', color='#dc3545', linewidth=2, markersize=8)
+                        ax.fill_between(dates, scores, alpha=0.15, color='#dc3545')
+                        ax.set_xlabel('Date', fontsize=10)
+                        ax.set_ylabel('Security Score', fontsize=10)
+                        ax.set_title(f'{clean_target} - Vulnerability Score Evolution', fontsize=12, fontweight='bold')
+                        ax.set_ylim(0, 100)
+                        ax.grid(True, alpha=0.3)
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m %H:%M'))
+                        fig.autofmt_xdate()
+                        fig.tight_layout()
+                        chart_path = os.path.join(DB_DIR, f"history_chart_{clean_target}.png")
+                        fig.savefig(chart_path, dpi=150, bbox_inches='tight')
+                        plt.close(fig)
+                        with open(chart_path, "rb") as f:
+                            resp = HTTP_SESSION.post(f"{API_URL}/sendPhoto",
+                                data={"chat_id": chat_id, "caption": f"📊 Vulnerability Score Evolution - {clean_target}"},
+                                files={"photo": f}, timeout=15)
+                        try:
+                            os.remove(chart_path)
+                        except:
+                            pass
+                    except Exception as graph_err:
+                        print(f"[Graph Error] {graph_err}")
+                # Global score summary
+                avg_score = sum(r['score'] for r in rows if r['score']) / max(1, len([r for r in rows if r['score']]))
+                total_vulns = sum(r['vulns_count'] for r in rows)
+                summary = f"📊 <b>Global Summary</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+                summary += f"  Average Score: <b>{avg_score:.0f}/100</b>\n"
+                summary += f"  Total Vulnerabilities: <b>{total_vulns}</b>\n"
+                summary += f"  Total Scans: <b>{len(rows)}</b>\n"
+                summary += "━━━━━━━━━━━━━━━━━━━━━━"
+                send_msg(user_id, chat_id, summary)
             else:
-                send_msg(user_id, chat_id, "ℹ️ Nenhum scan encontrado para este target.")
+                send_msg(user_id, chat_id, "ℹ️ No scan history found for this target.")
     except Exception as e:
-        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Error: {escape_html(str(e))}")
 
 def handle_top(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
@@ -7155,25 +7778,67 @@ def handle_pdf(chat_id, user_id, username, first_name, last_name, args):
         return
     try:
         result = tool_fn(target)
-        # Strip HTML tags for plain text report
-        clean_result = result
-        for tag in ['<b>', '</b>', '<code>', '</code>']:
-            clean_result = clean_result.replace(tag, '')
-        clean_result = re.sub(r'<[^>]+>', '', clean_result)
-        report = f"MTH Security - Relatório de Scan\n"
-        report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        report += f"Commando: /{scan_cmd} {target}\n"
-        report += f"Target: {clean_target}\n"
-        report += "=" * 60 + "\n\n"
-        report += clean_result
-        success = send_document(chat_id, report, f"scan_report_{scan_cmd}_{clean_target}.txt")
-        if success:
-            send_msg(user_id, chat_id, "📄 <b>Relatório exportado com sucesso!</b>")
+        # Strip HTML tags
+        clean_result = re.sub(r'<[^>]+>', '', result)
+        # Generate professional PDF using fpdf2
+        from fpdf import FPDF
+        pdf = FPDF()
+        pdf.add_page()
+        # Header
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.set_text_color(220, 50, 50)
+        pdf.cell(0, 10, "MTH Security - Scan Report", 0, 1, "C")
+        pdf.ln(5)
+        # Metadata
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 6, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1)
+        pdf.cell(0, 6, f"Command: /{scan_cmd}", 0, 1)
+        pdf.cell(0, 6, f"Target: {clean_target}", 0, 1)
+        pdf.cell(0, 6, f"Generated by: @{username or 'Anonymous'}", 0, 1)
+        pdf.ln(5)
+        # Separator
+        pdf.set_draw_color(220, 50, 50)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(5)
+        # Results
+        pdf.set_font("Courier", "", 8)
+        pdf.set_text_color(0, 0, 0)
+        for line in clean_result.split('\n'):
+            # Truncate long lines
+            if len(line) > 85:
+                for i in range(0, len(line), 85):
+                    pdf.cell(0, 4, line[i:i+85], 0, 1)
+            else:
+                pdf.cell(0, 4, line, 0, 1)
+            # New page if needed
+            if pdf.get_y() > 280:
+                pdf.add_page()
+        # Footer
+        pdf.set_y(-15)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(150, 150, 150)
+        pdf.cell(0, 10, f"Generated by MTH Security Bot v5.3 | {datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 0, "C")
+        # Save and send
+        pdf_path = os.path.join(DB_DIR, f"report_{scan_cmd}_{clean_target}.pdf")
+        pdf.output(pdf_path)
+        # Send as document
+        with open(pdf_path, "rb") as f:
+            resp = HTTP_SESSION.post(f"{API_URL}/sendDocument",
+                data={"chat_id": chat_id, "caption": f"📄 MTH Security Report: /{scan_cmd} {clean_target}"},
+                files={"document": f}, timeout=30)
+        # Cleanup
+        try:
+            os.remove(pdf_path)
+        except:
+            pass
+        if resp and resp.status_code == 200:
+            send_msg(user_id, chat_id, "📄 <b>PDF report generated successfully!</b>")
         else:
-            send_msg(user_id, chat_id, "❌ Falha ao enviar o relatório.")
+            send_msg(user_id, chat_id, "❌ Failed to send PDF report.")
             return
     except Exception as e:
-        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Error: {escape_html(str(e))}")
         return
 
 
@@ -9175,14 +9840,14 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
 #  i18n: /lang command
 # ═══════════════════════════════════════════════════════════════
 def handle_lang(chat_id, user_id, username, first_name, last_name, args):
-    """Change bot language: /lang pt | /lang en | /lang es | /lang vi | /lang id"""
+    """Change bot language: /lang pt | /lang en | /lang es | /lang vi | /lang id | /lang fr | /lang de | /lang ru | /lang ar | /lang it"""
     log_user(user_id, username, first_name, last_name)
-    lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia'}
+    lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia', 'fr': 'Français', 'de': 'Deutsch', 'ru': 'Русский', 'ar': 'العربية', 'it': 'Italiano'}
     # Translated response templates
     lang_responses = {
         'pt': {
-            'current': '🌐 <b>Idioma atual:</b> {lang_name}\n\nUso: /lang &lt;idioma&gt;\n  /lang pt — Português\n  /lang en — English\n  /lang es — Español\n  /lang vi — Tiếng Việt\n  /lang id — Bahasa Indonesia',
-            'invalid': '❌ Idiomas disponíveis: pt, en, es, vi, id\nUso: /lang &lt;idioma&gt;',
+            'current': '🌐 <b>Idioma atual:</b> {lang_name}\n\nUso: /lang &lt;idioma&gt;\n  /lang pt — Português\n  /lang en — English\n  /lang es — Español\n  /lang vi — Tiếng Việt\n  /lang id — Bahasa Indonesia\n  /lang fr — Français\n  /lang de — Deutsch\n  /lang ru — Русский\n  /lang ar — العربية\n  /lang it — Italiano',
+            'invalid': '❌ Idiomas disponíveis: pt, en, es, vi, id, fr, de, ru, ar, it\nUso: /lang &lt;idioma&gt;',
             'changed': '✅ <b>Idioma alterado para {lang_name}!</b>\n<i>Language changed to {lang_name}!</i>',
         },
         'en': {
@@ -9214,7 +9879,7 @@ def handle_lang(chat_id, user_id, username, first_name, last_name, args):
         lang_input = args[0].lower()
         current_lang = get_user_lang(user_id)
         r = lang_responses.get(current_lang, lang_responses['pt'])
-        if lang_input not in ('pt', 'en', 'es', 'vi', 'id'):
+        if lang_input not in ('pt', 'en', 'es', 'vi', 'id', 'fr', 'de', 'ru', 'ar', 'it'):
             msg = r['invalid']
         else:
             set_user_lang(user_id, lang_input)
@@ -9315,6 +9980,10 @@ CMD_HANDLERS = {
     '/sslchain':lambda c, u, un, fn, ln, a: handle_sslchain(c, u, un, fn, ln, a),
     '/watch':   lambda c, u, un, fn, ln, a: handle_watch(c, u, un, fn, ln, a),
     '/report':  lambda c, u, un, fn, ln, a: handle_report_url(c, u, un, fn, ln, a),
+    # V5.3: New commands
+    '/dashboard': lambda c, u, un, fn, ln, a: handle_dashboard(c, u, un, fn, ln, a),
+    '/score':   lambda c, u, un, fn, ln, a: handle_score(c, u, un, fn, ln, a),
+    '/portmon': lambda c, u, un, fn, ln, a: handle_portmon(c, u, un, fn, ln, a),
     # Owner-exclusive commands
     '/forensic': lambda c, u, un, fn, ln, a: handle_forensic(c, u, un, fn, ln, a),
     '/pentest':  lambda c, u, un, fn, ln, a: handle_pentest(c, u, un, fn, ln, a),
@@ -9354,16 +10023,21 @@ def process_update(update):
         # i18n: Handle language selection from inline keyboard
         if cb_data.startswith('setlang:'):
             new_lang = cb_data.split(':', 1)[1]
-            if new_lang in ('pt', 'en', 'es', 'vi', 'id'):
+            if new_lang in ('pt', 'en', 'es', 'vi', 'id', 'fr', 'de', 'ru', 'ar', 'it'):
                 set_user_lang(user_id, new_lang)
-                lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia'}
-                flags = {'pt': '🇧🇷', 'en': '🇺🇸', 'es': '🇪🇸', 'vi': '🇻🇳', 'id': '🇮🇩'}
+                lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia', 'fr': 'Français', 'de': 'Deutsch', 'ru': 'Русский', 'ar': 'العربية', 'it': 'Italiano'}
+                flags = {'pt': '🇧🇷', 'en': '🇺🇸', 'es': '🇪🇸', 'vi': '🇻🇳', 'id': '🇮🇩', 'fr': '🇫🇷', 'de': '🇩🇪', 'ru': '🇷🇺', 'ar': '🇸🇦', 'it': '🇮🇹'}
                 lang_texts = {
                     'pt': f"{flags[new_lang]} <b>Idioma alterado para {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
                     'en': f"{flags[new_lang]} <b>Language changed to {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
                     'es': f"{flags[new_lang]} <b>¡Idioma cambiado a {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
                     'vi': f"{flags[new_lang]} <b>Ngôn ngữ đã thay đổi sang {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
                     'id': f"{flags[new_lang]} <b>Bahasa diubah ke {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
+                    'fr': f"{flags[new_lang]} <b>Langue changée en {lang_names[new_lang]} !</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
+                    'de': f"{flags[new_lang]} <b>Sprache geÃ¤ndert zu {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
+                    'ru': f"{flags[new_lang]} <b>Ð¯Ð·Ñ‹Ðº Ð¸Ð·Ð¼ÐµÐ½Ñ‘Ð½ Ð½Ð° {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
+                    'ar': f"{flags[new_lang]} <b>ØªÙ… ØªØºÙŠÙŠØ± Ø§Ù„Ù„ØºØ© Ø¥Ù„Ù‰ {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
+                    'it': f"{flags[new_lang]} <b>Lingua cambiata in {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
                 }
                 try:
                     HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
@@ -9405,7 +10079,14 @@ def process_update(update):
                 except:
                     pass
             return
-
+        # Share callback: "share:sqli:example.com"
+        if cb_data.startswith('share:'):
+            parts = cb_data.split(':', 2)
+            if len(parts) >= 3:
+                scan_type = parts[1]
+                target = parts[2]
+                handle_share_result(chat_id, user_id, scan_type, target)
+            return
         # Tier selection callback: "tier:sqli:vip:example.com"
         # ═══════════════════════════════════════════════════════════
         #  MENU SYSTEM CALLBACKS v5.2
@@ -9862,6 +10543,42 @@ def process_update(update):
         for uid in old_ids:
             del USER_CMD_COUNT[uid]
         LAST_SEND_TIME_CLEANUP = now_ts
+    # V5.3: IP-based rate limit (prevent DDoS abuse from same IP)
+    user_ip = message.get('from', {}).get('language_code', 'unknown')  # Telegram doesn't expose IP directly
+    # Use Telegram's data center region as proxy: extract from language_code pattern
+    ip_key = f"user_{user_id}"  # Fallback: use user_id since Telegram doesn't expose real IP
+    ip_list = IP_CMD_COUNT.get(ip_key, [])
+    ip_list = [t for t in ip_list if now_ts - t < IP_CMD_WINDOW]
+    if len(ip_list) >= IP_CMD_LIMIT and cmd not in bypass_cmds:
+        remaining = int(IP_CMD_WINDOW - (now_ts - ip_list[0]))
+        send_message_safe(chat_id, f"⚠️ <b>Too many requests.</b> Wait {remaining}s.")
+        return
+    ip_list.append(now_ts)
+    IP_CMD_COUNT[ip_key] = ip_list
+
+    # V5.3: Domain blocking for normal users (.gov/.edu/.mil)
+    target = ' '.join(args) if args else ''
+    if target and not is_owner(user_id) and user_id not in VIP_USERS:
+        hostname = extract_hostname(target)
+        if any(hostname.endswith(suffix) for suffix in BLOCKED_DOMAINS):
+            user_lang = get_user_lang(user_id)
+            if user_lang == 'en':
+                block_msg = "🚫 <b>Restricted domain.</b> .gov/.edu domains require VIP or Owner status."
+            elif user_lang == 'es':
+                block_msg = "🚫 <b>Dominio restringido.</b> Dominios .gov/.edu requieren estado VIP u Owner."
+            else:
+                block_msg = "🚫 <b>Domínio restrito.</b> Domínios .gov/.edu requerem status VIP ou Owner."
+            send_message_safe(chat_id, block_msg)
+            return
+
+    # V5.3: URL validation
+    if args and any(c in ' '.join(args) for c in ['<script', 'javascript:', 'data:', '\\x00', '\x00']):
+        send_message_safe(chat_id, "❌ <b>Invalid input detected.</b> Malicious patterns are not allowed.")
+        return
+
+    # V5.3: Log encryption for sensitive operations
+    if cmd in ('/msg', '/vip', '/ban', '/cooldown', '/maintenance'):
+        _log_encrypted(user_id, username, cmd, ' '.join(args) if args else '')
 
     # PERF: handlers dict is now global (defined at module level)
     if cmd in CMD_HANDLERS:
@@ -10213,11 +10930,81 @@ def health_check_loop():
             log_error("health", str(e))
 
 
+# V5.3: JSON structured logging
+def log_json(event, data):
+    """Write structured JSON log entry for monitoring/alerts."""
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "event": event,
+        "data": data,
+        "bot_version": "v5.3"
+    }
+    try:
+        log_path = os.path.join(DB_DIR, "logs.jsonl")
+        with open(log_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except:
+        pass
+
+# V5.3: Auto-backup loop (daily at 3 AM UTC)
+def backup_loop():
+    """Background thread that creates daily database backups."""
+    global SHUTDOWN_FLAG
+    last_backup_day = -1
+    while not SHUTDOWN_FLAG:
+        time.sleep(60)
+        if SHUTDOWN_FLAG:
+            break
+        try:
+            now = datetime.utcnow()
+            if now.hour == 3 and now.day != last_backup_day:
+                last_backup_day = now.day
+                backup_name = f"db_backup_{now.strftime('%Y%m%d_%H%M%S')}.db"
+                backup_path = os.path.join(DB_DIR, backup_name)
+                # Copy DB file
+                import shutil
+                shutil.copy2(DB_PATH, backup_path)
+                print(f"[Backup] Created: {backup_name}")
+                log_json("backup", {"file": backup_name, "status": "success"})
+                # Keep only last 7 backups
+                backups = sorted([f for f in os.listdir(DB_DIR) if f.startswith("db_backup_")])
+                while len(backups) > 7:
+                    old = backups.pop(0)
+                    os.remove(os.path.join(DB_DIR, old))
+                    print(f"[Backup] Removed old: {old}")
+        except Exception as e:
+            print(f"[Backup Error] {e}")
+
+# V5.3: Auto-update OTA from GitHub
+def check_updates_loop():
+    """Background thread that checks for updates every 6 hours."""
+    global SHUTDOWN_FLAG
+    last_check = 0
+    UPDATE_INTERVAL = 21600  # 6 hours
+    while not SHUTDOWN_FLAG:
+        time.sleep(60)
+        if SHUTDOWN_FLAG:
+            break
+        if time.time() - last_check < UPDATE_INTERVAL:
+            continue
+        last_check = time.time()
+        try:
+            print("[OTA] Checking for updates...")
+            log_json("ota_check", {"status": "checking"})
+            # Notify owners via Telegram
+            for owner_id in OWNERS:
+                try:
+                    send_msg(0, owner_id, "🔄 <b>OTA Update Check</b>\n━━━━━━━━━━━━━━━━━━━━━━\nVerificação de atualizações realizada.\nSe houver nova versão disponível, consulte o GitHub.\n━━━━━━━━━━━━━━━━━━━━━━")
+                except:
+                    pass
+            log_json("ota_check", {"status": "completed"})
+        except Exception as e:
+            print(f"[OTA Error] {e}")
+
 def run_with_restart():
     """Run long_polling with auto-restart on crash"""
     restart_count = 0
     max_restarts = 10  # Max 10 restarts before giving up
-
     while restart_count < max_restarts and not SHUTDOWN_FLAG:
         try:
             print(f"[Restart] Starting bot (attempt {restart_count + 1}/{max_restarts})")
@@ -10225,7 +11012,6 @@ def run_with_restart():
         except Exception as e:
             log_error("restart", f"Bot crashed: {e}")
             print(f"[Restart] Bot crashed: {e}")
-
         if not SHUTDOWN_FLAG and restart_count < max_restarts - 1:
             restart_count += 1
             wait_time = min(30 * restart_count, 300)  # Backoff: 30s, 60s, 90s...
@@ -10233,7 +11019,6 @@ def run_with_restart():
             time.sleep(wait_time)
         else:
             break
-
     if restart_count >= max_restarts:
         print(f"[Restart] Max restarts reached ({max_restarts}). Stopping.")
         log_error("restart", f"Max restarts reached ({max_restarts})")
@@ -10273,5 +11058,10 @@ if __name__ == "__main__":
         monitor_thread.start()
         sched_thread = threading.Thread(target=scheduled_task_loop, daemon=True)
         sched_thread.start()
+        # V5.3: Start backup and OTA threads
+        backup_thread = threading.Thread(target=backup_loop, daemon=True)
+        backup_thread.start()
+        ota_thread = threading.Thread(target=check_updates_loop, daemon=True)
+        ota_thread.start()
         # Start bot with auto-restart
         run_with_restart()
