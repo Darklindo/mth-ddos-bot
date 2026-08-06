@@ -18,8 +18,8 @@ commands = [
     # Vulnerability Scanners
     {"command": "sqli", "description": "Scanner SQLi (30+ payloads) [url]"},
     {"command": "xss", "description": "Scanner XSS (18+ payloads) [url]"},
-    {"command": "admin", "description": "Painel admin finder [url]"},
-    {"command": "panel", "description": "Painel Admin completo (100+) [url]"},
+    {"command": "admin", "description": "Admin Finder (100+ paths) [url]"},
+    {"command": "panel", "description": "Painel Admin Finder (100+ paths) [url]"},
     {"command": "ports", "description": "Scan portas (35+ common) [ip]"},
     {"command": "dirs", "description": "Scan diretorios (80+ paths) [url]"},
     {"command": "sub", "description": "Subdominios (100+ subs) [domain]"},
@@ -60,6 +60,7 @@ commands = [
     {"command": "uptime", "description": "Tempo online do bot"},
     {"command": "status", "description": "Health check do bot"},
     {"command": "feedback", "description": "Enviar feedback"},
+    {"command": "bugreport", "description": "Reportar bug"},
     {"command": "rescan", "description": "Refazer scan [cmd] [url]"},
     {"command": "stop", "description": "Parar scan ativo"},
     # Owner

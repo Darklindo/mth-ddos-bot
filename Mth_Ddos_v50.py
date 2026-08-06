@@ -1341,51 +1341,54 @@ def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
         url = 'http://' + url
 
     paths = [
-        # Standard admin paths
-        'admin/', 'administrator/', 'admin.php', 'admin.html', 'admin.asp',
-        'wp-admin/', 'wp-login.php', 'admincp/', 'admin/cp.php/',
-        'admincp.php/', 'adminpanel/', 'webadmin/', 'cp.php/',
-        'admin/controlpanel.php/', 'admins/', 'admin/admin.jsp/',
-        'admin.jsp/', 'admin/home.jsp/', 'joomla/administrator/',
-        'cms/administrator/', 'logins/', 'administration/',
-        'login/', 'login.php', 'auth/', 'signin/',
+        # Standard admin paths (directories)
+        'admin/', 'administrator/', 'wp-admin/', 'admincp/',
+        'adminpanel/', 'webadmin/', 'admin/', 'admins/',
+        'joomla/administrator/', 'cms/administrator/',
+        'logins/', 'administration/', 'login/', 'auth/', 'signin/',
         'manager/', 'backend/', 'panel/', 'control/',
         'dashboard/', 'cpanel/', 'myadmin/', 'phpmyadmin/',
         'admin2/', 'admin3/', 'admin4/', 'admin5/', 'admin1/',
-        # Additional admin paths
-        'admin/account.php/', 'admin/login.php/', 'admin/account.html/',
-        'admin/login.html/', 'admin/index.php/', 'admin/index.html/',
-        'admin/index.asp/', 'admin/default.php/', 'admin/default.asp/',
-        'admin1/', 'admin1.php/', 'admin1.html/',
-        'admin1/account.php/', 'admin1/login.php/',
-        'admin2/', 'admin2/login.php/', 'admin2/index.php/',
-        'admin3/', 'admin3/login.php/', 'admin3/index.php/',
-        'moderator/', 'moderator.php/', 'moderator/login.php/',
-        'moderator/admin.php/', 'moderator/admin/',
-        'administrator/login.php/', 'administrator/index.php/',
-        'panel.php/', 'panel/admin.php/', 'panel/login.php/',
-        'controlpanel.php/', 'controlpanel/', 'cpanel/', 'cpanel.php/',
-        'webadmin.php/', 'webadmin/',
-        'siteadmin/', 'siteadmin/login.php/', 'siteadmin/index.php/',
-        'sysadmin/', 'sysadmin/login.php/',
-        'instadmin/', 'instadmin/login.php/',
-        'bb-admin/', 'bb-admin/login.php/', 'bb-admin/index.php/',
-        'bbadmin/', 'bbadmin/login.php/',
-        'member/', 'member/login.php/', 'member/admin.php/',
-        'members/', 'members/login.php/', 'members/admin.php/',
-        'console/', 'console/login.php/',
-        'settings/', 'settings/login.php/',
-        'user/login', 'account/login', 'site/login',
-        '.htaccess', '.htpasswd', 'config.php', 'phpinfo.php',
-        '.env',
-        'phpmyadmin/index.php/', 'phpmyadmin/login.php/',
-        'myadmin/index.php/', 'myadmin/login.php/',
-        # Additional paths
-        'shell/', 'shell.php', 'cmd/', 'cmd.php',
-        'cgi-bin/', 'cgi-bin/test.cgi',
-        'uploads/', 'images/', 'cache/',
-        'config/database.yml', 'config/application.php',
+        'moderator/', 'moderator/admin/', 'administrator/',
+        'controlpanel/', 'cpanel/', 'siteadmin/',
+        'sysadmin/', 'instadmin/', 'bb-admin/', 'bbadmin/',
+        'member/', 'members/', 'console/', 'settings/',
+        'user/login/', 'account/login/', 'site/login/',
+        'phpmyadmin/', 'myadmin/',
+        # V5.1: More admin paths
+        'login/admin/', 'portal/', 'manage/', 'access/',
+        'backend/', 'secure/', 'restricted/',
+        'webpanel/', 'adminportal/', 'mypanel/',
+        'adminarea/', 'adminpanel/', 'siteadmin/',
+        'staff/', 'operator/', 'supervisor/',
+        'root/', 'sudo/', 'superadmin/',
+        'config/', 'setup/', 'install/',
+        # Admin files (NO trailing slashes on files)
+        'admin.php', 'admin.html', 'admin.asp', 'admin.jsp',
+        'admincp.php', 'cp.php', 'admin/index.php', 'admin/index.html',
+        'admin/login.php', 'admin/index.asp', 'admin/default.php',
+        'admin/login.html', 'admin/account.php', 'admin/account.html',
+        'admin1/', 'admin1.php', 'admin1.html',
+        'admin1/account.php', 'admin1/login.php',
+        'admin2/login.php', 'admin2/index.php',
+        'admin3/login.php', 'admin3/index.php',
+        'moderator.php', 'moderator/login.php', 'moderator/admin.php',
+        'administrator/login.php', 'administrator/index.php',
+        'panel.php', 'panel/admin.php', 'panel/login.php',
+        'controlpanel.php', 'cpanel.php',
+        'webadmin.php', 'siteadmin/login.php', 'siteadmin/index.php',
+        'sysadmin/login.php', 'instadmin/login.php',
+        'bb-admin/login.php', 'bb-admin/index.php', 'bbadmin/login.php',
+        'member/login.php', 'member/admin.php',
+        'members/login.php', 'members/admin.php',
+        'console/login.php', 'settings/login.php',
+        'phpmyadmin/index.php', 'phpmyadmin/login.php',
+        'myadmin/index.php', 'myadmin/login.php',
+        'wp-login.php', 'admin.php', 'login.php',
+        'config.php', 'phpinfo.php',
+        '.env', '.htaccess', '.htpasswd',
         'wp-config.php', 'wp-config.php.bak',
+        'config/database.yml', 'config/application.php',
         'config.ini', 'settings.ini', 'appsettings.json',
     ]
 
@@ -1395,7 +1398,6 @@ def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
     results = []
     found = 0
     total = len(paths)
-    checked = 0
 
     # Get baseline: a random path that definitely doesn't exist
     baseline = _safe_get(f"{base_url}/{random_string(12)}.xyz", timeout=3)
@@ -1404,16 +1406,21 @@ def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
 
     # Get root page content for comparison
     root = _safe_get(base_url, timeout=3)
-    root_content = root.text if root else ''
     root_len = len(root.content) if root else 0
 
+    # V5.1: Thread-safe counter
+    import threading as _threading
+    _progress_lock = _threading.Lock()
+    checked_count = [0]  # Use list for mutability across threads
+
     def check_path(path):
-        nonlocal checked
-        checked += 1
+        with _progress_lock:
+            checked_count[0] += 1
+            current = checked_count[0]
         # Report progress every 10 paths
-        if checked % 10 == 0 and progress_chat_id and progress_msg_id:
+        if current % 10 == 0 and progress_chat_id and progress_msg_id:
             try:
-                edit_progress(progress_msg_id, progress_chat_id, checked, total, "Escaneando paths...")
+                edit_progress(progress_msg_id, progress_chat_id, current, total, "Escaneando paths...")
             except:
                 pass
         try:
@@ -1479,7 +1486,8 @@ def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
         completed += 1
         if result:
             found += 1
-            results.append(f"Admin panel found: {escape_html(result[0])} (Status: {result[1]})")
+            emoji = "🔓" if result[1] == 200 else "🚫"
+            results.append(f"{emoji} <b>/{escape_html(result[0].split(base_url + '/', 1)[-1])}</b> (Status: {result[1]})")
         # Update progress
         if completed % 10 == 0 and progress_chat_id and progress_msg_id:
             try:
@@ -1488,10 +1496,14 @@ def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
                 pass
 
     if found == 0:
-        return f"Admin Panel Finder for {escape_html(base_url)}:\n\n✅ Nenhum painel admin encontrado"
+        return f"🔍 <b>Painel Admin</b> — {escape_html(base_url)}\n━━━━━━━━━━━━━━━━━━━━━━\n\n✅ Nenhum painel admin encontrado"
     else:
-        header = f"Admin Panel Finder for {escape_html(base_url)}:\n\n"
-        return header + "\n".join(results)
+        # V5.1: Better formatted results with emojis
+        header = f"🔍 <b>Painel Admin</b> — {escape_html(base_url)}\n━━━━━━━━━━━━━━━━━━━━━━\n\n🚨 <b>{found} painel(is) encontrado(s)!</b>\n"
+        formatted = []
+        for r in results:
+            formatted.append(r)
+        return header + "\n".join(formatted)
 
 def tool_port_scanner(target):
     """Port Scanner v3.6 - 26 portas"""
@@ -3403,8 +3415,8 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <b>⚡ Scanners de Vulnerabilidade:</b>
 /sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
 /xss &lt;url&gt; [verbose] — XSS Refletido (18+ payloads, WAF detection)
-/admin &lt;url&gt; — Painéis admin (~25 paths)
-/panel &lt;url&gt; — Admin Finder COMPLETO (100+ paths)
+/admin &lt;url&gt; — Painéis admin (100+ paths)
+/panel &lt;url&gt; — Painel Admin Finder (100+ paths)
 /ports &lt;ip&gt; — 50+ portas com banner grabbing
 /dirs &lt;url&gt; — Diretórios expostos (80+ paths)
 /sub &lt;domain&gt; — Subdomínios (100+ subs + permutações)
@@ -3617,6 +3629,7 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
     send_message_with_buttons(chat_id, result, buttons)
 
 def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
+    """/admin — Quick admin panel finder (progress + cache + buttons)"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_message_safe(chat_id, "❌ Use: /admin &lt;url&gt;\nExemplo: /admin example.com")
@@ -3624,9 +3637,22 @@ def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "admin_panel", target)
     clean_target = extract_hostname(target)
+
+    # V5.1: Check DB cache first
+    cached = db_cache_get("admin", target)
+    if cached:
+        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:admin:{target}"}]]
+        send_message_with_buttons(chat_id, cached, buttons)
+        return
+
     send_message_safe(chat_id, f"🔍 <b>Buscando painéis admin</b> em {escape_html(clean_target)}...")
-    result = tool_admin_finder(target)
-    send_message_safe(chat_id, result)
+    scan_id = f"admin_{user_id}_{time.time()}"
+    progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
+    result = tool_admin_finder(target, chat_id, progress_msg_id)
+    finish_progress(progress_msg_id, chat_id, result)
+    db_cache_set("admin", target, result)
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:admin:{target}"}]]
+    send_message_with_buttons(chat_id, result, buttons)
 
 def handle_ports(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
@@ -3799,7 +3825,7 @@ def handle_ping(chat_id, user_id, username, first_name, last_name, args):
         speed_icon = "🔴"
         speed_label = "Muito lento"
 
-    msg = f"""🏓 <b>Ping — MTH Security v5.0</b>
+    msg = f"""🏓 <b>Ping — MTH Security v5.1</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📡 <b>Latência do Bot:</b> {bot_latency:.1f}ms
@@ -3922,13 +3948,27 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "panel", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Painel Admin Finder</b> em {escape_html(clean_target)}...")
-    # Send initial progress
+
+    # V5.1: Check DB cache first
+    cached = db_cache_get("panel", target)
+    if cached:
+        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:panel:{target}"}]]
+        send_message_with_buttons(chat_id, cached, buttons)
+        return
+
+    send_message_safe(chat_id, f"🔍 <b>Painel Admin Finder</b> em {escape_html(clean_target)}...\n📊 Scan completo com 100+ paths...")
     scan_id = f"panel_{user_id}_{time.time()}"
+    # V5.1: Set stop event for cancellation
+    STOP_EVENTS[user_id] = threading.Event()
     progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
     result = tool_admin_finder(target, chat_id, progress_msg_id)
     finish_progress(progress_msg_id, chat_id, result)
-    send_message_safe(chat_id, result)
+    db_cache_set("panel", target, result)
+    # Cleanup stop event
+    if user_id in STOP_EVENTS:
+        del STOP_EVENTS[user_id]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:panel:{target}"}]]
+    send_message_with_buttons(chat_id, result, buttons)
 
 def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Painel admin do bot (stats, donos, comandos)"""
@@ -3961,7 +4001,7 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
     except:
         db_size_str = "N/D"
 
-    msg = f"""📊 <b>Painel do Bot — MTH Security v5.0</b>
+    msg = f"""📊 <b>Painel do Bot — MTH Security v5.1</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Estatísticas:</b>
@@ -4291,7 +4331,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
         except:
             top_users = []
 
-        msg = f"""📊 <b>MTH Security v5.0 — Estatísticas</b>
+        msg = f"""📊 <b>MTH Security v5.1 — Estatísticas</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Gerais:</b>
@@ -4452,7 +4492,7 @@ def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
 
     log_owner_command(user_id, username, "listdn")
 
-    msg = """👑 <b>Comandos de Dono — Mth Ddos v5.0</b>
+    msg = """👑 <b>Comandos de Dono — Mth Ddos v5.1</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📊 <b>Administrativos:</b>
@@ -4503,7 +4543,7 @@ def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
     mins = (uptime_secs % 3600) // 60
     secs = uptime_secs % 60
 
-    msg = f"""⏱️ <b>MTH Security v5.0 — Uptime</b>
+    msg = f"""⏱️ <b>MTH Security v5.1 — Uptime</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🟢 <b>Online há:</b>
@@ -4704,13 +4744,15 @@ def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
         send_message_safe(chat_id, result)
     elif scan_cmd == '/admin':
         send_message_safe(chat_id, f"🔍 <b>Rescan Admin</b> em {escape_html(target)}...")
-        result = tool_admin_finder(target)
+        result = tool_admin_finder(target, chat_id, None)
+        db_cache_set("admin", target, result)
         send_message_safe(chat_id, result)
     elif scan_cmd == '/panel':
         send_message_safe(chat_id, f"🔍 <b>Rescan Painel Admin</b> em {escape_html(target)}...")
         progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
         result = tool_admin_finder(target, chat_id, progress_msg_id)
         finish_progress(progress_msg_id, chat_id, result)
+        db_cache_set("panel", target, result)
         send_message_safe(chat_id, result)
     elif scan_cmd == '/ports':
         send_message_safe(chat_id, f"🔍 <b>Rescan Portas</b> em {escape_html(target)}...")
@@ -5491,11 +5533,17 @@ def handle_stealth(chat_id, user_id, username, first_name, last_name, args):
         'dirs': tool_directory_scanner, 'sub': tool_subdomain_scanner,
         'wp': tool_wordpress_scanner, 'dns': tool_dns_tools, 'cms': tool_cms_detector,
         'reverse': tool_reverse_ip, 'ftpssh': tool_ftp_ssh, 'info': tool_website_info,
-        'emails': tool_email_scraper,
-        'ssl': tool_ssl_audit, 'headers': tool_headers_analysis, 'cors': tool_cors_test,
-        'robots': tool_robots_txt, 'sitemap': tool_sitemap, 'tech': tool_tech_detect,
-        'exposed': tool_exposed_files, 'backup': tool_backup_finder,
+        'emails': tool_email_scraper, 'ssl': tool_ssl_audit, 'headers': tool_headers_analysis,
+        'cors': tool_cors_test, 'robots': tool_robots_txt, 'sitemap': tool_sitemap,
+        'tech': tool_tech_detect, 'exposed': tool_exposed_files, 'backup': tool_backup_finder,
         'api': tool_api_discovery, 'shell': tool_webshell_hunter, 'config': tool_config_scanner,
+        # V5.1: Aggregated tools — use the same tool_map as batch
+        'scanall': tool_website_info,  # scheduled scanall = just info (aggregated needs chat_id)
+        'deep': tool_sqli,             # scheduled deep = just sqli
+        'quick': tool_website_info,    # scheduled quick = just info
+        'http': tool_headers_analysis, # scheduled http = just headers
+        'sslchain': tool_ssl_audit,    # scheduled sslchain = just ssl
+        'watch': tool_headers_analysis,# scheduled watch = just headers
     }
     tool_fn = tool_map.get(scan_cmd)
     if not tool_fn:
@@ -5678,7 +5726,10 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
     scan_cmd = args[0]
     targets = args[1:]
     log_command(user_id, username, "batch", f"{scan_cmd} x{len(targets)} targets")
-    send_message_safe(chat_id, f"🔍 <b>Batch Scan</b> — {len(targets)} targets com /{scan_cmd}...")
+    send_message_safe(chat_id, f"🔍 <b>Batch Scan</b> — {len(targets)} targets com /{scan_cmd}...\n⚠️ Use /cancel para parar.")
+
+    # V5.1: Create stop event so /cancel works
+    STOP_EVENTS[user_id] = threading.Event()
 
     tool_map = {
         'info': tool_website_info, 'sqli': tool_sqli, 'xss': tool_xss_scanner,
@@ -5700,7 +5751,7 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
         return
 
     for i, t in enumerate(targets, 1):
-        if user_id in STOP_EVENTS:
+        if user_id in STOP_EVENTS and STOP_EVENTS[user_id].is_set():
             break
         ct = extract_hostname(t)
         send_message_safe(chat_id, f"\n━━━━━━━━━━━━━━━━━━━━━━\n📋 <b>[{i}/{len(targets)}] {escape_html(ct)}</b>")
@@ -5714,6 +5765,10 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
             send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e)[:100])}")
 
     send_message_safe(chat_id, f"\n✅ <b>Batch Scan finalizado!</b> {len(targets)} targets processados.")
+
+    # Cleanup stop event
+    if user_id in STOP_EVENTS:
+        del STOP_EVENTS[user_id]
 
 def handle_http(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: HTTP Response Analysis — status, timing, redirects, tech headers"""
@@ -6004,7 +6059,6 @@ CMD_HANDLERS = {
     '/uptime':  lambda c, u, un, fn, ln, a: handle_uptime(c, u, un, fn, ln, a),
     '/listdn':  lambda c, u, un, fn, ln, a: handle_listdn(c, u, un, fn, ln, a),
     '/feedback':lambda c, u, un, fn, ln, a: handle_feedback(c, u, un, fn, ln, a),
-    '/report':  lambda c, u, un, fn, ln, a: handle_report(c, u, un, fn, ln, a),
     '/stop':    lambda c, u, un, fn, ln, a: handle_stop(c, u, un, fn, ln, a),
     '/rescan':  lambda c, u, un, fn, ln, a: handle_rescan(c, u, un, fn, ln, a),
     # V5.0: New scanner handlers
@@ -6215,7 +6269,7 @@ def long_polling():
     consecutive_errors = 0
     max_consecutive_errors = 30  # Stop after 30 consecutive errors (~5 min)
 
-    print("🚀 MTH Security v5.0 started (long polling mode)")
+    print("🚀 MTH Security v5.1 started (long polling mode)")
     print(f"👑 Owners: {OWNERS}")
     print(f"📱 DB: {DB_PATH}")
 
@@ -6277,7 +6331,7 @@ def long_polling():
             print(f"[Polling] Too many consecutive errors ({consecutive_errors}). Stopping.")
             break
 
-    print("🛑 MTH Security v5.0 stopped.")
+    print("🛑 MTH Security v5.1 stopped.")
 
 
 def set_webhook(url):
@@ -6370,6 +6424,12 @@ def scheduled_task_loop():
         'cors': tool_cors_test, 'robots': tool_robots_txt, 'sitemap': tool_sitemap,
         'tech': tool_tech_detect, 'exposed': tool_exposed_files, 'backup': tool_backup_finder,
         'api': tool_api_discovery, 'shell': tool_webshell_hunter, 'config': tool_config_scanner,
+        # V5.1: Aggregated tools
+        'scanall': lambda t: handle_scanall(None, None, None, None, None, [t]),
+        'deep': lambda t: handle_deep(None, None, None, None, None, [t]),
+        'quick': lambda t: handle_quick(None, None, None, None, None, [t]),
+        'http': lambda t: handle_http(None, None, None, None, None, [t]),
+        'sslchain': lambda t: handle_sslchain(None, None, None, None, None, [t]),
     }
     while not SHUTDOWN_FLAG:
         time.sleep(15)  # Check every 15 seconds
@@ -6505,7 +6565,7 @@ if __name__ == "__main__":
             # Start bot with auto-restart
             run_with_restart()
         elif sys.argv[1] == "test":
-            print("MTH Security v5.0")
+            print("MTH Security v5.1")
             print(f"Owners: {OWNERS}")
             print(f"DB: {DB_PATH}")
             stats = get_user_stats()

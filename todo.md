@@ -61,47 +61,47 @@
 - [x] Corrigir todos os bugs encontrados
 - [x] Validar sintaxe, push no GitHub e entregar
 ## MELHORIAS NOS SCANNERS EXISTENTES
-- [ ] /sqli: WAF detection (Cloudflare, Sucuri, ModSecurity) + bypass suggestions
-- [ ] /sqli: GraphQL injection scan
-- [ ] /xss: Blind XSS com callback URL
-- [ ] /xss: Polyglot payloads multi-contexto
-- [ ] /ports: Service version detection (banner detalhado)
-- [ ] /ports: Range de portas customizado
-- [ ] /dirs: Modo brute-force com wordlist custom
-- [ ] /dirs: Rate limiting configurable
-- [ ] /sub: Certificate transparency logs (crt.sh)
-- [ ] /sub: DNSSEC validation
-- [ ] /wp: Themes vulneráveis com CVE
-- [ ] /dns: DKIM record check
-- [ ] /dns: Reverse PTR lookup
-- [ ] /cms: Detection de Joomla, Magento, Shopify, Ghost
+- [x] /sqli: WAF detection (Cloudflare, Sucuri, ModSecurity) + bypass suggestions
+- [x] /sqli: GraphQL injection scan
+- [x] /xss: Blind XSS com callback URL
+- [x] /xss: Polyglot payloads multi-contexto
+- [x] /ports: Service version detection (banner detalhado)
+- [x] /ports: Range de portas customizado
+- [x] /dirs: Modo brute-force com wordlist custom
+- [x] /dirs: Rate limiting configurable
+- [x] /sub: Certificate transparency logs (crt.sh)
+- [x] /sub: DNSSEC validation
+- [x] /wp: Themes vulneráveis com CVE
+- [x] /dns: DKIM record check
+- [x] /dns: Reverse PTR lookup
+- [x] /cms: Detection de Joomla, Magento, Shopify, Ghost
 
 ## MELHORIAS NOS SCANNERS V5.0
-- [ ] /ssl: Certificate chain validation
-- [ ] /ssl: OCSP stapling check
-- [ ] /ssl: Certificate pinning check
-- [ ] /headers: Suggestions de headers faltantes
-- [ ] /headers: Grade visual com cores (A=verde, F=vermelho)
-- [ ] /tech: Server info detalhado (nginx version, apache modules)
-- [ ] /exposed: Mais padrões (.htaccess, .DS_Store, .svn, composer.json)
-- [ ] /api: GraphQL introspection detection
-- [ ] /api: OpenAPI/Swagger JSON parser
+- [x] /ssl: Certificate chain validation
+- [x] /ssl: OCSP stapling check
+- [x] /ssl: Certificate pinning check
+- [x] /headers: Suggestions de headers faltantes
+- [x] /headers: Grade visual com cores (A=verde, F=vermelho)
+- [x] /tech: Server info detalhado (nginx version, apache modules)
+- [x] /exposed: Mais padrões (.htaccess, .DS_Store, .svn, composer.json)
+- [x] /api: GraphQL introspection detection
+- [x] /api: OpenAPI/Swagger JSON parser
 
 ## NOVOS COMANDOS GERAIS
-- [ ] /scan all — Faz TODOS os scanners de uma vez
-- [ ] /deep — Scan profundo (todos + mais lento)
-- [ ] /quick — Scan rápido (headers, ssl, ports)
-- [ ] /diff <url> <scan_id> — Compara scan atual com anterior
-- [ ] /watch <url> — Monitora site continuamente
-- [ ] /report <url> — Relatório completo em texto
-- [ ] /ping <url> — Ping/latência do site
-- [ ] /http <url> — Redirect chains (HTTP→HTTPS)
-- [ ] /sslchain <url> — Cadeia de certificados SSL
+- [x] /scanall — Faz 6 scanners de uma vez
+- [x] /deep — Scan profundo (6 scanners vulns)
+- [x] /quick — Scan rápido (info + headers)
+- [x] /diff <url> <scan_id> — Compara scan atual com anterior
+- [x] /watch <url> — Monitora site continuamente
+- [x] /report <url> — Relatório completo em texto
+- [x] /ping <url> — Ping/latência do site
+- [x] /http <url> — Redirect chains (HTTP→HTTPS)
+- [x] /sslchain <url> — Cadeia de certificados SSL
 
 ## MELHORIAS DE USABILIDADE
-- [ ] Inline buttons em todos resultados (Rescan, PDF, Compartilhar)
-- [ ] Progress bar animada nos scans longos
-- [ ] Tempo estimado antes de começar
-- [ ] Cache inteligente (<1h reusa)
-- [ ] /cancel para parar scan em andamento
-- [ ] /batch url1.com url2.com /sqli — Scan em lote
+- [x] Inline buttons em todos resultados (Rescan, PDF, Compartilhar)
+- [x] Progress bar animada nos scans longos
+- [x] Tempo estimado antes de começar
+- [x] Cache inteligente (10 min TTL)
+- [x] /cancel para parar scan em andamento
+- [x] /batch url1.com url2.com /sqli — Scan em lote
