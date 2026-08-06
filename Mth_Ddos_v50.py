@@ -142,6 +142,12 @@ init(autoreset=True)
 # ═══════════════════════════════════════════════════════════════
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.verify = False
+HTTP_SESSION.headers.update({'Connection': 'close'})
+# Default timeout for all requests (can be overridden per-call)
+_original_post = HTTP_SESSION.post
+_original_get = HTTP_SESSION.get
+HTTP_SESSION.post = lambda *a, timeout=10, **kw: _original_post(*a, timeout=timeout, **kw)
+HTTP_SESSION.get = lambda *a, timeout=10, **kw: _original_get(*a, timeout=timeout, **kw)
 _http_adapter = requests.adapters.HTTPAdapter(
     pool_connections=10, pool_maxsize=10,
     max_retries=requests.adapters.Retry(total=0)
@@ -832,7 +838,7 @@ def log_error(module, error):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] [{module}] {error}\n"
     try:
-        with open(ERROR_LOG_PATH, "a") as f:
+        with open(ERROR_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(line)
     except:
         pass
@@ -1251,7 +1257,7 @@ def send_document(chat_id, text, filename="report.txt"):
     """Send text as document file. Returns True on success, False on failure."""
     try:
         filepath = os.path.join(DB_DIR, filename)
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(text)
         with open(filepath, "rb") as f:
             resp = HTTP_SESSION.post(f"{API_URL}/sendDocument",
@@ -4637,6 +4643,7 @@ def handle_bancodds(chat_id, user_id, username, first_name, last_name, args):
             send_msg(user_id, chat_id, "📄 <b>Dump do banco enviado como arquivo.</b>")
         else:
             send_msg(user_id, chat_id, "❌ <b>Falha ao enviar o dump do banco.</b> Tente novamente.")
+            return
     else:
         # FIX v3.9: Escape HTML in inline dump to prevent XSS via username/target
         safe_dump = escape_html(dump)
@@ -4771,6 +4778,7 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
             send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
         else:
             send_msg(user_id, chat_id, "❌ Tipo de mídia não suportado.")
+            return
 
     else:
         # TEXT BROADCAST (original behavior)
@@ -4861,6 +4869,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
             print(f"[DB Error] handle_stats: {e}")
             log_error("stats", str(e))
             send_msg(user_id, chat_id, "❌ Erro ao buscar estatísticas.")
+            return
     else:
         # General stats
         stats = get_user_stats()
@@ -4947,7 +4956,7 @@ def handle_ban(chat_id, user_id, username, first_name, last_name, args):
         print(f"[DB Error] handle_ban: {e}")
         log_error("ban", str(e))
         send_msg(user_id, chat_id, "❌ Erro ao banir usuário.")
-
+        return
 
 def handle_unban(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Unban a user"""
@@ -4977,6 +4986,7 @@ def handle_unban(chat_id, user_id, username, first_name, last_name, args):
         print(f"[DB Error] handle_unban: {e}")
         log_error("unban", str(e))
         send_msg(user_id, chat_id, "❌ Erro ao desbanir usuário.")
+        return
 
 
 def handle_export(chat_id, user_id, username, first_name, last_name, args):
@@ -5023,6 +5033,7 @@ def handle_export(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, f"✅ <b>Exportação concluída!</b>\n📤 {len(users)} usuários exportados.")
     else:
         send_msg(user_id, chat_id, "❌ Falha ao enviar o arquivo.")
+        return
 
 
 def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
@@ -5583,7 +5594,8 @@ def handle_traceroute(chat_id, user_id, username, first_name, last_name, args):
     except subprocess.TimeoutExpired:
         send_msg(user_id, chat_id, "⏱️ Traceroute expirou (timeout 30s).")
     except Exception as e:
-        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+                send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+
 
 def handle_whois(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
@@ -5874,8 +5886,11 @@ def handle_pdf(chat_id, user_id, username, first_name, last_name, args):
             send_msg(user_id, chat_id, "📄 <b>Relatório exportado com sucesso!</b>")
         else:
             send_msg(user_id, chat_id, "❌ Falha ao enviar o relatório.")
+            return
     except Exception as e:
         send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+        return
+
 
 def handle_schedule(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
@@ -5926,7 +5941,6 @@ def handle_maintenance(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
         return
-        return
     log_owner_command(user_id, username, "maintenance")
     audit_log(user_id, username, "maintenance", ' '.join(args) if args else "")
     if not args:
@@ -5951,7 +5965,6 @@ def handle_cooldown(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
         return
-        return
     log_owner_command(user_id, username, "cooldown")
     if not args or len(args) < 2:
         send_msg(user_id, chat_id, "❌ Use: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\nExemplo: /cooldown 123456 5 60")
@@ -5974,7 +5987,6 @@ def handle_cooldown(chat_id, user_id, username, first_name, last_name, args):
 def handle_vip(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
-        return
         return
     log_owner_command(user_id, username, "vip")
     if not args or len(args) < 2:
@@ -5999,6 +6011,7 @@ def handle_vip(chat_id, user_id, username, first_name, last_name, args):
             send_msg(user_id, chat_id, f"✅ <b>VIP adicionado!</b>\nUser: {target_uid} — Sem rate limit, scans prioritários.")
         except Exception as e:
             send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+            return
     elif action == 'remove':
         VIP_USERS.discard(target_uid)
         try:
@@ -6010,14 +6023,15 @@ def handle_vip(chat_id, user_id, username, first_name, last_name, args):
             send_msg(user_id, chat_id, f"🚫 <b>VIP removido!</b>\nUser: {target_uid}")
         except Exception as e:
             send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
+            return
     else:
         send_msg(user_id, chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;")
+        return
 
 def handle_viplist(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Lista todos os usuários VIP cadastrados"""
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
-        return
         return
     log_owner_command(user_id, username, "viplist")
     try:
@@ -6061,7 +6075,6 @@ def handle_log(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
         return
-        return
     log_owner_command(user_id, username, "log")
     # This is the audit log command (detailed)
     if not args:
@@ -6096,7 +6109,6 @@ def handle_clearlogs(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
         return
-        return
     log_owner_command(user_id, username, "clearlogs")
     try:
         with sqlite3.connect(DB_PATH) as conn:
@@ -6114,7 +6126,6 @@ def handle_broadcast(chat_id, user_id, username, first_name, last_name, args):
     """Schedule a broadcast for later (owner only)"""
     log_user(user_id, username, first_name, last_name)
     if not check_owner(user_id, chat_id):
-        return
         return
     log_owner_command(user_id, username, "broadcast")
     if len(args) < 2:
@@ -6745,8 +6756,7 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, f"📄 <b>Relatório exportado!</b>\nTarget: {escape_html(clean_target)}")
     else:
         send_msg(user_id, chat_id, "❌ Falha ao enviar relatório.")
-
-
+        return
 # ═══════════════════════════════════════════════════════════════
 #  i18n: /lang command
 # ═══════════════════════════════════════════════════════════════
@@ -7104,11 +7114,11 @@ def long_polling():
 
     while not SHUTDOWN_FLAG:
         try:
-            resp = HTTP_SESSION.get(f"{API_URL}/getUpdates", params={
+            resp = HTTP_SESSION.get(f"{API_URL}/getUpdates", timeout=35, params={
                 "offset": offset,
                 "timeout": 30,
                 "allowed_updates": ["message", "callback_query"]
-            }, timeout=35)
+            })
 
             if resp.status_code == 200:
                 consecutive_errors = 0  # Reset error counter on success
@@ -7169,7 +7179,7 @@ def set_webhook(url):
         "url": url,
         "allowed_updates": ["message", "callback_query"],
         "drop_pending_updates": True
-    })
+    }, timeout=10)
     if resp.status_code == 200:
         data = resp.json()
         if data.get('ok'):
