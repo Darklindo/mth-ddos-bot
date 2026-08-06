@@ -1,1 +1,13 @@
 __pycache__/
+*.pyc
+.env
+.env.local
+*.db
+*.db-journal
+*.enc
+error_log.txt
+admin_log.enc
+logs.jsonl
+db_backup_*.db
+.mega3_bot/
+*.log

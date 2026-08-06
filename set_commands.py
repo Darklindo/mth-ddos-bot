@@ -89,6 +89,10 @@ commands = [
     {"command": "forensic", "description": "Forensic analysis (donos)"},
     {"command": "pentest", "description": "Pentest automation (donos)"},
     {"command": "osint", "description": "OSINT intelligence (donos)"},
+    # V5.3 New commands
+    {"command": "dashboard", "description": "Dashboard tempo real (VIP/Dono)"},
+    {"command": "score", "description": "Score global de seguranca [url]"},
+    {"command": "portmon", "description": "Monitor de portas (VIP/Dono)"},
 ]
 
 resp = requests.post(f"{API}/setMyCommands", json={"commands": commands})

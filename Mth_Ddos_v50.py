@@ -159,7 +159,7 @@ import hmac
 import html as html_lib
 import hashlib
 import signal
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 from bs4 import XMLParsedAsHTMLWarning
@@ -181,7 +181,7 @@ init(autoreset=True)
 # ═══════════════════════════════════════════════════════════════
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.verify = False
-HTTP_SESSION.headers.update({'Connection': 'close'})
+HTTP_SESSION.headers.update({'Connection': 'keep-alive'})
 # Default timeout for all requests (can be overridden per-call)
 _original_post = HTTP_SESSION.post
 _original_get = HTTP_SESSION.get
@@ -225,7 +225,7 @@ def extract_hostname(target):
 # ═══════════════════════════════════════════════════════════════
 #  TELEGRAM CONFIG
 # ═══════════════════════════════════════════════════════════════
-TELEGRAM_TOKEN = "8534082821:AAGJWMhlW27eU0kjB4QHul6knrX8pGRIUjw"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8534082821:AAGJWMhlW27eU0kjB4QHul6knrX8pGRIUjw")
 API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # DONOS DO BOT (IDs do Telegram)
@@ -1857,8 +1857,8 @@ def record_scan_history(user_id, cmd, target, score=0, vulns_count=0, result_sum
             c.execute("INSERT INTO scan_history (user_id, cmd, target, score, vulns_count, result_summary, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                       (user_id, cmd, target, score, vulns_count, result_summary[:500], time.time()))
             conn.commit()
-    except:
-        pass
+    except Exception as e:
+        print(f"[DB History Error] {e}")
 
 # V5.3: Feedback poll after scan
 def send_feedback_poll(chat_id, user_id, scan_type, target):
@@ -1931,8 +1931,8 @@ def check_badges(user_id, scan_count=None):
                 c.execute("INSERT OR REPLACE INTO badges (user_id, badge_ids, updated_at) VALUES (?, ?, ?)",
                           (user_id, json.dumps(USER_BADGES[user_id]), time.time()))
                 conn.commit()
-        except:
-            pass
+        except Exception as e:
+            print(f"[DB Badge Error] {e}")
     return new_badges
 
 def get_badges_display(user_id):
@@ -2535,6 +2535,7 @@ def tool_port_scanner(target):
 
     def grab_banner(port, timeout=2):
         """V5.1: Grab service banner for version detection"""
+        sock = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
@@ -2550,7 +2551,6 @@ def tool_port_scanner(target):
                 data = sock.recv(512)
             except:
                 pass
-            sock.close()
             if data:
                 banner = data.decode('utf-8', errors='replace').strip()
                 # Extract just the server header line
@@ -2566,6 +2566,12 @@ def tool_port_scanner(target):
             return ""
         except:
             return ""
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except:
+                    pass
 
     def scan_port(port):
         sock = None
@@ -3620,9 +3626,9 @@ def tool_ssl_audit(url):
             results += f"  → Emissor: {escape_html(issuer_org)}\n"
             if not_after:
                 try:
-                    from datetime import datetime as dt
+                    from datetime import datetime as dt, timezone as tz
                     exp_date = dt.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                    days_left = (exp_date - dt.utcnow()).days
+                    days_left = (exp_date - dt.now(tz.utc).replace(tzinfo=None)).days
                     if days_left > 30:
                         results += f"  → Expira em: {exp_date.strftime('%Y-%m-%d')} ({days_left} dias) ✅\n"
                     elif days_left > 0:
@@ -4809,7 +4815,7 @@ def tool_scanall_vip(url):
     # 8/8 — VIP: Tech detection
     sections.append("\n" + "═" * 50 + "\n8/8 — TECH DETECTION (VIP)\n" + "═" * 50 + "\n" + _clean(tool_tech_detect(url)))
 
-    report = f"MTH Security v5.2 — VIP Scan Completo\n"
+    report = f"MTH Security v5.3 — VIP Scan Completo\n"
     report += f"Target: {clean}\n"
     report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
     report += "═" * 50 + "\n\n"
@@ -4850,7 +4856,7 @@ def tool_scanall_owner(url):
     # 12/12 — OWNER: API discovery
     sections.append("\n" + "═" * 50 + "\n12/12 — API DISCOVERY (OWNER)\n" + "═" * 50 + "\n" + _clean(tool_api_discovery(url)))
 
-    report = f"MTH Security v5.2 — OWNER Scan Completo\n"
+    report = f"MTH Security v5.3 — OWNER Scan Completo\n"
     report += f"Target: {clean}\n"
     report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
     report += "═" * 50 + "\n\n"
@@ -4878,7 +4884,7 @@ def tool_deep_vip(url):
     sections.append("\n" + "═" * 50 + "\n7/8 — API DISCOVERY (VIP)\n" + "═" * 50 + "\n" + _clean(tool_api_discovery(url)))
     sections.append("\n" + "═" * 50 + "\n8/8 — BACKUP FILES (VIP)\n" + "═" * 50 + "\n" + _clean(tool_backup_finder(url)))
 
-    report = f"MTH Security v5.2 — VIP Deep Scan\n"
+    report = f"MTH Security v5.3 — VIP Deep Scan\n"
     report += f"Target: {clean}\n"
     report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
     report += "═" * 50 + "\n\n"
@@ -4908,7 +4914,7 @@ def tool_deep_owner(url):
     sections.append("\n" + "═" * 50 + "\n9/10 — SUBDOMAIN ENUM\n" + "═" * 50 + "\n" + _clean(tool_subdomain_scanner(url)))
     sections.append("\n" + "═" * 50 + "\n10/10 — TECH DETECTION\n" + "═" * 50 + "\n" + _clean(tool_tech_detect(url)))
 
-    report = f"MTH Security v5.2 — OWNER Deep Scan\n"
+    report = f"MTH Security v5.3 — OWNER Deep Scan\n"
     report += f"Target: {clean}\n"
     report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
     report += "═" * 50 + "\n\n"
@@ -4927,7 +4933,7 @@ def handle_start(chat_id, user_id, username, first_name, last_name, args=None, l
 
 
 # ═══════════════════════════════════════════════════════════════
-#  INTERACTIVE MENU SYSTEM v5.2
+#  INTERACTIVE MENU SYSTEM v5.3
 # ═══════════════════════════════════════════════════════════════
 
 def show_main_menu(chat_id, user_id, username='', first_name=''):
@@ -5277,7 +5283,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <i>Use /listdn to see Owner commands.</i>
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>MTH Security v5.2</i>"""
+<i>MTH Security v5.3</i>"""
     elif lang == 'es':
         msg = """🔧 <b>MTH Security — Comandos Importantes</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -5317,7 +5323,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <i>Use /listdn para ver comandos de Owner.</i>
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>MTH Security v5.2</i>"""
+<i>MTH Security v5.3</i>"""
     elif lang == 'vi':
         msg = """🔧 <b>MTH Security — Lệnh Quan Trọng</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -5356,7 +5362,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <i>Dùng /listdn để xem lệnh Owner.</i>
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>MTH Security v5.2</i>"""
+<i>MTH Security v5.3</i>"""
     elif lang == 'id':
         msg = """🔧 <b>MTH Security — Perintah Penting</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -5395,7 +5401,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <i>Gunakan /listdn untuk perintah Owner.</i>
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>MTH Security v5.2</i>"""
+<i>MTH Security v5.3</i>"""
     else:
         msg = """🔧 <b>MTH Security — Comandos Importantes</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -5435,13 +5441,13 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <i>Use /listdn para ver comandos de Owner.</i>
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>MTH Security v5.2</i>"""
+<i>MTH Security v5.3</i>"""
     send_message(chat_id, msg)
 
 
 def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
-    msg = """🛡️ <b>Mth Ddos Security v5.2</b>
+    msg = """🛡️ <b>Mth Ddos Security v5.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>Desenvolvedores:</b>
@@ -5877,7 +5883,7 @@ def handle_ping(chat_id, user_id, username, first_name, last_name, args):
         speed_icon = "🔴"
         speed_label = "Muito lento"
 
-    msg = f"""🏓 <b>Ping — MTH Security v5.2</b>
+    msg = f"""🏓 <b>Ping — MTH Security v5.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📡 <b>Latência do Bot:</b> {bot_latency:.1f}ms
@@ -6051,7 +6057,7 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
     except:
         db_size_str = "N/D"
 
-    msg = f"""📊 <b>Painel do Bot — MTH Security v5.2</b>
+    msg = f"""📊 <b>Painel do Bot — MTH Security v5.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Estatísticas:</b>
@@ -6502,7 +6508,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
         except:
             top_users = []
 
-        msg = f"""📊 <b>MTH Security v5.2 — Estatísticas</b>
+        msg = f"""📊 <b>MTH Security v5.3 — Estatísticas</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Gerais:</b>
@@ -6744,6 +6750,7 @@ def handle_portmon(chat_id, user_id, username, first_name, last_name, args):
     # Run initial check
     results = []
     for port in ports[:20]:  # Max 20 ports
+        sock = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(3)
@@ -6751,9 +6758,14 @@ def handle_portmon(chat_id, user_id, username, first_name, last_name, args):
             result = sock.connect_ex((ip, int(port)))
             status = "✅ OPEN" if result == 0 else "❌ CLOSED"
             results.append(f"  Port {port}: {status}")
-            sock.close()
         except:
             results.append(f"  Port {port}: ❌ TIMEOUT")
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except:
+                    pass
     msg = f"""━━━━━━━━━━━━━━━━━━━━━━
 🔍 <b>Port Monitor Added</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -6906,7 +6918,7 @@ def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
 
     log_owner_command(user_id, username, "listdn")
 
-    msg = """👑 <b>Comandos de Dono — Mth Ddos v5.2</b>
+    msg = """👑 <b>Comandos de Dono — Mth Ddos v5.3</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📊 <b>Administrativos:</b>
@@ -6957,7 +6969,7 @@ def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
     mins = (uptime_secs % 3600) // 60
     secs = uptime_secs % 60
 
-    msg = f"""⏱️ <b>MTH Security v5.2 — Uptime</b>
+    msg = f"""⏱️ <b>MTH Security v5.3 — Uptime</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🟢 <b>Online há:</b>
@@ -6990,7 +7002,7 @@ def handle_status(chat_id, user_id, username, first_name, last_name, args):
         db_size = 0
     active_threads = threading.active_count()
 
-    msg = f"""📊 <b>Mth Ddos Security v5.2 — Status</b>
+    msg = f"""📊 <b>Mth Ddos Security v5.3 — Status</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 🟢 <b>Online</b> | Uptime: {hours}h {mins}m {secs}s
 👥 Usuários: {stats['total']} (Donos: {stats['owners']})
@@ -8250,7 +8262,7 @@ def _run_scanall_normal(chat_id, user_id, target):
     # Step 6: Arquivos Expostos
     edit_progress(progress_msg_id, chat_id, 6, 6, f"Scan Completo — {clean_target} — Arquivos Expostos...")
     sections.append("\n" + "═" * 50 + "\n6/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(tool_exposed_files(target)))
-    report = f"MTH Security v5.2 — Scan Completo\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
+    report = f"MTH Security v5.3 — Scan Completo\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
     finish_progress(progress_msg_id, chat_id, "✅ Scan Completo finalizado!")
     success = send_document(chat_id, report, f"scanall_{clean_target}.txt")
     if success:
@@ -8345,7 +8357,7 @@ def _run_deep_normal(chat_id, user_id, target):
     # Step 6: Config Files
     edit_progress(progress_msg_id, chat_id, 6, 6, f"Deep Scan — {clean_target} — Config Files...")
     sections.append("\n" + "═" * 50 + "\n6/6 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean_html(tool_config_scanner(target)))
-    report = f"MTH Security v5.2 — Deep Scan\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
+    report = f"MTH Security v5.3 — Deep Scan\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
     finish_progress(progress_msg_id, chat_id, "✅ Deep Scan finalizado!")
     success = send_document(chat_id, report, f"deep_scan_{clean_target}.txt")
     if success:
@@ -9646,8 +9658,9 @@ def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
     log_command(user_id, username, "sslchain", target)
     clean_target = extract_hostname(target)
     send_msg(user_id, chat_id, f"🔍 <b>Cadeia SSL</b> de {escape_html(clean_target)}...")
-
     results = f"📜 <b>Cadeia de Certificados SSL</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+    sock = None
+    tls = None
     try:
         import ssl
         import socket as s
@@ -9659,7 +9672,6 @@ def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
         sock = s.create_connection((host, port), timeout=10)
         sock.settimeout(10)
         tls = ctx.wrap_socket(sock, server_hostname=host)
-
         # Get the full certificate chain
         chain = tls.getpeercert(binary_form=False)
         if chain:
@@ -9681,7 +9693,7 @@ def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
             if not_after:
                 try:
                     exp_date = dt.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                    days_left = (exp_date - dt.utcnow()).days
+                    days_left = (exp_date - dt.now(timezone.utc).replace(tzinfo=None)).days
                     results += f"  Expira: {exp_date.strftime('%Y-%m-%d')} ({days_left} dias)\n"
                 except:
                     results += f"  Expira: {escape_html(not_after)}\n"
@@ -9704,16 +9716,24 @@ def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
         cipher = tls.cipher()
         if cipher:
             results += f"🔑 <b>Cipher:</b> {escape_html(cipher[0])}\n"
-
         tls.close()
     except ssl.SSLError as e:
         results += f"❌ Erro SSL: {escape_html(str(e)[:150])}\n"
     except Exception as e:
         results += f"❌ Erro: {escape_html(str(e)[:150])}\n"
-
+    finally:
+        if tls:
+            try:
+                tls.close()
+            except:
+                pass
+        if sock:
+            try:
+                sock.close()
+            except:
+                pass
     results += "━━━━━━━━━━━━━━━━━━━━━━"
     send_msg(user_id, chat_id, results)
-
 def handle_watch(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Watch a site for changes — notify when content changes
     Usage: /watch &lt;url&gt; [minutos]
@@ -9893,6 +9913,7 @@ def signal_handler(signum, frame):
     global SHUTDOWN_FLAG
     SHUTDOWN_FLAG = True
     print(f"\n🛑 Shutdown signal received (signal {signum}). Stopping gracefully...")
+    SCAN_POOL.shutdown(wait=False)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
@@ -9997,6 +10018,13 @@ def process_update(update):
     callback_query = update.get('callback_query')
     if callback_query:
         cb_data = callback_query.get('data', '')
+        # V5.3 FIX: Original message may have been deleted
+        if 'message' not in callback_query or not callback_query['message']:
+            try:
+                HTTP_SESSION.post(f"{API_URL}/answerCallbackQuery", json={"callback_query_id": callback_query['id']}, timeout=5)
+            except:
+                pass
+            return
         chat_id = str(callback_query['message']['chat']['id'])
         user_id = callback_query['from']['id']
         username = callback_query['from'].get('username', '')
@@ -10029,16 +10057,16 @@ def process_update(update):
                 lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español', 'vi': 'Tiếng Việt', 'id': 'Bahasa Indonesia', 'fr': 'Français', 'de': 'Deutsch', 'ru': 'Русский', 'ar': 'العربية', 'it': 'Italiano'}
                 flags = {'pt': '🇧🇷', 'en': '🇺🇸', 'es': '🇪🇸', 'vi': '🇻🇳', 'id': '🇮🇩', 'fr': '🇫🇷', 'de': '🇩🇪', 'ru': '🇷🇺', 'ar': '🇸🇦', 'it': '🇮🇹'}
                 lang_texts = {
-                    'pt': f"{flags[new_lang]} <b>Idioma alterado para {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'en': f"{flags[new_lang]} <b>Language changed to {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'es': f"{flags[new_lang]} <b>¡Idioma cambiado a {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'vi': f"{flags[new_lang]} <b>Ngôn ngữ đã thay đổi sang {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'id': f"{flags[new_lang]} <b>Bahasa diubah ke {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'fr': f"{flags[new_lang]} <b>Langue changée en {lang_names[new_lang]} !</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'de': f"{flags[new_lang]} <b>Sprache geÃ¤ndert zu {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'ru': f"{flags[new_lang]} <b>Ð¯Ð·Ñ‹Ðº Ð¸Ð·Ð¼ÐµÐ½Ñ‘Ð½ Ð½Ð° {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'ar': f"{flags[new_lang]} <b>ØªÙ… ØªØºÙŠÙŠØ± Ø§Ù„Ù„ØºØ© Ø¥Ù„Ù‰ {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
-                    'it': f"{flags[new_lang]} <b>Lingua cambiata in {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.2</i>",
+                    'pt': f"{flags[new_lang]} <b>Idioma alterado para {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'en': f"{flags[new_lang]} <b>Language changed to {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'es': f"{flags[new_lang]} <b>¡Idioma cambiado a {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'vi': f"{flags[new_lang]} <b>Ngôn ngữ đã thay đổi sang {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'id': f"{flags[new_lang]} <b>Bahasa diubah ke {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'fr': f"{flags[new_lang]} <b>Langue changée en {lang_names[new_lang]} !</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'de': f"{flags[new_lang]} <b>Sprache geÃ¤ndert zu {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'ru': f"{flags[new_lang]} <b>Ð¯Ð·Ñ‹Ðº Ð¸Ð·Ð¼ÐµÐ½Ñ‘Ð½ Ð½Ð° {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'ar': f"{flags[new_lang]} <b>ØªÙ… ØªØºÙŠÙŠØ± Ø§Ù„Ù„ØºØ© Ø¥Ù„Ù‰ {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
+                    'it': f"{flags[new_lang]} <b>Lingua cambiata in {lang_names[new_lang]}!</b>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.3</i>",
                 }
                 try:
                     HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
@@ -10090,7 +10118,7 @@ def process_update(update):
             return
         # Tier selection callback: "tier:sqli:vip:example.com"
         # ═══════════════════════════════════════════════════════════
-        #  MENU SYSTEM CALLBACKS v5.2
+        #  MENU SYSTEM CALLBACKS v5.3
         # ═══════════════════════════════════════════════════════════
         
         # Main menu pages
@@ -10503,7 +10531,7 @@ def process_update(update):
         return
 
     # V5.0: Maintenance mode check (only owners bypass)
-    if MAINTENANCE_MODE and cmd not in ('/start', '/help', '/about', '/ping', '/status', '/maintenance', '/lang') and not is_owner(user_id):
+    if MAINTENANCE_MODE and cmd not in ('/start', '/help', '/about', '/ping', '/status', '/maintenance', '/lang', '/dashboard', '/score', '/portmon') and not is_owner(user_id):
         user_lang = get_user_lang(user_id)
         if user_lang == 'en':
             msg = "🔧 <b>Bot under maintenance.</b> Please try again later."
@@ -10631,7 +10659,7 @@ def long_polling():
     consecutive_errors = 0
     max_consecutive_errors = 30  # Stop after 30 consecutive errors (~5 min)
 
-    print("🚀 MTH Security v5.2 started (long polling mode)")
+    print("🚀 MTH Security v5.3 started (long polling mode)")
     print(f"👑 Owners: {OWNERS}")
     print(f"📱 DB: {DB_PATH}")
 
@@ -10693,7 +10721,7 @@ def long_polling():
             print(f"[Polling] Too many consecutive errors ({consecutive_errors}). Stopping.")
             break
 
-    print("🛑 MTH Security v5.2 stopped.")
+    print("🛑 MTH Security v5.3 stopped.")
 
 
 def set_webhook(url):
@@ -10778,8 +10806,64 @@ def site_monitor_loop():
                             print(f"[Content Watch Error] {ex}")
         except Exception as e:
             print(f"[Site Monitor Error] {e}")
-
-
+        # V5.3: Port monitor check (every 5 min)
+        try:
+            now = time.time()
+            for uid, monitors in list(PORT_MONITORS.items()):
+                for m in monitors:
+                    if (now - m.get('last_check', 0)) < 300:  # 5 min interval
+                        continue
+                    m['last_check'] = now
+                    ports = m['ports']
+                    target = m['target']
+                    chat_id = m['chat_id']
+                    prev_status = m.get('prev_status', {})
+                    new_status = {}
+                    try:
+                        ip = socket.gethostbyname(target)
+                        for port in ports[:10]:  # Max 10 ports per check
+                            sock = None
+                            try:
+                                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                sock.settimeout(3)
+                                result = sock.connect_ex((ip, int(port)))
+                                is_open = result == 0
+                                new_status[str(port)] = is_open
+                            except:
+                                pass
+                            finally:
+                                if sock:
+                                    try:
+                                        sock.close()
+                                    except:
+                                        pass
+                    except Exception as e:
+                        print(f"[PortMon Error] {target}: {e}")
+                        continue
+                    # Check for status changes
+                    changed = []
+                    for port_str, is_open in new_status.items():
+                        port = int(port_str)
+                        prev = prev_status.get(port_str)
+                        if prev is None:
+                            continue  # First check, no comparison
+                        if prev != is_open:
+                            changed.append((port, is_open))
+                    if changed:
+                        changes_msg = "\n".join([f"  Port {p}: {'✅ OPEN' if o else '❌ CLOSED'}" for p, o in changed])
+                        send_message_safe(str(chat_id), f"🔔 <b>Port Monitor Alert</b>\n━━━━━━━━━━━━━━━━━━━━━━\n🎯 {escape_html(target)}\n{changes_msg}\n━━━━━━━━━━━━━━━━━━━━━━")
+                    m['prev_status'] = new_status
+                    # Persist to DB
+                    try:
+                        with sqlite3.connect(DB_PATH) as conn:
+                            c = conn.cursor()
+                            c.execute("INSERT OR REPLACE INTO port_monitors (user_id, target, ports, last_status, created_at) VALUES (?, ?, ?, ?, ?)",
+                                      (uid, target, json.dumps(ports), json.dumps(new_status), now))
+                            conn.commit()
+                    except:
+                        pass
+        except Exception as e:
+            print(f"[Port Monitor Loop Error] {e}")
 # V5.0: Scheduled task consumer thread
 def scheduled_task_loop():
     """Background thread that checks scheduled_tasks DB and executes pending tasks"""
@@ -10957,7 +11041,7 @@ def backup_loop():
         if SHUTDOWN_FLAG:
             break
         try:
-            now = datetime.now(datetime.timezone.utc)
+            now = datetime.now(timezone.utc)
             if now.hour == 3 and now.day != last_backup_day:
                 last_backup_day = now.day
                 backup_name = f"db_backup_{now.strftime('%Y%m%d_%H%M%S')}.db"
@@ -11038,10 +11122,15 @@ if __name__ == "__main__":
             monitor_thread.start()
             sched_thread = threading.Thread(target=scheduled_task_loop, daemon=True)
             sched_thread.start()
+            # V5.3: Start backup and OTA threads
+            backup_thread = threading.Thread(target=backup_loop, daemon=True)
+            backup_thread.start()
+            ota_thread = threading.Thread(target=check_updates_loop, daemon=True)
+            ota_thread.start()
             # Start bot with auto-restart
             run_with_restart()
         elif sys.argv[1] == "test":
-            print("MTH Security v5.2")
+            print("MTH Security v5.3")
             print(f"Owners: {OWNERS}")
             print(f"DB: {DB_PATH}")
             stats = get_user_stats()
