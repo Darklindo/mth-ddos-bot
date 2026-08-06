@@ -5473,7 +5473,22 @@ def handle_viplist(chat_id, user_id, username, first_name, last_name, args):
         msg = "📋 <b>VIP List</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         for i, row in enumerate(rows, 1):
             uid = row[0]
-            uname = row[1] if row[1] and row[1] != 'N/D' else '?'
+            uname = row[1]
+            # Fallback: look up username from users table
+            if not uname or uname == 'N/D':
+                try:
+                    with sqlite3.connect(DB_PATH) as conn2:
+                        c2 = conn2.cursor()
+                        c2.execute("SELECT username FROM users WHERE id = ?", (uid,))
+                        urow = c2.fetchone()
+                        if urow and urow[0]:
+                            uname = f"@{urow[0]}"
+                        else:
+                            uname = f"ID: {uid}"
+                except:
+                    uname = f"ID: {uid}"
+            elif not uname.startswith('@'):
+                uname = f"@{uname}"
             added = row[2] if row[2] else '?'
             by_id = row[3]
             by_name = OWNERS.get(by_id, f"User {by_id}")

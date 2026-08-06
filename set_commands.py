@@ -76,6 +76,7 @@ commands = [
     {"command": "maintenance", "description": "Modo manutencao (donos)"},
     {"command": "cooldown", "description": "Rate limit user (donos)"},
     {"command": "vip", "description": "Gerenciar VIP (donos)"},
+    {"command": "viplist", "description": "Listar todos os VIPs (donos)"},
     {"command": "log", "description": "Audit logs (donos)"},
     {"command": "clearlogs", "description": "Limpar logs (donos)"},
     {"command": "broadcast", "description": "Agendar broadcast (donos)"},
