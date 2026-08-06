@@ -4542,30 +4542,36 @@ def handle_start(chat_id, user_id, username, first_name, last_name, args=None):
 # ═══════════════════════════════════════════════════════════════
 
 def show_main_menu(chat_id, user_id, username='', first_name=''):
-    """Show the main menu with category buttons (translated)"""
+    """Show clean main menu with category buttons"""
     owner = is_owner(user_id)
     vip = is_vip(user_id)
     lang = get_user_lang(user_id)
     display_name = first_name or username or 'User'
+
     greetings = {
-        'pt': f"👋 Olá, <b>{escape_html(display_name)}</b>!",
-        'en': f"👋 Hello, <b>{escape_html(display_name)}</b>!",
-        'es': f"👋 ¡Hola, <b>{escape_html(display_name)}</b>!",
-        'vi': f"👋 Xin chào, <b>{escape_html(display_name)}</b>!",
-        'id': f"👋 Halo, <b>{escape_html(display_name)}</b>!",
+        'pt': 'Olá', 'en': 'Hello', 'es': 'Hola', 'vi': 'Xin chào', 'id': 'Halo'
     }
-    greeting = greetings.get(lang, greetings['pt'])
+    greeting = f"👋 {greetings.get(lang, 'Olá')}, <b>{escape_html(display_name)}</b>!"
+
+    badge = ''
+    if owner:
+        badge = ' 👑'
+    elif vip:
+        badge = ' ⭐'
+
     cats = {
-        'pt': {'vulns': '🎯 Explorar Vulnerabilidades', 'recon': '🔍 Reconhecimento', 'audit': '🛡️ Auditoria de Segurança', 'files': '📂 Arquivos & Diretórios', 'vip': '⭐ Ferramentas VIP', 'owner': '👑 Ferramentas DONO', 'select_cat': 'Selecione uma categoria para começar:'},
-        'en': {'vulns': '🎯 Explore Vulnerabilities', 'recon': '🔍 Reconnaissance', 'audit': '🛡️ Security Audit', 'files': '📂 Files & Directories', 'vip': '⭐ VIP Tools', 'owner': '👑 Owner Tools', 'select_cat': 'Select a category to begin:'},
-        'es': {'vulns': '🎯 Explorar Vulnerabilidades', 'recon': '🔍 Reconocimiento', 'audit': '🛡️ Auditoría de Seguridad', 'files': '📂 Archivos & Directorios', 'vip': '⭐ Herramientas VIP', 'owner': '👑 Herramientas de Propietario', 'select_cat': 'Seleccione una categoría para comenzar:'},
-        'vi': {'vulns': '🎯 Khám phá Lỗ hổng', 'recon': '🔍 Trinh sát', 'audit': '🛡️ Kiểm tra Bảo mật', 'files': '📂 Tệp & Thư mục', 'vip': '⭐ Công cụ VIP', 'owner': '👑 Công cụ Owner', 'select_cat': 'Chọn một danh mục để bắt đầu:'},
-        'id': {'vulns': '🎯 Jelajahi Kerentanan', 'recon': '🔍 Pengintaian', 'audit': '🛡️ Audit Keamanan', 'files': '📂 File & Direktori', 'vip': '⭐ Alat VIP', 'owner': '👑 Alat Owner', 'select_cat': 'Pilih kategori untuk memulai:'},
+        'pt': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 DONO', 'select': 'Selecione uma categoria:'},
+        'en': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Select a category:'},
+        'es': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Seleccione una categoría:'},
+        'vi': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Chọn một danh mục:'},
+        'id': {'vulns': '🎯 Vulns', 'recon': '🔍 Recon', 'audit': '🛡️ Audit', 'files': '📂 Files', 'vip': '⭐ VIP', 'owner': '👑 Owner', 'select': 'Pilih kategori:'},
     }
     c = cats.get(lang, cats['pt'])
-    msg = f"🛡️ <b>MTH Security v5.2</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+    msg = f"🛡️ <b>MTH Security</b>{badge}\n━━━━━━━━━━━━━━━━━━━━━━\n"
     msg += f"{greeting}\n\n"
-    msg += f"{c['select_cat']}\n\n"
+    msg += f"{c['select']}"
+
     buttons = [
         [{"text": c['vulns'], "callback_data": "menu:vulns"},
          {"text": c['recon'], "callback_data": "menu:recon"}],
@@ -4577,24 +4583,22 @@ def show_main_menu(chat_id, user_id, username='', first_name=''):
     if owner:
         buttons.append([{"text": c['owner'], "callback_data": "menu:owner"}])
     buttons.append([
-        {"text": "📊 /stats", "callback_data": "menu:stats"},
-        {"text": "🔧 /help", "callback_data": "cmd:help"},
-        {"text": "ℹ️ /about", "callback_data": "cmd:about"}
+        {"text": "📊 Stats", "callback_data": "menu:stats"},
+        {"text": "🔧 Help", "callback_data": "cmd:help"}
     ])
     lang_labels = {'pt': '🌐 Idioma', 'en': '🌐 Language', 'es': '🌐 Idioma', 'vi': '🌐 Ngôn ngữ', 'id': '🌐 Bahasa'}
     buttons.append([{"text": lang_labels.get(lang, '🌐 Idioma'), "callback_data": "menu:lang"}])
     send_message_with_buttons(chat_id, msg, buttons)
 
 def show_menu_vulns(chat_id, user_id):
-    """Show Vulnerability Exploration page (translated)"""
+    """Show clean Vulnerability Exploration page"""
     lang = get_user_lang(user_id)
-    # Button text translations
     btn = {
-        'pt': {'sqli': 'SQLi Scanner', 'xss': 'XSS Scanner', 'admin': 'Admin Panel Finder', 'ports': 'Port Scanner', 'dirs': 'Directory Scanner', 'sub': 'Subdomain Scanner', 'wp': 'WordPress Scanner', 'ftpssh': 'FTP/SSH Scanner', 'emails': 'Email Scraper', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'dns': 'DNS Tools', 'scanall': '🔄 ScanAll (6 scanners)', 'deep': '💀 Deep Scan (vulns)', 'back': '🔙 Voltar ao Menu', 'title': '🎯 Explorar Vulnerabilidades', 'desc': 'Selecione uma ferramenta. Você precisará inserir o alvo (URL, domínio ou IP) na próxima mensagem.'},
-        'en': {'sqli': 'SQLi Scanner', 'xss': 'XSS Scanner', 'admin': 'Admin Panel Finder', 'ports': 'Port Scanner', 'dirs': 'Directory Scanner', 'sub': 'Subdomain Scanner', 'wp': 'WordPress Scanner', 'ftpssh': 'FTP/SSH Scanner', 'emails': 'Email Scraper', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'dns': 'DNS Tools', 'scanall': '🔄 ScanAll (6 scanners)', 'deep': '💀 Deep Scan (vulns)', 'back': '🔙 Back to Menu', 'title': '🎯 Explore Vulnerabilities', 'desc': 'Select a tool. You will need to enter the target (URL, domain or IP) in the next message.'},
-        'es': {'sqli': 'SQLi Scanner', 'xss': 'XSS Scanner', 'admin': 'Admin Panel Finder', 'ports': 'Port Scanner', 'dirs': 'Directory Scanner', 'sub': 'Subdomain Scanner', 'wp': 'WordPress Scanner', 'ftpssh': 'FTP/SSH Scanner', 'emails': 'Email Scraper', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'dns': 'DNS Tools', 'scanall': '🔄 ScanAll (6 scanners)', 'deep': '💀 Deep Scan (vulns)', 'back': '🔙 Volver al Menú', 'title': '🎯 Explorar Vulnerabilidades', 'desc': 'Seleccione una herramienta. Necesitará ingresar el objetivo (URL, dominio o IP) en el próximo mensaje.'},
-        'vi': {'sqli': 'SQLi Scanner', 'xss': 'XSS Scanner', 'admin': 'Admin Panel Finder', 'ports': 'Port Scanner', 'dirs': 'Directory Scanner', 'sub': 'Subdomain Scanner', 'wp': 'WordPress Scanner', 'ftpssh': 'FTP/SSH Scanner', 'emails': 'Email Scraper', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'dns': 'DNS Tools', 'scanall': '🔄 ScanAll (6 scanners)', 'deep': '💀 Deep Scan (vulns)', 'back': '🔙 Quay lại Menu', 'title': '🎯 Khám phá Lỗ hổng', 'desc': 'Chọn một công cụ. Bạn sẽ cần nhập mục tiêu (URL, tên miền hoặc IP) trong tin nhắn tiếp theo.'},
-        'id': {'sqli': 'SQLi Scanner', 'xss': 'XSS Scanner', 'admin': 'Admin Panel Finder', 'ports': 'Port Scanner', 'dirs': 'Directory Scanner', 'sub': 'Subdomain Scanner', 'wp': 'WordPress Scanner', 'ftpssh': 'FTP/SSH Scanner', 'emails': 'Email Scraper', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'dns': 'DNS Tools', 'scanall': '🔄 ScanAll (6 scanners)', 'deep': '💀 Deep Scan (vulns)', 'back': '🔙 Kembali ke Menu', 'title': '🎯 Jelajahi Kerentanan', 'desc': 'Pilih alat. Anda perlu memasukkan target (URL, domain atau IP) di pesan berikutnya.'},
+        'pt': {'title': '🎯 Vulnerabilidades', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'admin': '🔑 Admin Panel', 'ports': '🔌 Ports', 'dirs': '📁 Directories', 'sub': '🌐 Subdomains', 'wp': '📝 WordPress', 'ftpssh': '📡 FTP/SSH', 'emails': '📧 Emails', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse IP', 'dns': '📡 DNS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep Scan', 'back': '🔙 Voltar', 'enter': '👆 Toque em uma ferramenta e envie o alvo.'},
+        'en': {'title': '🎯 Vulnerabilities', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'admin': '🔑 Admin Panel', 'ports': '🔌 Ports', 'dirs': '📁 Directories', 'sub': '🌐 Subdomains', 'wp': '📝 WordPress', 'ftpssh': '📡 FTP/SSH', 'emails': '📧 Emails', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse IP', 'dns': '📡 DNS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep Scan', 'back': '🔙 Back', 'enter': '👆 Tap a tool and send the target.'},
+        'es': {'title': '🎯 Vulnerabilidades', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'admin': '🔑 Admin Panel', 'ports': '🔌 Ports', 'dirs': '📁 Directories', 'sub': '🌐 Subdomains', 'wp': '📝 WordPress', 'ftpssh': '📡 FTP/SSH', 'emails': '📧 Emails', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse IP', 'dns': '📡 DNS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep Scan', 'back': '🔙 Volver', 'enter': '👆 Toque una herramienta y envíe el objetivo.'},
+        'vi': {'title': '🎯 Lỗ hổng', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'admin': '🔑 Admin Panel', 'ports': '🔌 Ports', 'dirs': '📁 Directories', 'sub': '🌐 Subdomains', 'wp': '📝 WordPress', 'ftpssh': '📡 FTP/SSH', 'emails': '📧 Emails', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse IP', 'dns': '📡 DNS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep Scan', 'back': '🔙 Quay lại', 'enter': '👆 Nhấn công cụ và gửi mục tiêu.'},
+        'id': {'title': '🎯 Kerentanan', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'admin': '🔑 Admin Panel', 'ports': '🔌 Ports', 'dirs': '📁 Directories', 'sub': '🌐 Subdomains', 'wp': '📝 WordPress', 'ftpssh': '📡 FTP/SSH', 'emails': '📧 Emails', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse IP', 'dns': '📡 DNS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep Scan', 'back': '🔙 Kembali', 'enter': '👆 Ketuk alat dan kirim target.'},
     }
     b = btn.get(lang, btn['pt'])
     buttons = [
@@ -4615,18 +4619,19 @@ def show_menu_vulns(chat_id, user_id):
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
     send_message_with_buttons(chat_id,
-        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['desc']}\n",
+        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
 
+
 def show_menu_recon(chat_id, user_id):
-    """Show Reconnaissance page (translated)"""
+    """Show clean Reconnaissance page"""
     lang = get_user_lang(user_id)
     btn = {
-        'pt': {'title': '🔍 Reconhecimento', 'info': 'Website Information', 'whois': 'Whois Lookup', 'ip': 'GeoIP Analysis', 'traceroute': 'Traceroute', 'dns': 'DNS Tools', 'sub': 'Subdomain Scanner', 'tech': 'Tech Detection', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'emails': 'Email Scraper', 'back': '🔙 Voltar ao Menu', 'desc': 'Ferramentas de reconhecimento e informação sobre o alvo.'},
-        'en': {'title': '🔍 Reconnaissance', 'info': 'Website Information', 'whois': 'Whois Lookup', 'ip': 'GeoIP Analysis', 'traceroute': 'Traceroute', 'dns': 'DNS Tools', 'sub': 'Subdomain Scanner', 'tech': 'Tech Detection', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'emails': 'Email Scraper', 'back': '🔙 Back to Menu', 'desc': 'Reconnaissance tools and information about the target.'},
-        'es': {'title': '🔍 Reconocimiento', 'info': 'Website Information', 'whois': 'Whois Lookup', 'ip': 'GeoIP Analysis', 'traceroute': 'Traceroute', 'dns': 'DNS Tools', 'sub': 'Subdomain Scanner', 'tech': 'Tech Detection', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'emails': 'Email Scraper', 'back': '🔙 Volver al Menú', 'desc': 'Herramientas de reconocimiento e información sobre el objetivo.'},
-        'vi': {'title': '🔍 Trinh sát', 'info': 'Website Information', 'whois': 'Whois Lookup', 'ip': 'GeoIP Analysis', 'traceroute': 'Traceroute', 'dns': 'DNS Tools', 'sub': 'Subdomain Scanner', 'tech': 'Tech Detection', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'emails': 'Email Scraper', 'back': '🔙 Quay lại Menu', 'desc': 'Công cụ trinh sát và thông tin về mục tiêu.'},
-        'id': {'title': '🔍 Pengintaian', 'info': 'Website Information', 'whois': 'Whois Lookup', 'ip': 'GeoIP Analysis', 'traceroute': 'Traceroute', 'dns': 'DNS Tools', 'sub': 'Subdomain Scanner', 'tech': 'Tech Detection', 'cms': 'CMS Detector', 'reverse': 'Reverse IP Lookup', 'emails': 'Email Scraper', 'back': '🔙 Kembali ke Menu', 'desc': 'Alat pengintaian dan informasi tentang target.'},
+        'pt': {'title': '🔍 Reconhecimento', 'info': '🌐 Info', 'whois': '📋 Whois', 'ip': '📍 GeoIP', 'traceroute': '📡 Traceroute', 'dns': '📡 DNS', 'sub': '🌐 Subdomains', 'tech': '🔧 Tech', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse', 'emails': '📧 Emails', 'back': '🔙 Voltar', 'enter': '👆 Toque em uma ferramenta e envie o alvo.'},
+        'en': {'title': '🔍 Reconnaissance', 'info': '🌐 Info', 'whois': '📋 Whois', 'ip': '📍 GeoIP', 'traceroute': '📡 Traceroute', 'dns': '📡 DNS', 'sub': '🌐 Subdomains', 'tech': '🔧 Tech', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse', 'emails': '📧 Emails', 'back': '🔙 Back', 'enter': '👆 Tap a tool and send the target.'},
+        'es': {'title': '🔍 Reconocimiento', 'info': '🌐 Info', 'whois': '📋 Whois', 'ip': '📍 GeoIP', 'traceroute': '📡 Traceroute', 'dns': '📡 DNS', 'sub': '🌐 Subdomains', 'tech': '🔧 Tech', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse', 'emails': '📧 Emails', 'back': '🔙 Volver', 'enter': '👆 Toque una herramienta y envíe el objetivo.'},
+        'vi': {'title': '🔍 Trinh sát', 'info': '🌐 Info', 'whois': '📋 Whois', 'ip': '📍 GeoIP', 'traceroute': '📡 Traceroute', 'dns': '📡 DNS', 'sub': '🌐 Subdomains', 'tech': '🔧 Tech', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse', 'emails': '📧 Emails', 'back': '🔙 Quay lại', 'enter': '👆 Nhấn công cụ và gửi mục tiêu.'},
+        'id': {'title': '🔍 Pengintaian', 'info': '🌐 Info', 'whois': '📋 Whois', 'ip': '📍 GeoIP', 'traceroute': '📡 Traceroute', 'dns': '📡 DNS', 'sub': '🌐 Subdomains', 'tech': '🔧 Tech', 'cms': '🔍 CMS', 'reverse': '🔄 Reverse', 'emails': '📧 Emails', 'back': '🔙 Kembali', 'enter': '👆 Ketuk alat dan kirim target.'},
     }
     b = btn.get(lang, btn['pt'])
     buttons = [
@@ -4643,18 +4648,18 @@ def show_menu_recon(chat_id, user_id):
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
     send_message_with_buttons(chat_id,
-        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['desc']}\n\n{_translate('Selecione uma ferramenta para começar.', lang)}\n",
+        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
 
 def show_menu_audit(chat_id, user_id):
-    """Show Security Audit page (translated)"""
+    """Show clean Security Audit page"""
     lang = get_user_lang(user_id)
     btn = {
-        'pt': {'title': '🛡️ Auditoria de Segurança', 'ssl': 'SSL Audit', 'sslchain': 'SSL Chain', 'headers': 'Headers Analysis', 'http': 'HTTP Analysis', 'cors': 'CORS Test', 'rate': 'Security Rating', 'robots': 'Robots.txt', 'sitemap': 'Sitemap Analysis', 'back': '🔙 Voltar ao Menu', 'desc': 'Ferramentas de auditoria e análise de segurança.'},
-        'en': {'title': '🛡️ Security Audit', 'ssl': 'SSL Audit', 'sslchain': 'SSL Chain', 'headers': 'Headers Analysis', 'http': 'HTTP Analysis', 'cors': 'CORS Test', 'rate': 'Security Rating', 'robots': 'Robots.txt', 'sitemap': 'Sitemap Analysis', 'back': '🔙 Back to Menu', 'desc': 'Audit and security analysis tools.'},
-        'es': {'title': '🛡️ Auditoría de Seguridad', 'ssl': 'SSL Audit', 'sslchain': 'SSL Chain', 'headers': 'Headers Analysis', 'http': 'HTTP Analysis', 'cors': 'CORS Test', 'rate': 'Security Rating', 'robots': 'Robots.txt', 'sitemap': 'Sitemap Analysis', 'back': '🔙 Volver al Menú', 'desc': 'Herramientas de auditoría y análisis de seguridad.'},
-        'vi': {'title': '🛡️ Kiểm tra Bảo mật', 'ssl': 'SSL Audit', 'sslchain': 'SSL Chain', 'headers': 'Headers Analysis', 'http': 'HTTP Analysis', 'cors': 'CORS Test', 'rate': 'Security Rating', 'robots': 'Robots.txt', 'sitemap': 'Sitemap Analysis', 'back': '🔙 Quay lại Menu', 'desc': 'Công cụ kiểm tra và phân tích bảo mật.'},
-        'id': {'title': '🛡️ Audit Keamanan', 'ssl': 'SSL Audit', 'sslchain': 'SSL Chain', 'headers': 'Headers Analysis', 'http': 'HTTP Analysis', 'cors': 'CORS Test', 'rate': 'Security Rating', 'robots': 'Robots.txt', 'sitemap': 'Sitemap Analysis', 'back': '🔙 Kembali ke Menu', 'desc': 'Alat audit dan analisis keamanan.'},
+        'pt': {'title': '🛡️ Auditoria', 'ssl': '🔒 SSL', 'sslchain': '🔗 SSL Chain', 'headers': '📋 Headers', 'http': '🌐 HTTP', 'cors': '🔀 CORS', 'rate': '⭐ Rating', 'robots': '🤖 Robots.txt', 'sitemap': '🗺️ Sitemap', 'back': '🔙 Voltar', 'enter': '👆 Toque em uma ferramenta e envie o alvo.'},
+        'en': {'title': '🛡️ Audit', 'ssl': '🔒 SSL', 'sslchain': '🔗 SSL Chain', 'headers': '📋 Headers', 'http': '🌐 HTTP', 'cors': '🔀 CORS', 'rate': '⭐ Rating', 'robots': '🤖 Robots.txt', 'sitemap': '🗺️ Sitemap', 'back': '🔙 Back', 'enter': '👆 Tap a tool and send the target.'},
+        'es': {'title': '🛡️ Auditoría', 'ssl': '🔒 SSL', 'sslchain': '🔗 SSL Chain', 'headers': '📋 Headers', 'http': '🌐 HTTP', 'cors': '🔀 CORS', 'rate': '⭐ Rating', 'robots': '🤖 Robots.txt', 'sitemap': '🗺️ Sitemap', 'back': '🔙 Volver', 'enter': '👆 Toque una herramienta y envíe el objetivo.'},
+        'vi': {'title': '🛡️ Kiểm tra', 'ssl': '🔒 SSL', 'sslchain': '🔗 SSL Chain', 'headers': '📋 Headers', 'http': '🌐 HTTP', 'cors': '🔀 CORS', 'rate': '⭐ Rating', 'robots': '🤖 Robots.txt', 'sitemap': '🗺️ Sitemap', 'back': '🔙 Quay lại', 'enter': '👆 Nhấn công cụ và gửi mục tiêu.'},
+        'id': {'title': '🛡️ Audit', 'ssl': '🔒 SSL', 'sslchain': '🔗 SSL Chain', 'headers': '📋 Headers', 'http': '🌐 HTTP', 'cors': '🔀 CORS', 'rate': '⭐ Rating', 'robots': '🤖 Robots.txt', 'sitemap': '🗺️ Sitemap', 'back': '🔙 Kembali', 'enter': '👆 Ketuk alat dan kirim target.'},
     }
     b = btn.get(lang, btn['pt'])
     buttons = [
@@ -4669,18 +4674,18 @@ def show_menu_audit(chat_id, user_id):
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
     send_message_with_buttons(chat_id,
-        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['desc']}\n\n{_translate('Selecione uma ferramenta para começar.', lang)}\n",
+        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
 
 def show_menu_files(chat_id, user_id):
-    """Show Files & Directories page (translated)"""
+    """Show clean Files & Directories page"""
     lang = get_user_lang(user_id)
     btn = {
-        'pt': {'title': '📂 Arquivos & Diretórios', 'admin': 'Admin Panel Finder', 'dirs': 'Directory Scanner', 'ports': 'Port Scanner', 'ftpssh': 'FTP/SSH Scanner', 'exposed': 'Exposed Files', 'backup': 'Backup Finder', 'config': 'Config Scanner', 'shell': 'Webshell Hunter', 'api': 'API Discovery', 'wp': 'WordPress Scanner', 'back': '🔙 Voltar ao Menu', 'desc': 'Ferramentas para buscar arquivos expostos, diretórios e configurações.'},
-        'en': {'title': '📂 Files & Directories', 'admin': 'Admin Panel Finder', 'dirs': 'Directory Scanner', 'ports': 'Port Scanner', 'ftpssh': 'FTP/SSH Scanner', 'exposed': 'Exposed Files', 'backup': 'Backup Finder', 'config': 'Config Scanner', 'shell': 'Webshell Hunter', 'api': 'API Discovery', 'wp': 'WordPress Scanner', 'back': '🔙 Back to Menu', 'desc': 'Tools to search for exposed files, directories and configurations.'},
-        'es': {'title': '📂 Archivos & Directorios', 'admin': 'Admin Panel Finder', 'dirs': 'Directory Scanner', 'ports': 'Port Scanner', 'ftpssh': 'FTP/SSH Scanner', 'exposed': 'Exposed Files', 'backup': 'Backup Finder', 'config': 'Config Scanner', 'shell': 'Webshell Hunter', 'api': 'API Discovery', 'wp': 'WordPress Scanner', 'back': '🔙 Volver al Menú', 'desc': 'Herramientas para buscar archivos expuestos, directorios y configuraciones.'},
-        'vi': {'title': '📂 Tệp & Thư mục', 'admin': 'Admin Panel Finder', 'dirs': 'Directory Scanner', 'ports': 'Port Scanner', 'ftpssh': 'FTP/SSH Scanner', 'exposed': 'Exposed Files', 'backup': 'Backup Finder', 'config': 'Config Scanner', 'shell': 'Webshell Hunter', 'api': 'API Discovery', 'wp': 'WordPress Scanner', 'back': '🔙 Quay lại Menu', 'desc': 'Công cụ tìm kiếm tệp, thư mục và cấu hình bị lộ.'},
-        'id': {'title': '📂 File & Direktori', 'admin': 'Admin Panel Finder', 'dirs': 'Directory Scanner', 'ports': 'Port Scanner', 'ftpssh': 'FTP/SSH Scanner', 'exposed': 'Exposed Files', 'backup': 'Backup Finder', 'config': 'Config Scanner', 'shell': 'Webshell Hunter', 'api': 'API Discovery', 'wp': 'WordPress Scanner', 'back': '🔙 Kembali ke Menu', 'desc': 'Alat untuk mencari file, direktori, dan konfigurasi yang terekspos.'},
+        'pt': {'title': '📂 Arquivos & Direções', 'admin': '🔑 Admin Panel', 'dirs': '📁 Dirs', 'ports': '🔌 Ports', 'ftpssh': '📡 FTP/SSH', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Webshell', 'api': '🔌 API', 'wp': '📝 WordPress', 'back': '🔙 Voltar', 'enter': '👆 Toque em uma ferramenta e envie o alvo.'},
+        'en': {'title': '📂 Files & Directories', 'admin': '🔑 Admin Panel', 'dirs': '📁 Dirs', 'ports': '🔌 Ports', 'ftpssh': '📡 FTP/SSH', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Webshell', 'api': '🔌 API', 'wp': '📝 WordPress', 'back': '🔙 Back', 'enter': '👆 Tap a tool and send the target.'},
+        'es': {'title': '📂 Archivos & Directorios', 'admin': '🔑 Admin Panel', 'dirs': '📁 Dirs', 'ports': '🔌 Ports', 'ftpssh': '📡 FTP/SSH', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Webshell', 'api': '🔌 API', 'wp': '📝 WordPress', 'back': '🔙 Volver', 'enter': '👆 Toque una herramienta y envíe el objetivo.'},
+        'vi': {'title': '📂 Tệp & Thư mục', 'admin': '🔑 Admin Panel', 'dirs': '📁 Dirs', 'ports': '🔌 Ports', 'ftpssh': '📡 FTP/SSH', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Webshell', 'api': '🔌 API', 'wp': '📝 WordPress', 'back': '🔙 Quay lại', 'enter': '👆 Nhấn công cụ và gửi mục tiêu.'},
+        'id': {'title': '📂 File & Direktori', 'admin': '🔑 Admin Panel', 'dirs': '📁 Dirs', 'ports': '🔌 Ports', 'ftpssh': '📡 FTP/SSH', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Webshell', 'api': '🔌 API', 'wp': '📝 WordPress', 'back': '🔙 Kembali', 'enter': '👆 Ketuk alat dan kirim target.'},
     }
     b = btn.get(lang, btn['pt'])
     buttons = [
@@ -4697,32 +4702,22 @@ def show_menu_files(chat_id, user_id):
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
     send_message_with_buttons(chat_id,
-        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['desc']}\n\n{_translate('Selecione uma ferramenta para começar.', lang)}\n",
+        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
 
 def show_menu_vip(chat_id, user_id):
-    """Show VIP exclusive page (translated)"""
+    """Show clean VIP exclusive page"""
     lang = get_user_lang(user_id)
     owner = is_owner(user_id)
-    if not is_vip(user_id) and not owner:
-        vip_denied = {
-            'pt': '❌ Esta seção é exclusiva para membros VIP.',
-            'en': '❌ This section is exclusive to VIP members.',
-            'es': '❌ Esta sección es exclusiva para miembros VIP.',
-            'vi': '❌ Mục này chỉ dành cho thành viên VIP.',
-            'id': '❌ Bagian ini eksklusif untuk anggota VIP.',
-        }
-        send_msg(user_id, chat_id, vip_denied.get(lang, vip_denied['pt']))
-        return
     btn = {
-        'pt': {'sqli': '⭐ SQLi VIP (WAF Bypass)', 'xss': '⭐ XSS VIP (Deep DOM)', 'scanall': '⭐ ScanAll VIP', 'deep': '⭐ Deep Scan VIP', 'ports': '⭐ Port VIP (1000+ ports)', 'headers': '⭐ Headers VIP', 'dns': '⭐ DNS VIP (All Records)', 'tech': '⭐ Tech VIP (WAF/CDN)', 'admin': '⭐ Admin VIP (200+ paths)', 'api': '⭐ API VIP (GraphQL)', 'cors': '⭐ CORS VIP (Multi-origin)', 'exposed': '⭐ Exposed VIP (Sensitive)', 'backup': '⭐ Backup VIP', 'config': '⭐ Config VIP', 'shell': '⭐ Webshell VIP', 'robots': '⭐ Robots VIP', 'back': '🔙 Voltar ao Menu', 'title': '⭐ Ferramentas VIP', 'badge': '👑 OWNER + ⭐ VIP', 'access': 'Acesso', 'desc': 'Scanners VIP possuem 3x mais payloads, WAF bypass, análise profunda e detecção avançada.', 'select': 'Selecione uma ferramenta VIP para começar.'},
-        'en': {'sqli': '⭐ SQLi VIP (WAF Bypass)', 'xss': '⭐ XSS VIP (Deep DOM)', 'scanall': '⭐ ScanAll VIP', 'deep': '⭐ Deep Scan VIP', 'ports': '⭐ Port VIP (1000+ ports)', 'headers': '⭐ Headers VIP', 'dns': '⭐ DNS VIP (All Records)', 'tech': '⭐ Tech VIP (WAF/CDN)', 'admin': '⭐ Admin VIP (200+ paths)', 'api': '⭐ API VIP (GraphQL)', 'cors': '⭐ CORS VIP (Multi-origin)', 'exposed': '⭐ Exposed VIP (Sensitive)', 'backup': '⭐ Backup VIP', 'config': '⭐ Config VIP', 'shell': '⭐ Webshell VIP', 'robots': '⭐ Robots VIP', 'back': '🔙 Back to Menu', 'title': '⭐ VIP Tools', 'badge': '👑 OWNER + ⭐ VIP', 'access': 'Access', 'desc': 'VIP scanners have 3x more payloads, WAF bypass, deep analysis and advanced detection.', 'select': 'Select a VIP tool to begin.'},
-        'es': {'sqli': '⭐ SQLi VIP (WAF Bypass)', 'xss': '⭐ XSS VIP (Deep DOM)', 'scanall': '⭐ ScanAll VIP', 'deep': '⭐ Deep Scan VIP', 'ports': '⭐ Port VIP (1000+ ports)', 'headers': '⭐ Headers VIP', 'dns': '⭐ DNS VIP (All Records)', 'tech': '⭐ Tech VIP (WAF/CDN)', 'admin': '⭐ Admin VIP (200+ paths)', 'api': '⭐ API VIP (GraphQL)', 'cors': '⭐ CORS VIP (Multi-origin)', 'exposed': '⭐ Exposed VIP (Sensitive)', 'backup': '⭐ Backup VIP', 'config': '⭐ Config VIP', 'shell': '⭐ Webshell VIP', 'robots': '⭐ Robots VIP', 'back': '🔙 Volver al Menú', 'title': '⭐ Herramientas VIP', 'badge': '👑 OWNER + ⭐ VIP', 'access': 'Acceso', 'desc': 'Los scanners VIP tienen 3x más payloads, bypass WAF, análisis profundo y detección avanzada.', 'select': 'Seleccione una herramienta VIP para comenzar.'},
-        'vi': {'sqli': '⭐ SQLi VIP (WAF Bypass)', 'xss': '⭐ XSS VIP (Deep DOM)', 'scanall': '⭐ ScanAll VIP', 'deep': '⭐ Deep Scan VIP', 'ports': '⭐ Port VIP (1000+ ports)', 'headers': '⭐ Headers VIP', 'dns': '⭐ DNS VIP (All Records)', 'tech': '⭐ Tech VIP (WAF/CDN)', 'admin': '⭐ Admin VIP (200+ paths)', 'api': '⭐ API VIP (GraphQL)', 'cors': '⭐ CORS VIP (Multi-origin)', 'exposed': '⭐ Exposed VIP (Sensitive)', 'backup': '⭐ Backup VIP', 'config': '⭐ Config VIP', 'shell': '⭐ Webshell VIP', 'robots': '⭐ Robots VIP', 'back': '🔙 Quay lại Menu', 'title': '⭐ Công cụ VIP', 'badge': '👑 OWNER + ⭐ VIP', 'access': 'Truy cập', 'desc': 'Scanner VIP có 3x payload, bypass WAF, phân tích sâu và phát hiện nâng cao.', 'select': 'Chọn công cụ VIP để bắt đầu.'},
-        'id': {'sqli': '⭐ SQLi VIP (WAF Bypass)', 'xss': '⭐ XSS VIP (Deep DOM)', 'scanall': '⭐ ScanAll VIP', 'deep': '⭐ Deep Scan VIP', 'ports': '⭐ Port VIP (1000+ ports)', 'headers': '⭐ Headers VIP', 'dns': '⭐ DNS VIP (All Records)', 'tech': '⭐ Tech VIP (WAF/CDN)', 'admin': '⭐ Admin VIP (200+ paths)', 'api': '⭐ API VIP (GraphQL)', 'cors': '⭐ CORS VIP (Multi-origin)', 'exposed': '⭐ Exposed VIP (Sensitive)', 'backup': '⭐ Backup VIP', 'config': '⭐ Config VIP', 'shell': '⭐ Webshell VIP', 'robots': '⭐ Robots VIP', 'back': '🔙 Kembali ke Menu', 'title': '⭐ Alat VIP', 'badge': '👑 OWNER + ⭐ VIP', 'access': 'Akses', 'desc': 'Scanner VIP memiliki 3x payload, bypass WAF, analisis mendalam, dan deteksi lanjutan.', 'select': 'Pilih alat VIP untuk memulai.'},
+        'pt': {'title': '⭐ VIP', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'admin': '🔑 Admin', 'api': '🔌 API', 'cors': '🔀 CORS', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Shell', 'robots': '🤖 Robots', 'back': '🔙 Voltar', 'access': 'Acesso', 'enter': '👆 Toque em uma ferramenta VIP e envie o alvo.'},
+        'en': {'title': '⭐ VIP', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'admin': '🔑 Admin', 'api': '🔌 API', 'cors': '🔀 CORS', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Shell', 'robots': '🤖 Robots', 'back': '🔙 Back', 'access': 'Access', 'enter': '👆 Tap a VIP tool and send the target.'},
+        'es': {'title': '⭐ VIP', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'admin': '🔑 Admin', 'api': '🔌 API', 'cors': '🔀 CORS', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Shell', 'robots': '🤖 Robots', 'back': '🔙 Volver', 'access': 'Acceso', 'enter': '👆 Toque una herramienta VIP y envíe el objetivo.'},
+        'vi': {'title': '⭐ VIP', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'admin': '🔑 Admin', 'api': '🔌 API', 'cors': '🔀 CORS', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Shell', 'robots': '🤖 Robots', 'back': '🔙 Quay lại', 'access': 'Truy cập', 'enter': '👆 Nhấn công cụ VIP và gửi mục tiêu.'},
+        'id': {'title': '⭐ VIP', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'admin': '🔑 Admin', 'api': '🔌 API', 'cors': '🔀 CORS', 'exposed': '⚠️ Exposed', 'backup': '💾 Backup', 'config': '⚙️ Config', 'shell': '🐚 Shell', 'robots': '🤖 Robots', 'back': '🔙 Kembali', 'access': 'Akses', 'enter': '👆 Ketuk alat VIP dan kirim target.'},
     }
     b = btn.get(lang, btn['pt'])
-    badge = b['badge'] if owner else '⭐ VIP'
+    badge = '👑 + ⭐' if owner else '⭐'
     buttons = [
         [{"text": b['sqli'], "callback_data": "target:sqli:vip"},
          {"text": b['xss'], "callback_data": "target:xss:vip"}],
@@ -4745,29 +4740,29 @@ def show_menu_vip(chat_id, user_id):
     send_message_with_buttons(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>{b['access']}:</b> {badge}\n\n"
-        f"{b['desc']}\n\n"
-        f"{b['select']}\n",
+        f"{b['enter']}",
         buttons)
 
+
 def show_menu_owner(chat_id, user_id):
-    """Show Owner exclusive page (translated)"""
+    """Show clean Owner exclusive page"""
     lang = get_user_lang(user_id)
-    owner_denied = {
-        'pt': '❌ Esta seção é exclusiva para DONOS.',
-        'en': '❌ This section is exclusive to Owners.',
-        'es': '❌ Esta sección es exclusiva para Propietarios.',
-        'vi': '❌ Mục này chỉ dành cho Owner.',
-        'id': '❌ Bagian ini eksklusif untuk Owner.',
-    }
     if not is_owner(user_id):
-        send_msg(user_id, chat_id, owner_denied.get(lang, owner_denied['pt']))
+        denied = {
+            'pt': '🚫 <b>Acesso negado.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\nApenas Donos têm acesso a estas ferramentas.\n\nSe você é dono, entre em contato com @OnlyExaltarei.',
+            'en': '🚫 <b>Access Denied.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\nOnly Owners have access to these tools.\n\nIf you are an owner, contact @OnlyExaltarei.',
+            'es': '🚫 <b>Acceso Denegado.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\nSolo los Propietarios tienen acceso a estas herramientas.\n\nSi eres propietario, contacta a @OnlyExaltarei.',
+            'vi': '🚫 <b>Truy cập bị từ chối.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\nChỉ Owner mới có quyền truy cập các công cụ này.\n\nNếu bạn là owner, liên hệ @OnlyExaltarei.',
+            'id': '🚫 <b>Akses Ditolak.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\nHanya Owner yang memiliki akses ke alat ini.\n\nJika Anda owner, hubungi @OnlyExaltarei.',
+        }
+        send_message(chat_id, denied.get(lang, denied['pt']))
         return
     btn = {
-        'pt': {'title': '👑 Ferramentas DONO', 'forensic': '👑 Forensic Analysis', 'pentest': '👑 Pentest Automation', 'osint': '👑 OSINT Intelligence', 'sqli': '👑 SQLi Owner (0-day)', 'xss': '👑 XSS Owner (Blind+DOM)', 'scanall': '👑 ScanAll Owner', 'deep': '👑 Deep Owner', 'ports': '👑 Port Owner (Vuln)', 'ssl': '👑 SSL Owner (Protocols)', 'headers': '👑 Headers Owner (CORS)', 'dns': '👑 DNS Owner (Brute)', 'tech': '👑 Tech Owner (CVE)', 'api': '👑 API Owner (Fuzzing)', 'config': '👑 Config Owner (Creds)', 'exposed': '👑 Exposed Owner (Git)', 'shell': '👑 Shell Owner (Encoded)', 'back': '🔙 Voltar ao Menu', 'exclusive': 'Acesso Exclusivo: Apenas Donos', 'desc': 'Os scanners Owner incluem 0-day patterns, blind extraction, full WAF bypass, análise forense, pentest automation e OSINT intelligence.', 'select': 'Selecione uma ferramenta para começar.'},
-        'en': {'title': '👑 Owner Tools', 'forensic': '👑 Forensic Analysis', 'pentest': '👑 Pentest Automation', 'osint': '👑 OSINT Intelligence', 'sqli': '👑 SQLi Owner (0-day)', 'xss': '👑 XSS Owner (Blind+DOM)', 'scanall': '👑 ScanAll Owner', 'deep': '👑 Deep Owner', 'ports': '👑 Port Owner (Vuln)', 'ssl': '👑 SSL Owner (Protocols)', 'headers': '👑 Headers Owner (CORS)', 'dns': '👑 DNS Owner (Brute)', 'tech': '👑 Tech Owner (CVE)', 'api': '👑 API Owner (Fuzzing)', 'config': '👑 Config Owner (Creds)', 'exposed': '👑 Exposed Owner (Git)', 'shell': '👑 Shell Owner (Encoded)', 'back': '🔙 Back to Menu', 'exclusive': 'Exclusive Access: Owners Only', 'desc': 'Owner scanners include 0-day patterns, blind extraction, full WAF bypass, forensic analysis, pentest automation and OSINT intelligence.', 'select': 'Select a tool to begin.'},
-        'es': {'title': '👑 Herramientas de Propietario', 'forensic': '👑 Forensic Analysis', 'pentest': '👑 Pentest Automation', 'osint': '👑 OSINT Intelligence', 'sqli': '👑 SQLi Owner (0-day)', 'xss': '👑 XSS Owner (Blind+DOM)', 'scanall': '👑 ScanAll Owner', 'deep': '👑 Deep Owner', 'ports': '👑 Port Owner (Vuln)', 'ssl': '👑 SSL Owner (Protocols)', 'headers': '👑 Headers Owner (CORS)', 'dns': '👑 DNS Owner (Brute)', 'tech': '👑 Tech Owner (CVE)', 'api': '👑 API Owner (Fuzzing)', 'config': '👑 Config Owner (Creds)', 'exposed': '👑 Exposed Owner (Git)', 'shell': '👑 Shell Owner (Encoded)', 'back': '🔙 Volver al Menú', 'exclusive': 'Acceso Exclusivo: Solo Propietarios', 'desc': 'Los scanners Owner incluyen patrones 0-day, extracción blind, bypass completo de WAF, análisis forense, automatización pentest e inteligencia OSINT.', 'select': 'Seleccione una herramienta para comenzar.'},
-        'vi': {'title': '👑 Công cụ Owner', 'forensic': '👑 Forensic Analysis', 'pentest': '👑 Pentest Automation', 'osint': '👑 OSINT Intelligence', 'sqli': '👑 SQLi Owner (0-day)', 'xss': '👑 XSS Owner (Blind+DOM)', 'scanall': '👑 ScanAll Owner', 'deep': '👑 Deep Owner', 'ports': '👑 Port Owner (Vuln)', 'ssl': '👑 SSL Owner (Protocols)', 'headers': '👑 Headers Owner (CORS)', 'dns': '👑 DNS Owner (Brute)', 'tech': '👑 Tech Owner (CVE)', 'api': '👑 API Owner (Fuzzing)', 'config': '👑 Config Owner (Creds)', 'exposed': '👑 Exposed Owner (Git)', 'shell': '👑 Shell Owner (Encoded)', 'back': '🔙 Quay lại Menu', 'exclusive': 'Truy cập Độc quyền: Chỉ Owner', 'desc': 'Scanner Owner bao gồm pattern 0-day, blind extraction, bypass WAF, phân tích forensics, tự động pentest và trí tuệ OSINT.', 'select': 'Chọn một công cụ để bắt đầu.'},
-        'id': {'title': '👑 Alat Owner', 'forensic': '👑 Forensic Analysis', 'pentest': '👑 Pentest Automation', 'osint': '👑 OSINT Intelligence', 'sqli': '👑 SQLi Owner (0-day)', 'xss': '👑 XSS Owner (Blind+DOM)', 'scanall': '👑 ScanAll Owner', 'deep': '👑 Deep Owner', 'ports': '👑 Port Owner (Vuln)', 'ssl': '👑 SSL Owner (Protocols)', 'headers': '👑 Headers Owner (CORS)', 'dns': '👑 DNS Owner (Brute)', 'tech': '👑 Tech Owner (CVE)', 'api': '👑 API Owner (Fuzzing)', 'config': '👑 Config Owner (Creds)', 'exposed': '👑 Exposed Owner (Git)', 'shell': '👑 Shell Owner (Encoded)', 'back': '🔙 Kembali ke Menu', 'exclusive': 'Akses Eksklusif: Hanya Owner', 'desc': 'Scanner Owner mencakup pattern 0-day, blind extraction, full WAF bypass, analisis forensik, otomasi pentest, dan intelijen OSINT.', 'select': 'Pilih alat untuk memulai.'},
+        'pt': {'title': '👑 DONO', 'forensic': '🔬 Forensic', 'pentest': '⚔️ Pentest', 'osint': '🕵️ OSINT', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'ssl': '🔒 SSL', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'api': '🔌 API', 'config': '⚙️ Config', 'exposed': '⚠️ Exposed', 'shell': '🐚 Shell', 'back': '🔙 Voltar', 'exclusive': 'Acesso Exclusivo: Donos', 'enter': '👆 Toque em uma ferramenta e envie o alvo.'},
+        'en': {'title': '👑 Owner', 'forensic': '🔬 Forensic', 'pentest': '⚔️ Pentest', 'osint': '🕵️ OSINT', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'ssl': '🔒 SSL', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'api': '🔌 API', 'config': '⚙️ Config', 'exposed': '⚠️ Exposed', 'shell': '🐚 Shell', 'back': '🔙 Back', 'exclusive': 'Exclusive: Owner Only', 'enter': '👆 Tap a tool and send the target.'},
+        'es': {'title': '👑 Owner', 'forensic': '🔬 Forensic', 'pentest': '⚔️ Pentest', 'osint': '🕵️ OSINT', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'ssl': '🔒 SSL', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'api': '🔌 API', 'config': '⚙️ Config', 'exposed': '⚠️ Exposed', 'shell': '🐚 Shell', 'back': '🔙 Volver', 'exclusive': 'Acceso Exclusivo: Solo Owners', 'enter': '👆 Toque una herramienta y envíe el objetivo.'},
+        'vi': {'title': '👑 Owner', 'forensic': '🔬 Forensic', 'pentest': '⚔️ Pentest', 'osint': '🕵️ OSINT', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'ssl': '🔒 SSL', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'api': '🔌 API', 'config': '⚙️ Config', 'exposed': '⚠️ Exposed', 'shell': '🐚 Shell', 'back': '🔙 Quay lại', 'exclusive': 'Truy cập Độc quyền: Owner', 'enter': '👆 Nhấn công cụ và gửi mục tiêu.'},
+        'id': {'title': '👑 Owner', 'forensic': '🔬 Forensic', 'pentest': '⚔️ Pentest', 'osint': '🕵️ OSINT', 'sqli': '⚡ SQLi', 'xss': '⚡ XSS', 'scanall': '🔄 ScanAll', 'deep': '💀 Deep', 'ports': '🔌 Ports', 'ssl': '🔒 SSL', 'headers': '📋 Headers', 'dns': '📡 DNS', 'tech': '🔧 Tech', 'api': '🔌 API', 'config': '⚙️ Config', 'exposed': '⚠️ Exposed', 'shell': '🐚 Shell', 'back': '🔙 Kembali', 'exclusive': 'Akses Eksklusif: Owner', 'enter': '👆 Ketuk alat dan kirim target.'},
     }
     b = btn.get(lang, btn['pt'])
     buttons = [
@@ -4792,227 +4787,213 @@ def show_menu_owner(chat_id, user_id):
     send_message_with_buttons(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>{b['exclusive']}</b>\n\n"
-        f"{b['desc']}\n\n"
-        f"{b['select']}\n",
+        f"{b['enter']}",
         buttons)
 
 
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
-
     lang = get_user_lang(user_id)
     if lang == 'en':
-        msg = """🔧 <b>Mth Ddos Security v5.2 — Commands</b>
+        msg = """🔧 <b>MTH Security — Important Commands</b>
 ━━━━━━━━━━━━━━━━━━━━━━
+<b>🚀 Getting Started:</b>
+/start — Main menu
+/help — This message
 
-<b>📡 Info & Recon:</b>
-/info &lt;url&gt; — Full site information
-/dns &lt;domain&gt; — DNS analysis: A, MX, NS, TXT, DKIM, DNSSEC, PTR
-/cms &lt;url&gt; — CMS detection (30+ CMS)
-/reverse &lt;ip&gt; — IP hostname + GeoIP
-/emails &lt;url&gt; — Extract emails from page
-
-<b>⚡ Vulnerability Scanners:</b>
-/sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
-/xss &lt;url&gt; [verbose] — Reflected XSS (18+ payloads, WAF detection)
-/admin &lt;url&gt; — Admin panels (100+ paths)
-/panel &lt;url&gt; — Admin Panel Finder (100+ paths)
-/ports &lt;ip&gt; — 50+ ports with banner grabbing
-/dirs &lt;url&gt; — Exposed directories (80+ paths)
-/sub &lt;domain&gt; — Subdomains (100+ subs + permutations)
-/wp &lt;url&gt; — WordPress Scanner + CVE check
-/ftpssh &lt;ip&gt; — FTP/SSH banner
-
-<b>🛡️ V5.0 Scanners:</b>
-/ssl &lt;url&gt; — SSL/TLS audit + OCSP + chain
-/headers &lt;url&gt; — Security Headers + suggestions
-/cors &lt;url&gt; — CORS misconfiguration
-/robots &lt;url&gt; — Robots.txt + hidden directories
-/sitemap &lt;url&gt; — Sitemap.xml + exposed URLs
-/tech &lt;url&gt; — Technologies (frameworks, CDNs, analytics)
-/exposed &lt;url&gt; — Sensitive files (.env, .git, etc.)
-/backup &lt;url&gt; — Exposed backups (.sql, .zip, etc.)
-/api &lt;url&gt; — API endpoints (/api/v1, /graphql, etc.)
-/shell &lt;url&gt; — Webshells (c99, r57, c100, etc.)
-/config &lt;url&gt; — Exposed configs (config.php, settings.json)
-
-<b>⚡ Quick Commands V5.1:</b>
-/quick &lt;url&gt; — Quick scan (info + headers)
+<b>📡 Essential Scanners:</b>
+/sqli &lt;url&gt; — SQL Injection
+/xss &lt;url&gt; — XSS Detection
 /scanall &lt;url&gt; — Full scan (6 tools)
-/deep &lt;url&gt; — Deep vuln scan (6 scanners)
-/http &lt;url&gt; — Full HTTP response analysis
-/sslchain &lt;url&gt; — SSL certificate chain
-/batch &lt;cmd&gt; &lt;urls...&gt; — Scan multiple targets
-/watch &lt;url&gt; [min] — Monitor content changes
+/deep &lt;url&gt; — Deep vulnerability scan
+/admin &lt;url&gt; — Admin panel finder
+/ports &lt;ip&gt; — Port scanner
+/info &lt;url&gt; — Full site info
+/dns &lt;domain&gt; — DNS analysis
+/headers &lt;url&gt; — Security headers
+/ssl &lt;url&gt; — SSL/TLS audit
+/exposed &lt;url&gt; — Sensitive files
+/dirs &lt;url&gt; — Directory scanner
+
+<b>🔍 Tools:</b>
+/batch &lt;cmd&gt; &lt;urls...&gt; — Multi-target scan
+/watch &lt;url&gt; [min] — Content monitor
+/rate &lt;url&gt; — Security score
 /cancel — Cancel active scan
-/report &lt;url&gt; — Full report in TXT
+/lang &lt;pt/en/es/vi/id&gt; — Change language
 
-<b>🔍 Extra Tools:</b>
-/rate &lt;url&gt; — Security score (0-100)
-/compare &lt;url1&gt; &lt;url2&gt; — Compare 2 sites
-/history &lt;url&gt; — Scan history
-/pdf &lt;cmd&gt; &lt;url&gt; — Export TXT report
-/schedule &lt;min&gt; &lt;cmd&gt; &lt;url&gt; — Schedule scan
-/stealth &lt;cmd&gt; &lt;url&gt; — Slow scan (anti-detect)
-/notify &lt;url&gt; — Notify on status change
-
-<b>📋 System:</b>
+<b>📊 System:</b>
 /ping — Bot latency
-/status — Health check
-/about — About the bot
-/feedback &lt;msg&gt; — Send feedback
-/bugreport &lt;msg&gt; — Report a bug
-/rescan &lt;cmd&gt; &lt;url&gt; — Rescan
-/lang &lt;pt/en/es&gt; — Change language
+/about — About MTH Security
+/stats — Your scan statistics
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Use /listdn to see owner-only commands.</i>
-<b>👑 Owners:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
+<i>Use the menu buttons for all available tools.</i>
+<i>For full command list, use the menu system.</i>
+<i>Use /listdn to see Owner commands.</i>
+
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Mth Ddos Security v5.2</i>
-<i>For educational and authorized security testing purposes only.</i>"""
+<i>MTH Security v5.2</i>"""
     elif lang == 'es':
-        msg = """🔧 <b>Mth Ddos Security v5.2 — Comandos</b>
+        msg = """🔧 <b>MTH Security — Comandos Importantes</b>
 ━━━━━━━━━━━━━━━━━━━━━━
+<b>🚀 Inicio:</b>
+/start — Menú principal
+/help — Este mensaje
 
-<b>📡 Info & Recon:</b>
-/info &lt;url&gt; — Información completa del sitio
-/dns &lt;domain&gt; — Análisis DNS: A, MX, NS, TXT, DKIM, DNSSEC, PTR
-/cms &lt;url&gt; — Detección CMS (30+ CMS)
-/reverse &lt;ip&gt; — Hostname de IP + GeoIP
-/emails &lt;url&gt; — Extrae emails de la página
+<b>📡 Escáneres Esenciales:</b>
+/sqli &lt;url&gt; — SQL Injection
+/xss &lt;url&gt; — Detección XSS
+/scanall &lt;url&gt; — Escaneo completo (6 tools)
+/deep &lt;url&gt; — Escaneo profundo
+/admin &lt;url&gt; — Buscador de admin
+/ports &lt;ip&gt; — Escáner de puertos
+/info &lt;url&gt; — Info completa del sitio
+/dns &lt;domain&gt; — Análisis DNS
+/headers &lt;url&gt; — Security headers
+/ssl &lt;url&gt; — Auditoría SSL
+/exposed &lt;url&gt; — Archivos sensibles
+/dirs &lt;url&gt; — Escáner de directorios
 
-<b>⚡ Scanners de Vulnerabilidad:</b>
-/sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
-/xss &lt;url&gt; [verbose] — XSS Reflejado (18+ payloads, WAF detection)
-/admin &lt;url&gt; — Paneles admin (100+ paths)
-/panel &lt;url&gt; — Admin Panel Finder (100+ paths)
-/ports &lt;ip&gt; — 50+ puertos con banner grabbing
-/dirs &lt;url&gt; — Directorios expuestos (80+ paths)
-/sub &lt;domain&gt; — Subdominios (100+ subs + permutaciones)
-/wp &lt;url&gt; — WordPress Scanner + CVE check
-/ftpssh &lt;ip&gt; — Banner FTP/SSH
+<b>🔍 Herramientas:</b>
+/batch &lt;cmd&gt; &lt;urls...&gt; — Multi-target
+/watch &lt;url&gt; [min] — Monitor de contenido
+/rate &lt;url&gt; — Puntuación de seguridad
+/cancel — Cancelar escaneo
+/lang &lt;pt/en/es/vi/id&gt; — Cambiar idioma
 
-<b>🛡️ Scanners V5.0:</b>
-/ssl &lt;url&gt; — Auditoría SSL/TLS + OCSP + chain
-/headers &lt;url&gt; — Security Headers + sugerencias
-/cors &lt;url&gt; — CORS misconfiguration
-/robots &lt;url&gt; — Robots.txt + directorios ocultos
-/sitemap &lt;url&gt; — Sitemap.xml + URLs expuestas
-/tech &lt;url&gt; — Tecnologías (frameworks, CDNs, analytics)
-/exposed &lt;url&gt; — Archivos sensibles (.env, .git, etc.)
-/backup &lt;url&gt; — Backups expuestos (.sql, .zip, etc.)
-/api &lt;url&gt; — Endpoints de API (/api/v1, /graphql, etc.)
-/shell &lt;url&gt; — Webshells (c99, r57, c100, etc.)
-/config &lt;url&gt; — Configs expuestas (config.php, settings.json)
-
-<b>⚡ Comandos Rápidos V5.1:</b>
-/quick &lt;url&gt; — Scan rápido (info + headers)
-/scanall &lt;url&gt; — Scan completo (6 herramientas)
-/deep &lt;url&gt; — Deep scan vulns (6 scanners)
-/http &lt;url&gt; — Análisis HTTP response completa
-/sslchain &lt;url&gt; — Cadena de certificados SSL
-/batch &lt;cmd&gt; &lt;urls...&gt; — Scan múltiples targets
-/watch &lt;url&gt; [min] — Monitorear cambios de contenido
-/cancel — Cancelar scan activo
-/report &lt;url&gt; — Reporte completo en TXT
-
-<b>🔍 Herramientas Extras:</b>
-/rate &lt;url&gt; — Nota de seguridad general (0-100)
-/compare &lt;url1&gt; &lt;url2&gt; — Comparar seguridad de 2 sitios
-/history &lt;url&gt; — Historial de scans
-/pdf &lt;cmd&gt; &lt;url&gt; — Exportar reporte TXT
-/schedule &lt;min&gt; &lt;cmd&gt; &lt;url&gt; — Agendar scan
-/stealth &lt;cmd&gt; &lt;url&gt; — Scan lento (anti-detect)
-/notify &lt;url&gt; — Notificar cambio de estado
-
-<b>📋 Sistema:</b>
+<b>📊 Sistema:</b>
 /ping — Latencia del bot
-/status — Health check
-/about — Sobre el bot
-/feedback &lt;msg&gt; — Enviar sugerencia
-/bugreport &lt;msg&gt; — Reportar bug
-/rescan &lt;cmd&gt; &lt;url&gt; — Refazer scan
-/lang &lt;pt/en/es&gt; — Cambiar idioma
+/about — Sobre MTH Security
+/stats — Estadísticas de escaneo
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Usa /listdn para ver comandos exclusivos de dueños.</i>
-<b>👑 Dueños:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
+<i>Use los botones del menú para todas las herramientas.</i>
+<i>Para la lista completa, use el sistema de menú.</i>
+<i>Use /listdn para ver comandos de Owner.</i>
+
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Mth Ddos Security v5.2</i>
-<i>Uso solo para fines educativos y de seguridad autorizada.</i>"""
+<i>MTH Security v5.2</i>"""
+    elif lang == 'vi':
+        msg = """🔧 <b>MTH Security — Lệnh Quan Trọng</b>
+━━━━━━━━━━━━━━━━━━━━━━
+<b>🚀 Bắt Đầu:</b>
+/start — Menu chính
+/help — Tin nhắn này
+
+<b>📡 Máy Quét:</b>
+/sqli &lt;url&gt; — SQL Injection
+/xss &lt;url&gt; — Phát hiện XSS
+/scanall &lt;url&gt; — Quét toàn diện (6 công cụ)
+/deep &lt;url&gt; — Quét lỗ hổng sâu
+/admin &lt;url&gt; — Tìm admin panel
+/ports &lt;ip&gt; — Quét cổng
+/info &lt;url&gt; — Thông tin trang web
+/dns &lt;domain&gt; — Phân tích DNS
+/headers &lt;url&gt; — Security headers
+/ssl &lt;url&gt; — Kiểm tra SSL
+/exposed &lt;url&gt; — Tệp nhạy cảm
+/dirs &lt;url&gt; — Quét thư mục
+
+<b>🔍 Công Cụ:</b>
+/batch &lt;cmd&gt; &lt;urls...&gt; — Quét nhiều mục tiêu
+/watch &lt;url&gt; [min] — Giám sát nội dung
+/rate &lt;url&gt; — Điểm bảo mật
+/cancel — Hủy quét
+/lang &lt;pt/en/es/vi/id&gt; — Đổi ngôn ngữ
+
+<b>📊 Hệ Thống:</b>
+/ping — Độ trễ bot
+/about — Về MTH Security
+/stats — Thống kê quét
+
+━━━━━━━━━━━━━━━━━━━━━━
+<i>Sử dụng nút menu để xem tất cả công cụ.</i>
+<i>Dùng /listdn để xem lệnh Owner.</i>
+
+━━━━━━━━━━━━━━━━━━━━━━
+<i>MTH Security v5.2</i>"""
+    elif lang == 'id':
+        msg = """🔧 <b>MTH Security — Perintah Penting</b>
+━━━━━━━━━━━━━━━━━━━━━━
+<b>🚀 Memulai:</b>
+/start — Menu utama
+/help — Pesan ini
+
+<b>📡 Pemindai:</b>
+/sqli &lt;url&gt; — SQL Injection
+/xss &lt;url&gt; — Deteksi XSS
+/scanall &lt;url&gt; — Pemindaian penuh (6 alat)
+/deep &lt;url&gt; — Pemindaian mendalam
+/admin &lt;url&gt; — Pencari admin panel
+/ports &lt;ip&gt; — Pemindai port
+/info &lt;url&gt; — Info situs lengkap
+/dns &lt;domain&gt; — Analisis DNS
+/headers &lt;url&gt; — Security headers
+/ssl &lt;url&gt; — Audit SSL
+/exposed &lt;url&gt; — File sensitif
+/dirs &lt;url&gt; — Pemindai direktori
+
+<b>🔍 Alat:</b>
+/batch &lt;cmd&gt; &lt;urls...&gt; — Multi-target
+/watch &lt;url&gt; [min] — Monitor konten
+/rate &lt;url&gt; — Skor keamanan
+/cancel — Batal pemindaian
+/lang &lt;pt/en/es/vi/id&gt; — Ganti bahasa
+
+<b>📊 Sistem:</b>
+/ping — Latensi bot
+/about — Tentang MTH Security
+/stats — Statistik pemindaian
+
+━━━━━━━━━━━━━━━━━━━━━━
+<i>Gunakan tombol menu untuk semua alat.</i>
+<i>Gunakan /listdn untuk perintah Owner.</i>
+
+━━━━━━━━━━━━━━━━━━━━━━
+<i>MTH Security v5.2</i>"""
     else:
-        msg = """🔧 <b>Mth Ddos Security v5.2 — Comandos</b>
+        msg = """🔧 <b>MTH Security — Comandos Importantes</b>
 ━━━━━━━━━━━━━━━━━━━━━━
+<b>🚀 Início:</b>
+/start — Menu principal
+/help — Esta mensagem
 
-<b>📡 Info & Recon:</b>
-/info &lt;url&gt; — Informações completas do site
-/dns &lt;domain&gt; — Análise DNS: A, MX, NS, TXT, DKIM, DNSSEC, PTR
-/cms &lt;url&gt; — Detecta CMS (30+ CMS)
-/reverse &lt;ip&gt; — Hostname de um IP + GeoIP
-/emails &lt;url&gt; — Extrai emails da página
-
-<b>⚡ Scanners de Vulnerabilidade:</b>
-/sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
-/xss &lt;url&gt; [verbose] — XSS Refletido (18+ payloads, WAF detection)
-/admin &lt;url&gt; — Painéis admin (100+ paths)
-/panel &lt;url&gt; — Painel Admin Finder (100+ paths)
-/ports &lt;ip&gt; — 50+ portas com banner grabbing
-/dirs &lt;url&gt; — Diretórios expostos (80+ paths)
-/sub &lt;domain&gt; — Subdomínios (100+ subs + permutações)
-/wp &lt;url&gt; — WordPress Scanner + CVE check
-/ftpssh &lt;ip&gt; — FTP/SSH banner
-
-<b>🛡️ Scanners V5.0:</b>
-/ssl &lt;url&gt; — Auditoria SSL/TLS + OCSP + chain
-/headers &lt;url&gt; — Security Headers + suggestions
-/cors &lt;url&gt; — CORS misconfiguration
-/robots &lt;url&gt; — Robots.txt + diretórios escondidos
-/sitemap &lt;url&gt; — Sitemap.xml + URLs expostas
-/tech &lt;url&gt; — Tecnologias (frameworks, CDNs, analytics)
-/exposed &lt;url&gt; — Arquivos sensíveis (.env, .git, etc.)
-/backup &lt;url&gt; — Backups expostos (.sql, .zip, etc.)
-/api &lt;url&gt; — Endpoints de API (/api/v1, /graphql, etc.)
-/shell &lt;url&gt; — Webshells (c99, r57, c100, etc.)
-/config &lt;url&gt; — Configs expostas (config.php, settings.json)
-
-<b>⚡ Comandos Rápidos V5.1:</b>
-/quick &lt;url&gt; — Scan rápido (info + headers)
+<b>📡 Scanners Essenciais:</b>
+/sqli &lt;url&gt; — SQL Injection
+/xss &lt;url&gt; — Detecção XSS
 /scanall &lt;url&gt; — Scan completo (6 ferramentas)
-/deep &lt;url&gt; — Deep scan vulns (6 scanners)
-/http &lt;url&gt; — Análise HTTP response completa
-/sslchain &lt;url&gt; — Cadeia de certificados SSL
-/batch &lt;cmd&gt; &lt;urls...&gt; — Scan múltiplos targets
-/watch &lt;url&gt; [min] — Monitorar mudanças de conteúdo
+/deep &lt;url&gt; — Scan profundo de vulnerabilidades
+/admin &lt;url&gt; — Buscador de admin panel
+/ports &lt;ip&gt; — Scanner de portas
+/info &lt;url&gt; — Info completa do site
+/dns &lt;domain&gt; — Análise DNS
+/headers &lt;url&gt; — Security headers
+/ssl &lt;url&gt; — Auditoria SSL
+/exposed &lt;url&gt; — Arquivos sensíveis
+/dirs &lt;url&gt; — Scanner de diretórios
+
+<b>🔍 Ferramentas:</b>
+/batch &lt;cmd&gt; &lt;urls...&gt; — Scan em múltiplos alvos
+/watch &lt;url&gt; [min] — Monitorar conteúdo
+/rate &lt;url&gt; — Nota de segurança
 /cancel — Cancelar scan ativo
-/report &lt;url&gt; — Relatório completo em TXT
+/lang &lt;pt/en/es/vi/id&gt; — Mudar idioma
 
-<b>🔍 Ferramentas Extras:</b>
-/rate &lt;url&gt; — Nota de segurança geral (0-100)
-/compare &lt;url1&gt; &lt;url2&gt; — Comparar segurança de 2 sites
-/history &lt;url&gt; — Histórico de scans
-/pdf &lt;comando&gt; &lt;url&gt; — Exportar relatório TXT
-/schedule &lt;min&gt; &lt;comando&gt; &lt;url&gt; — Agendar scan
-/stealth &lt;comando&gt; &lt;url&gt; — Scan lento (anti-detect)
-/notify &lt;url&gt; — Notificar quando mudar status
-
-<b>📋 Sistema:</b>
+<b>📊 Sistema:</b>
 /ping — Latência do bot
-/status — Health check
-/about — Sobre o bot
-/feedback &lt;msg&gt; — Enviar sugestão
-/bugreport &lt;msg&gt; — Reportar bug
-/rescan &lt;comando&gt; &lt;url&gt; — Refazer scan
-/lang &lt;pt/en/es&gt; — Mudar idioma
+/about — Sobre o MTH Security
+/stats — Estatísticas de scan
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Use /listdn para ver comandos exclusivos de donos.</i>
-<b>👑 Donos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
-━━━━━━━━━━━━━━━━━━━━━━
-<i>Mth Ddos Security v5.2</i>
-<i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
+<i>Use os botões do menu para todas as ferramentas.</i>
+<i>Para a lista completa, use o sistema de menu.</i>
+<i>Use /listdn para ver comandos de Owner.</i>
 
-    send_msg(user_id, chat_id, msg)
+━━━━━━━━━━━━━━━━━━━━━━
+<i>MTH Security v5.2</i>"""
+    send_message(chat_id, msg)
+
 
 def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
