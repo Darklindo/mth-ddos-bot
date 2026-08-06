@@ -256,6 +256,7 @@ API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 OWNERS = {
     6822870889: "@OnlyExaltarei",
     5658716257: "@Thebesty9",
+    8716411086: "@PETER_DNS",
 }
 
 # Bot start time for uptime tracking
