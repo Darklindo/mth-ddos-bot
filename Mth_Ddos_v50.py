@@ -8049,6 +8049,15 @@ def process_update(update):
             parts = cb_data.split(':', 3)
             if len(parts) >= 4:
                 _, scan_cmd, tier, target = parts[0], parts[1], parts[2], parts[3]
+                # Delete the tier selection message
+                if cb_message_id:
+                    try:
+                        HTTP_SESSION.post(f"{API_URL}/deleteMessage", json={
+                            "chat_id": chat_id,
+                            "message_id": cb_message_id
+                        }, timeout=5)
+                    except:
+                        pass
                 # Route to the correct tier handler
                 if scan_cmd == 'sqli':
                     if tier == 'vip':

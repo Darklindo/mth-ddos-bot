@@ -122,3 +122,4 @@
 ## BUG FIXES
 - [x] Fix broadcast giving too many failures
 - [x] Fix bot not capturing username for all users (showing N/D)
+- [ ] Delete/edit the tier selection message after user picks a tier
