@@ -247,6 +247,47 @@ SITE_STATUS_CACHE = {}  # (user_id, target) -> {last_status: bool, last_check: f
 ACTIVE_SCANS = {}  # scan_id -> threading.Event (set to stop)
 STOP_EVENTS = {}   # user_id -> threading.Event
 
+# V5.1: Username enrichment cache (user_id -> {username, first_name, last_name, fetched_at})
+USER_NAME_CACHE = {}  # Cache to avoid repeated getChat API calls
+USERNAME_CACHE_TTL = 3600  # 1 hour TTL for cached usernames
+
+def enrich_username(user_id, username, first_name, last_name):
+    """If username is empty, try to fetch it from Telegram API (with cache).
+    Falls back to first_name if username is truly unavailable.
+    Returns (username, first_name, last_name) — all guaranteed non-empty strings."""
+    # Already have username — nothing to enrich
+    if username:
+        return username, first_name, last_name
+
+    # Check cache first
+    now = time.time()
+    cached = USER_NAME_CACHE.get(user_id)
+    if cached and (now - cached.get('fetched_at', 0)) < USERNAME_CACHE_TTL:
+        return cached.get('username', ''), cached.get('first_name', first_name), cached.get('last_name', last_name)
+
+    # Fetch from Telegram API
+    try:
+        resp = HTTP_SESSION.get(f"{API_URL}/getChat", json={"chat_id": user_id}, timeout=5)
+        if resp and resp.status_code == 200:
+            data = resp.json().get('result', {})
+            fetched_username = data.get('username', '')
+            fetched_first = data.get('first_name', first_name)
+            fetched_last = data.get('last_name', last_name)
+            # Cache the result
+            USER_NAME_CACHE[user_id] = {
+                'username': fetched_username,
+                'first_name': fetched_first,
+                'last_name': fetched_last,
+                'fetched_at': now
+            }
+            return fetched_username, fetched_first, fetched_last
+    except Exception:
+        pass
+
+    # Fallback: use first_name as display name
+    display_name = first_name or 'User'
+    return display_name, first_name, last_name
+
 # V4.3: DB-backed cache TTL (seconds)
 DB_CACHE_TTL = 600  # 10 minutes (V5.1: increased for better caching)
 
@@ -5227,6 +5268,130 @@ def handle_bancodds(chat_id, user_id, username, first_name, last_name, args):
 # ═══════════════════════════════════════════════════════════════
 #  GRACEFUL SHUTDOWN
 # ═══════════════════════════════════════════════════════════════
+def _broadcast_retry_send(api_method, payload, max_retries=2):
+    """Send with retry + exponential backoff. Returns (success: bool, fatal: bool).
+    fatal=True means the error is permanent (blocked, bot was blocked, etc.) and
+    we should NOT retry or count it as a transient failure."""
+    for attempt in range(max_retries + 1):
+        try:
+            resp = HTTP_SESSION.post(f"{API_URL}/{api_method}", json=payload, timeout=15)
+            if resp and resp.status_code == 200:
+                return True, False
+            # Classify the error
+            try:
+                error_data = resp.json()
+                error_desc = error_data.get('description', '').lower()
+                error_code = error_data.get('error_code', 0)
+            except Exception:
+                error_desc = ''
+                error_code = resp.status_code if resp else 0
+
+            # Permanent errors — don't retry
+            if error_code == 403:
+                return False, True  # bot was blocked by user
+            if 'bot was blocked by the user' in error_desc:
+                return False, True
+            if 'chat not found' in error_desc or 'chat_id not found' in error_desc:
+                return False, True
+            if 'user is deactivated' in error_desc:
+                return False, True
+            if 'bad request' in error_desc and 'chat_id' in error_desc:
+                return False, True
+
+            # Transient errors — retry
+            if error_code == 429:
+                retry_after = error_data.get('parameters', {}).get('retry_after', 5)
+                time.sleep(min(retry_after, 30))
+                continue
+            if error_code == 500 or error_code >= 500:
+                time.sleep(min(2 ** attempt, 10))
+                continue
+            if 'network' in error_desc or 'timeout' in error_desc:
+                time.sleep(min(2 ** attempt, 10))
+                continue
+
+            # Unknown error — retry once
+            if attempt < max_retries:
+                time.sleep(min(2 ** attempt, 5))
+                continue
+
+            return False, False
+        except Exception as e:
+            # Network error — retry
+            if attempt < max_retries:
+                time.sleep(min(2 ** attempt, 5))
+                continue
+            return False, False
+    return False, False
+
+
+def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, owner_user_id):
+    """Execute a broadcast loop with progress updates every 10 users.
+    Returns (sent, failed_trans, blocked)."""
+    sent = 0
+    failed = 0
+    blocked = 0
+    total = len(users)
+    update_interval = max(10, total // 10)  # progress update every ~10% or at least every 10
+
+    for idx, u in enumerate(users):
+        uid = str(u['id'])
+        success = False
+        fatal = False
+
+        if media_type:
+            api_method = {
+                'sticker': 'sendSticker',
+                'photo': 'sendPhoto',
+                'animation': 'sendAnimation',
+                'video': 'sendVideo',
+            }.get(media_type, '')
+            if not api_method:
+                return sent, failed, blocked
+
+            payload = {"chat_id": uid}
+            if media_type == 'sticker':
+                payload["sticker"] = file_id
+            else:
+                payload[media_type] = file_id
+                payload["caption"] = broadcast_text or ''
+                payload["parse_mode"] = "HTML"
+
+            success, fatal = _broadcast_retry_send(api_method, payload)
+        else:
+            payload = {
+                "chat_id": uid,
+                "text": broadcast_text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True
+            }
+            success, fatal = _broadcast_retry_send('sendMessage', payload)
+
+        if success:
+            sent += 1
+            # For stickers, also send caption text after
+            if media_type == 'sticker' and broadcast_text:
+                time.sleep(0.15)
+                _broadcast_retry_send('sendMessage', {
+                    "chat_id": uid, "text": broadcast_text, "parse_mode": None
+                }, max_retries=0)
+        elif fatal:
+            blocked += 1
+        else:
+            failed += 1
+
+        # Rate limit to avoid 429 (Telegram allows 30 msg/s to different chats)
+        time.sleep(0.05)
+
+        # Progress update
+        if (idx + 1) % update_interval == 0 or (idx + 1) == total:
+            pct = ((idx + 1) / total) * 100
+            send_message_safe(owner_chat_id,
+                f"📢 <b>Progresso:</b> {idx+1}/{total} ({pct:.0f}%)\n✅ Enviados: {sent} | ⚠️ Bloqueados: {blocked} | ❌ Falhas: {failed}")
+
+    return sent, failed, blocked
+
+
 def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_media=None):
     """OWNER ONLY: Broadcast message to ALL users in the database.
     Supports replying to a sticker/photo with /msg to send media + caption."""
@@ -5244,12 +5409,12 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
         send_msg(user_id, chat_id, "❌ Use: /msg &lt;sua mensagem&gt;\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;")
         return
 
-    # Get all users from database
+    # Get all users from database (including owners so everyone gets notified)
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute("SELECT id, username FROM users WHERE is_owner = 0")
+            c.execute("SELECT id, username, first_name FROM users")
             users = [dict(r) for r in c.fetchall()]
     except Exception as e:
         print(f"[DB Error] handle_msg: {e}")
@@ -5257,107 +5422,33 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
         return
 
     if not users:
-        send_msg(user_id, chat_id, "ℹ️ Nenhum usuário regular encontrado para enviar.")
+        send_msg(user_id, chat_id, "ℹ️ Nenhum usuário encontrado para enviar.")
         return
 
+    total = len(users)
+
     if reply_media:
-        # MEDIA BROADCAST: send sticker/photo + caption
+        # MEDIA BROADCAST
         media_type = reply_media.get('type')
         file_id = reply_media.get('file_id')
         caption = f"📢 {message_text}" if message_text else ''
 
-        if media_type == 'sticker':
-            send_msg(user_id, chat_id, f"📢 <b>Enviando sticker para {len(users)} usuários...</b>")
-            sent = 0
-            failed = 0
-            for u in users:
-                try:
-                    resp = HTTP_SESSION.post(f"{API_URL}/sendSticker", json={
-                        "chat_id": str(u['id']),
-                        "sticker": file_id
-                    }, timeout=10)
-                    if resp and resp.status_code == 200:
-                        sent += 1
-                        # Send caption as separate message after sticker
-                        if caption:
-                            time.sleep(0.1)
-                            send_message_safe(str(u['id']), caption, parse_mode=None)
-                    else:
-                        failed += 1
-                    time.sleep(0.3)
-                except:
-                    failed += 1
-            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+        type_label = {
+            'sticker': 'sticker',
+            'photo': 'imagem',
+            'animation': 'GIF',
+            'video': 'vídeo',
+        }.get(media_type, 'mídia')
 
-        elif media_type == 'photo':
-            send_msg(user_id, chat_id, f"📢 <b>Enviando imagem para {len(users)} usuários...</b>")
-            sent = 0
-            failed = 0
-            for u in users:
-                try:
-                    resp = HTTP_SESSION.post(f"{API_URL}/sendPhoto", json={
-                        "chat_id": str(u['id']),
-                        "photo": file_id,
-                        "caption": caption or '📢 Mensagem dos Donos',
-                        "parse_mode": "HTML"
-                    }, timeout=10)
-                    if resp and resp.status_code == 200:
-                        sent += 1
-                    else:
-                        failed += 1
-                    time.sleep(0.3)
-                except:
-                    failed += 1
-            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+        send_msg(user_id, chat_id,
+            f"📢 <b>Broadcast de {type_label} iniciado!</b>\n👥 Total de usuários: {total}")
 
-        elif media_type == 'animation':
-            send_msg(user_id, chat_id, f"📢 <b>Enviando GIF para {len(users)} usuários...</b>")
-            sent = 0
-            failed = 0
-            for u in users:
-                try:
-                    resp = HTTP_SESSION.post(f"{API_URL}/sendAnimation", json={
-                        "chat_id": str(u['id']),
-                        "animation": file_id,
-                        "caption": caption or '📢 Mensagem dos Donos',
-                        "parse_mode": "HTML"
-                    }, timeout=15)
-                    if resp and resp.status_code == 200:
-                        sent += 1
-                    else:
-                        failed += 1
-                    time.sleep(0.3)
-                except:
-                    failed += 1
-            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
-
-        elif media_type == 'video':
-            send_msg(user_id, chat_id, f"📢 <b>Enviando vídeo para {len(users)} usuários...</b>")
-            sent = 0
-            failed = 0
-            for u in users:
-                try:
-                    resp = HTTP_SESSION.post(f"{API_URL}/sendVideo", json={
-                        "chat_id": str(u['id']),
-                        "video": file_id,
-                        "caption": caption or '📢 Mensagem dos Donos',
-                        "parse_mode": "HTML"
-                    }, timeout=20)
-                    if resp and resp.status_code == 200:
-                        sent += 1
-                    else:
-                        failed += 1
-                    time.sleep(0.3)
-                except:
-                    failed += 1
-            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
-        else:
-            send_msg(user_id, chat_id, "❌ Tipo de mídia não suportado.")
-            return
+        sent, failed, blocked = _do_broadcast(media_type, file_id, caption, users, chat_id, user_id)
 
     else:
-        # TEXT BROADCAST (original behavior)
-        send_msg(user_id, chat_id, f"📢 <b>Enviando mensagem para todos os usuários...</b>\nMensagem: {escape_html(message_text[:100])}")
+        # TEXT BROADCAST
+        send_msg(user_id, chat_id,
+            f"📢 <b>Broadcast iniciado!</b>\n👥 Total de usuários: {total}\n📝 Mensagem: {escape_html(message_text[:100])}")
 
         broadcast = f"""📢 <b>Mensagem dos Donos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -5367,26 +5458,16 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>— Mth Ddos Security Team</i>"""
 
-        sent = 0
-        failed = 0
-        for u in users:
-            try:
-                resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
-                    "chat_id": str(u['id']),
-                    "text": broadcast,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True
-                }, timeout=10)
-                if resp and resp.status_code == 200:
-                    sent += 1
-                else:
-                    failed += 1
-                # Rate limit between sends to avoid 429
-                time.sleep(0.3)
-            except:
-                failed += 1
+        sent, failed, blocked = _do_broadcast(None, None, broadcast, users, chat_id, user_id)
 
-        send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+    final_pct = ((sent + failed + blocked) / total * 100) if total else 0
+    send_msg(user_id, chat_id,
+        f"✅ <b>Broadcast concluído!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👥 Total: {total}\n"
+        f"✅ Enviado com sucesso: {sent}\n"
+        f"⚠️ Bloqueados (usuário bloqueou o bot): {blocked}\n"
+        f"❌ Falhas temporárias: {failed}\n"
+        f"📊 Taxa de entrega: {final_pct:.0f}%")
 
 # ═══════════════════════════════════════════════════════════════
 #  NEW HANDLERS: /stats, /ban, /unban, /export, /uptime
@@ -5421,7 +5502,14 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
                 msg = f"📊 <b>Estatísticas — Buscar: {escape_html(search_term)}</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
                 for r in rows[:10]:
                     d = dict(r)
-                    msg += f"\n<b>@{escape_html(d['username'] or 'N/D')}</b> (ID: {d['id']})\n"
+                    uname = d.get('username') or ''
+                    fname = d.get('first_name') or ''
+                    if uname:
+                        msg += f"\n<b>@{escape_html(uname)}</b> (ID: {d['id']})\n"
+                    elif fname:
+                        msg += f"\n<b>{escape_html(fname)}</b> (ID: {d['id']})\n"
+                    else:
+                        msg += f"\n<b>ID {d['id']}</b>\n"
                     msg += f"  Nome: {escape_html(d['first_name'])} {escape_html(d['last_name'] or '')}\n"
                     msg += f"  Comandos: {d['command_count']}\n"
                     msg += f"  Dono: {'Sim' if d['is_owner'] else 'Não'}\n"
@@ -5456,7 +5544,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
             with sqlite3.connect(DB_PATH) as conn:
                 conn.row_factory = sqlite3.Row
                 c = conn.cursor()
-                c.execute("SELECT username, command_count FROM users ORDER BY command_count DESC LIMIT 10")
+                c.execute("SELECT id, username, first_name, command_count FROM users ORDER BY command_count DESC LIMIT 10")
                 top_users = [dict(r) for r in c.fetchall()]
         except:
             top_users = []
@@ -5476,7 +5564,15 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
 <b>🏆 Top 10 Usuários (mais ativos):</b>"""
 
         for i, u in enumerate(top_users, 1):
-            msg += f"\n  {i}. @{escape_html(u['username'] or 'N/D')} — {u['command_count']} comandos"
+            uname = u.get('username') or ''
+            fname = u.get('first_name') or ''
+            if uname:
+                display = f"@{escape_html(uname)}"
+            elif fname:
+                display = escape_html(fname)
+            else:
+                display = f"ID {u['id']}"
+            msg += f"\n  {i}. {display} — {u['command_count']} comandos"
 
         send_msg(user_id, chat_id, msg)
 
@@ -5597,7 +5693,10 @@ def handle_export(chat_id, user_id, username, first_name, last_name, args):
     export_text += "=" * 60 + "\n\n"
 
     for u in users:
-        export_text += f"ID: {u['id']} | @{u['username'] or 'N/D'} | {u['first_name']} {u['last_name'] or ''} | "
+        uname = u.get('username') or ''
+        fname = u.get('first_name') or ''
+        display = f"@{uname}" if uname else (fname or f"ID {u['id']}")
+        export_text += f"ID: {u['id']} | {display} | {fname} {u.get('last_name') or ''} | "
         export_text += f"Owner: {'Sim' if u['is_owner'] else 'Não'} | "
         export_text += f"Cmds: {u['command_count']} | "
         export_text += f"First: {u['first_seen']} | Last: {u['last_seen']}\n"
@@ -7878,6 +7977,11 @@ def process_update(update):
         username = callback_query['from'].get('username', '')
         first_name = callback_query['from'].get('first_name', '')
         last_name = callback_query['from'].get('last_name', '')
+        # V5.1 FIX: Enrich username for callback queries too
+        if not username:
+            username, first_name, last_name = enrich_username(user_id, username, first_name, last_name)
+        if not first_name:
+            first_name = username or 'User'
         cb_message_id = callback_query['message'].get('message_id')
         # i18n: detect language from callback query
         if user_id not in USER_LANG:
@@ -7988,6 +8092,13 @@ def process_update(update):
     username = message['from'].get('username', '')
     first_name = message['from'].get('first_name', '')
     last_name = message['from'].get('last_name', '')
+
+    # V5.1 FIX: Enrich username if missing (user may not have public @username)
+    if not username:
+        username, first_name, last_name = enrich_username(user_id, username, first_name, last_name)
+    # Ensure first_name is never empty for display
+    if not first_name:
+        first_name = username or 'User'
 
     # i18n: detect user language from Telegram language_code
     if user_id not in USER_LANG:
@@ -8328,21 +8439,30 @@ def scheduled_task_loop():
                         try:
                             c2 = conn.cursor()
                             c2.execute("SELECT id FROM users")
-                            users = [r['id'] for r in c2.fetchall()]
+                            users = [dict(r) for r in c2.fetchall()]
+                            total = len(users)
                             sent = 0
-                            for uid in users:
-                                try:
-                                    HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
-                                        "chat_id": str(uid),
-                                        "text": msg,
-                                        "parse_mode": "HTML",
-                                        "disable_web_page_preview": True
-                                    }, timeout=5)
+                            failed = 0
+                            blocked = 0
+                            for u in users:
+                                success, fatal = _broadcast_retry_send(
+                                    'sendMessage',
+                                    {"chat_id": str(u['id']), "text": msg, "parse_mode": "HTML", "disable_web_page_preview": True},
+                                    max_retries=1
+                                )
+                                if success:
                                     sent += 1
-                                    time.sleep(0.2)
-                                except:
-                                    pass
-                            send_message_safe(str(t['chat_id']), f"✅ <b>Broadcast executado!</b>\nEnviado para {sent} usuários.")
+                                elif fatal:
+                                    blocked += 1
+                                else:
+                                    failed += 1
+                                time.sleep(0.05)
+                            send_message_safe(str(t['chat_id']),
+                                f"✅ <b>Broadcast executado!</b>\n"
+                                f"👥 Total: {total}\n"
+                                f"✅ Enviados: {sent}\n"
+                                f"⚠️ Bloqueados: {blocked}\n"
+                                f"❌ Falhas: {failed}")
                         except Exception as e:
                             print(f"[Schedule Error] broadcast: {e}")
                     else:

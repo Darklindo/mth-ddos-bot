@@ -118,4 +118,7 @@
 - [x] Add tier buttons to /sqli, /xss, /scanall, /deep (callback handlers for tier:prefix)
 - [x] Add owner-exclusive commands: /forensic, /pentest, /osint
 - [x] Update set_commands.py with new commands
-- [ ] Verify syntax, commit and push
+- [x] Verify syntax, commit and push
+## BUG FIXES
+- [x] Fix broadcast giving too many failures
+- [x] Fix bot not capturing username for all users (showing N/D)
