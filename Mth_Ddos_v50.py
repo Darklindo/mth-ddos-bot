@@ -305,6 +305,14 @@ BANNED_USERS = set()  # user_ids banned by /ban
 # Auto-detected from Telegram language_code; overridable via /lang
 USER_LANG: dict = {}  # user_id -> language code
 
+# ═══════════════════════════════════════════════════════════════
+#  MENU SYSTEM — Target input state
+# ═══════════════════════════════════════════════════════════════
+# PENDING_TARGETS[user_id] = {'cmd': 'sqli', 'tier': 'normal', 'page': 'vulns'}
+# When user clicks a scanner button, we store what they want to run
+# Then when they send a URL, we execute it
+PENDING_TARGETS: dict = {}  # user_id -> {cmd, tier}
+
 def get_user_lang(user_id: int) -> str:
     """Return the user's preferred language code ('pt', 'en', or 'es')."""
     return USER_LANG.get(user_id, 'pt')  # default to Portuguese
@@ -4327,30 +4335,200 @@ def tool_deep_owner(url):
 
 def handle_start(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
+    show_main_menu(chat_id, user_id, username, first_name)
 
+
+
+# ═══════════════════════════════════════════════════════════════
+#  INTERACTIVE MENU SYSTEM v5.2
+# ═══════════════════════════════════════════════════════════════
+
+def show_main_menu(chat_id, user_id, username='', first_name=''):
+    """Show the main menu with category buttons"""
+    owner = is_owner(user_id)
+    vip = is_vip(user_id)
+    display_name = first_name or username or 'User'
+    
+    msg = f"🛡️ <b>MTH Security v5.2</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    msg += f"👋 Olá, <b>{escape_html(display_name)}</b>!\n\n"
+    msg += "Selecione uma categoria para começar:\n\n"
+    
     buttons = [
-        [
-            {"text": "🇧🇷 PT-BR", "callback_data": "setlang:pt"},
-            {"text": "🇺🇸 EN", "callback_data": "setlang:en"},
-            {"text": "🇪🇸 ES", "callback_data": "setlang:es"}
-        ],
-        [
-            {"text": "🔧 /help", "callback_data": "cmd:help"},
-            {"text": "ℹ️ /about", "callback_data": "cmd:about"}
-        ]
+        [{"text": "🎯 Explorar Vulnerabilidades", "callback_data": "menu:vulns"},
+         {"text": "🔍 Reconhecimento", "callback_data": "menu:recon"}],
+        [{"text": "🛡️ Auditoria de Segurança", "callback_data": "menu:audit"},
+         {"text": "📂 Arquivos & Diretórios", "callback_data": "menu:files"}],
     ]
-    send_message_with_buttons(chat_id,
-        "🛡️ <b>Mth Ddos Security</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n" +
-        "🌐 <b>Select your language / Selecione seu idioma / Selecciona tu idioma</b>\n\n" +
-        "🇧🇷 <b>Pt-BR</b> — Português do Brasil\n" +
-        "🇺🇸 <b>EN</b> — English\n" +
-        "🇪🇸 <b>ES</b> — Español\n\n" +
-        "━━━━━━━━━━━━━━━━━━━━━━\n" +
-        "<i>Mth Ddos Security v5.1</i>",
+    
+    if vip or owner:
+        buttons.append([{"text": "⭐ Ferramentas VIP", "callback_data": "menu:vip"}])
+    
+    if owner:
+        buttons.append([{"text": "👑 Ferramentas DONO", "callback_data": "menu:owner"}])
+    
+    buttons.append([
+        {"text": "📊 /stats", "callback_data": "menu:stats"},
+        {"text": "🔧 /help", "callback_data": "cmd:help"},
+        {"text": "ℹ️ /about", "callback_data": "cmd:about"}
+    ])
+    buttons.append([{"text": "🌐 Idioma", "callback_data": "menu:lang"}])
+    
+    send_message_with_buttons(chat_id, msg, buttons)
+
+def show_menu_vulns(chat_id, user_id):
+    """Show Vulnerability Exploration page"""
+    buttons = [
+        [{"text": "SQLi Scanner", "callback_data": "target:sqli:normal"},
+         {"text": "XSS Scanner", "callback_data": "target:xss:normal"}],
+        [{"text": "Admin Panel Finder", "callback_data": "target:admin:normal"},
+         {"text": "Port Scanner", "callback_data": "target:ports:normal"}],
+        [{"text": "Directory Scanner", "callback_data": "target:dirs:normal"},
+         {"text": "Subdomain Scanner", "callback_data": "target:sub:normal"}],
+        [{"text": "WordPress Scanner", "callback_data": "target:wp:normal"},
+         {"text": "FTP/SSH Scanner", "callback_data": "target:ftpssh:normal"}],
+        [{"text": "Email Scraper", "callback_data": "target:emails:normal"},
+         {"text": "CMS Detector", "callback_data": "target:cms:normal"}],
+        [{"text": "Reverse IP Lookup", "callback_data": "target:reverse:normal"},
+         {"text": "DNS Tools", "callback_data": "target:dns:normal"}],
+        [{"text": "🔄 ScanAll (6 scanners)", "callback_data": "target:scanall:normal"},
+         {"text": "💀 Deep Scan (vulns)", "callback_data": "target:deep:normal"}],
+        [{"text": "🔙 Voltar ao Menu", "callback_data": "menu:back"}],
+    ]
+    send_message_with_buttons(chat_id, 
+        "🎯 <b>Explorar Vulnerabilidades</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Selecione uma ferramenta. Você precisará inserir o alvo (URL, domínio ou IP) na próxima mensagem.\n",
         buttons)
 
-    # Auto-set language from Telegram language_code if not already set
-    # (the callback will handle explicit selection)
+def show_menu_recon(chat_id, user_id):
+    """Show Reconnaissance page"""
+    buttons = [
+        [{"text": "Website Information", "callback_data": "target:info:normal"},
+         {"text": "Whois Lookup", "callback_data": "target:whois:normal"}],
+        [{"text": "GeoIP Analysis", "callback_data": "target:ip:normal"},
+         {"text": "Traceroute", "callback_data": "target:traceroute:normal"}],
+        [{"text": "DNS Tools", "callback_data": "target:dns:normal"},
+         {"text": "Subdomain Scanner", "callback_data": "target:sub:normal"}],
+        [{"text": "Tech Detection", "callback_data": "target:tech:normal"},
+         {"text": "CMS Detector", "callback_data": "target:cms:normal"}],
+        [{"text": "Reverse IP Lookup", "callback_data": "target:reverse:normal"},
+         {"text": "Email Scraper", "callback_data": "target:emails:normal"}],
+        [{"text": "🔙 Voltar ao Menu", "callback_data": "menu:back"}],
+    ]
+    send_message_with_buttons(chat_id,
+        "🔍 <b>Reconhecimento</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Ferramentas de reconhecimento e informação sobre o alvo.\n\n"
+        "Selecione uma ferramenta para começar.\n",
+        buttons)
+
+def show_menu_audit(chat_id, user_id):
+    """Show Security Audit page"""
+    buttons = [
+        [{"text": "SSL Audit", "callback_data": "target:ssl:normal"},
+         {"text": "SSL Chain", "callback_data": "target:sslchain:normal"}],
+        [{"text": "Headers Analysis", "callback_data": "target:headers:normal"},
+         {"text": "HTTP Analysis", "callback_data": "target:http:normal"}],
+        [{"text": "CORS Test", "callback_data": "target:cors:normal"},
+         {"text": "Security Rating", "callback_data": "target:rate:normal"}],
+        [{"text": "Robots.txt", "callback_data": "target:robots:normal"},
+         {"text": "Sitemap Analysis", "callback_data": "target:sitemap:normal"}],
+        [{"text": "🔙 Voltar ao Menu", "callback_data": "menu:back"}],
+    ]
+    send_message_with_buttons(chat_id,
+        "🛡️ <b>Auditoria de Segurança</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Ferramentas de auditoria e análise de segurança.\n\n"
+        "Selecione uma ferramenta para começar.\n",
+        buttons)
+
+def show_menu_files(chat_id, user_id):
+    """Show Files & Directories page"""
+    buttons = [
+        [{"text": "Admin Panel Finder", "callback_data": "target:admin:normal"},
+         {"text": "Directory Scanner", "callback_data": "target:dirs:normal"}],
+        [{"text": "Port Scanner", "callback_data": "target:ports:normal"},
+         {"text": "FTP/SSH Scanner", "callback_data": "target:ftpssh:normal"}],
+        [{"text": "Exposed Files", "callback_data": "target:exposed:normal"},
+         {"text": "Backup Finder", "callback_data": "target:backup:normal"}],
+        [{"text": "Config Scanner", "callback_data": "target:config:normal"},
+         {"text": "Webshell Hunter", "callback_data": "target:shell:normal"}],
+        [{"text": "API Discovery", "callback_data": "target:api:normal"},
+         {"text": "WordPress Scanner", "callback_data": "target:wp:normal"}],
+        [{"text": "🔙 Voltar ao Menu", "callback_data": "menu:back"}],
+    ]
+    send_message_with_buttons(chat_id,
+        "📂 <b>Arquivos & Diretórios</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Ferramentas para buscar arquivos expostos, diretórios e configurações.\n\n"
+        "Selecione uma ferramenta para começar.\n",
+        buttons)
+
+def show_menu_vip(chat_id, user_id):
+    """Show VIP exclusive page"""
+    owner = is_owner(user_id)
+    if not is_vip(user_id) and not owner:
+        send_msg(user_id, chat_id, "❌ Esta seção é exclusiva para membros VIP.")
+        return
+    
+    buttons = [
+        [{"text": "⭐ SQLi VIP (WAF Bypass)", "callback_data": "target:sqli:vip"},
+         {"text": "⭐ XSS VIP (Deep DOM)", "callback_data": "target:xss:vip"}],
+        [{"text": "⭐ ScanAll VIP", "callback_data": "target:scanall:vip"},
+         {"text": "⭐ Deep Scan VIP", "callback_data": "target:deep:vip"}],
+        [{"text": "⭐ Port VIP (1000+ ports)", "callback_data": "target:ports:vip"},
+         {"text": "⭐ Headers VIP", "callback_data": "target:headers:vip"}],
+        [{"text": "⭐ DNS VIP (All Records)", "callback_data": "target:dns:vip"},
+         {"text": "⭐ Tech VIP (WAF/CDN)", "callback_data": "target:tech:vip"}],
+        [{"text": "⭐ Admin VIP (200+ paths)", "callback_data": "target:admin:vip"},
+         {"text": "⭐ API VIP (GraphQL)", "callback_data": "target:api:vip"}],
+        [{"text": "⭐ CORS VIP (Multi-origin)", "callback_data": "target:cors:vip"},
+         {"text": "⭐ Exposed VIP (Sensitive)", "callback_data": "target:exposed:vip"}],
+        [{"text": "⭐ Backup VIP", "callback_data": "target:backup:vip"},
+         {"text": "⭐ Config VIP", "callback_data": "target:config:vip"}],
+        [{"text": "⭐ Webshell VIP", "callback_data": "target:shell:vip"},
+         {"text": "⭐ Robots VIP", "callback_data": "target:robots:vip"}],
+        [{"text": "🔙 Voltar ao Menu", "callback_data": "menu:back"}],
+    ]
+    
+    badge = "👑 OWNER + ⭐ VIP" if owner else "⭐ VIP"
+    send_message_with_buttons(chat_id,
+        f"⭐ <b>Ferramentas VIP</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"<b>Acesso:</b> {badge}\n\n"
+        f"Scanners VIP possuem 3x mais payloads, WAF bypass, análise profunda e detecção avançada.\n\n"
+        f"Selecione uma ferramenta VIP para começar.\n",
+        buttons)
+
+def show_menu_owner(chat_id, user_id):
+    """Show Owner exclusive page"""
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Esta seção é exclusiva para DONOS.")
+        return
+    
+    buttons = [
+        [{"text": "👑 Forensic Analysis", "callback_data": "cmd:forensic"},
+         {"text": "👑 Pentest Automation", "callback_data": "cmd:pentest"}],
+        [{"text": "👑 OSINT Intelligence", "callback_data": "cmd:osint"},
+         {"text": "👑 SQLi Owner (0-day)", "callback_data": "target:sqli:owner"}],
+        [{"text": "👑 XSS Owner (Blind+DOM)", "callback_data": "target:xss:owner"},
+         {"text": "👑 ScanAll Owner", "callback_data": "target:scanall:owner"}],
+        [{"text": "👑 Deep Owner", "callback_data": "target:deep:owner"},
+         {"text": "👑 Port Owner (Vuln)", "callback_data": "target:ports:owner"}],
+        [{"text": "👑 SSL Owner (Protocols)", "callback_data": "target:ssl:owner"},
+         {"text": "👑 Headers Owner (CORS)", "callback_data": "target:headers:owner"}],
+        [{"text": "👑 DNS Owner (Brute)", "callback_data": "target:dns:owner"},
+         {"text": "👑 Tech Owner (CVE)", "callback_data": "target:tech:owner"}],
+        [{"text": "👑 API Owner (Fuzzing)", "callback_data": "target:api:owner"},
+         {"text": "👑 Config Owner (Creds)", "callback_data": "target:config:owner"}],
+        [{"text": "👑 Exposed Owner (Git)", "callback_data": "target:exposed:owner"},
+         {"text": "👑 Shell Owner (Encoded)", "callback_data": "target:shell:owner"}],
+        [{"text": "🔙 Voltar ao Menu", "callback_data": "menu:back"}],
+    ]
+    
+    send_message_with_buttons(chat_id,
+        "👑 <b>Ferramentas DONO</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Acesso Exclusivo:</b> Apenas Donos\n\n"
+        "Os scanners Owner incluem 0-day patterns, blind extraction, full WAF bypass, "
+        "análise forense, pentest automation e OSINT intelligence.\n\n"
+        "Selecione uma ferramenta para começar.\n",
+        buttons)
+
 
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
@@ -7105,6 +7283,681 @@ def _run_deep_owner(chat_id, user_id, target):
     else:
         send_msg(user_id, chat_id, f"✅ <b>OWNER Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}")
 
+
+def _run_admin_normal(chat_id, user_id, target):
+    """Run admin scanner in normal mode"""
+    log_command(user_id, '', 'admin', '', target)
+    handle_admin_panel(chat_id, user_id, '', '', '', [target])
+
+
+def _run_admin_vip(chat_id, user_id, target):
+    """Run admin scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'admin', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP ADMIN</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_admin_panel(chat_id, user_id, '', '', '', [target])
+
+
+def _run_admin_owner(chat_id, user_id, target):
+    """Run admin scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'admin', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER ADMIN</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_admin_panel(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ports_normal(chat_id, user_id, target):
+    """Run ports scanner in normal mode"""
+    log_command(user_id, '', 'ports', '', target)
+    handle_ports(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ports_vip(chat_id, user_id, target):
+    """Run ports scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'ports', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP PORTS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_ports(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ports_owner(chat_id, user_id, target):
+    """Run ports scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'ports', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER PORTS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_ports(chat_id, user_id, '', '', '', [target])
+
+
+def _run_dirs_normal(chat_id, user_id, target):
+    """Run dirs scanner in normal mode"""
+    log_command(user_id, '', 'dirs', '', target)
+    handle_dirs(chat_id, user_id, '', '', '', [target])
+
+
+def _run_dirs_vip(chat_id, user_id, target):
+    """Run dirs scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'dirs', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP DIRS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_dirs(chat_id, user_id, '', '', '', [target])
+
+
+def _run_dirs_owner(chat_id, user_id, target):
+    """Run dirs scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'dirs', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER DIRS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_dirs(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sub_normal(chat_id, user_id, target):
+    """Run sub scanner in normal mode"""
+    log_command(user_id, '', 'sub', '', target)
+    handle_sub(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sub_vip(chat_id, user_id, target):
+    """Run sub scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'sub', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP SUB</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_sub(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sub_owner(chat_id, user_id, target):
+    """Run sub scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'sub', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER SUB</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_sub(chat_id, user_id, '', '', '', [target])
+
+
+def _run_wp_normal(chat_id, user_id, target):
+    """Run wp scanner in normal mode"""
+    log_command(user_id, '', 'wp', '', target)
+    handle_wp(chat_id, user_id, '', '', '', [target])
+
+
+def _run_wp_vip(chat_id, user_id, target):
+    """Run wp scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'wp', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP WP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_wp(chat_id, user_id, '', '', '', [target])
+
+
+def _run_wp_owner(chat_id, user_id, target):
+    """Run wp scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'wp', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER WP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_wp(chat_id, user_id, '', '', '', [target])
+
+
+def _run_emails_normal(chat_id, user_id, target):
+    """Run emails scanner in normal mode"""
+    log_command(user_id, '', 'emails', '', target)
+    handle_emails(chat_id, user_id, '', '', '', [target])
+
+
+def _run_emails_vip(chat_id, user_id, target):
+    """Run emails scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'emails', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP EMAILS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_emails(chat_id, user_id, '', '', '', [target])
+
+
+def _run_emails_owner(chat_id, user_id, target):
+    """Run emails scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'emails', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER EMAILS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_emails(chat_id, user_id, '', '', '', [target])
+
+
+def _run_dns_normal(chat_id, user_id, target):
+    """Run dns scanner in normal mode"""
+    log_command(user_id, '', 'dns', '', target)
+    handle_dns(chat_id, user_id, '', '', '', [target])
+
+
+def _run_dns_vip(chat_id, user_id, target):
+    """Run dns scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'dns', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP DNS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_dns(chat_id, user_id, '', '', '', [target])
+
+
+def _run_dns_owner(chat_id, user_id, target):
+    """Run dns scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'dns', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER DNS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_dns(chat_id, user_id, '', '', '', [target])
+
+
+def _run_cms_normal(chat_id, user_id, target):
+    """Run cms scanner in normal mode"""
+    log_command(user_id, '', 'cms', '', target)
+    handle_cms(chat_id, user_id, '', '', '', [target])
+
+
+def _run_cms_vip(chat_id, user_id, target):
+    """Run cms scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'cms', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP CMS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_cms(chat_id, user_id, '', '', '', [target])
+
+
+def _run_cms_owner(chat_id, user_id, target):
+    """Run cms scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'cms', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER CMS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_cms(chat_id, user_id, '', '', '', [target])
+
+
+def _run_reverse_normal(chat_id, user_id, target):
+    """Run reverse scanner in normal mode"""
+    log_command(user_id, '', 'reverse', '', target)
+    handle_reverse(chat_id, user_id, '', '', '', [target])
+
+
+def _run_reverse_vip(chat_id, user_id, target):
+    """Run reverse scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'reverse', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP REVERSE</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_reverse(chat_id, user_id, '', '', '', [target])
+
+
+def _run_reverse_owner(chat_id, user_id, target):
+    """Run reverse scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'reverse', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER REVERSE</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_reverse(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ftpssh_normal(chat_id, user_id, target):
+    """Run ftpssh scanner in normal mode"""
+    log_command(user_id, '', 'ftpssh', '', target)
+    handle_ftpssh(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ftpssh_vip(chat_id, user_id, target):
+    """Run ftpssh scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'ftpssh', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP FTPSSH</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_ftpssh(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ftpssh_owner(chat_id, user_id, target):
+    """Run ftpssh scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'ftpssh', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER FTPSSH</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_ftpssh(chat_id, user_id, '', '', '', [target])
+
+
+def _run_tech_normal(chat_id, user_id, target):
+    """Run tech scanner in normal mode"""
+    log_command(user_id, '', 'tech', '', target)
+    handle_tech(chat_id, user_id, '', '', '', [target])
+
+
+def _run_tech_vip(chat_id, user_id, target):
+    """Run tech scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'tech', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP TECH</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_tech(chat_id, user_id, '', '', '', [target])
+
+
+def _run_tech_owner(chat_id, user_id, target):
+    """Run tech scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'tech', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER TECH</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_tech(chat_id, user_id, '', '', '', [target])
+
+
+def _run_whois_normal(chat_id, user_id, target):
+    """Run whois scanner in normal mode"""
+    log_command(user_id, '', 'whois', '', target)
+    handle_whois(chat_id, user_id, '', '', '', [target])
+
+
+def _run_whois_vip(chat_id, user_id, target):
+    """Run whois scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'whois', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP WHOIS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_whois(chat_id, user_id, '', '', '', [target])
+
+
+def _run_whois_owner(chat_id, user_id, target):
+    """Run whois scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'whois', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER WHOIS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_whois(chat_id, user_id, '', '', '', [target])
+
+
+def _run_rate_normal(chat_id, user_id, target):
+    """Run rate scanner in normal mode"""
+    log_command(user_id, '', 'rate', '', target)
+    handle_rate(chat_id, user_id, '', '', '', [target])
+
+
+def _run_rate_vip(chat_id, user_id, target):
+    """Run rate scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'rate', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP RATE</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_rate(chat_id, user_id, '', '', '', [target])
+
+
+def _run_rate_owner(chat_id, user_id, target):
+    """Run rate scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'rate', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER RATE</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_rate(chat_id, user_id, '', '', '', [target])
+
+
+def _run_headers_normal(chat_id, user_id, target):
+    """Run headers scanner in normal mode"""
+    log_command(user_id, '', 'headers', '', target)
+    handle_headers(chat_id, user_id, '', '', '', [target])
+
+
+def _run_headers_vip(chat_id, user_id, target):
+    """Run headers scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'headers', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP HEADERS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_headers(chat_id, user_id, '', '', '', [target])
+
+
+def _run_headers_owner(chat_id, user_id, target):
+    """Run headers scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'headers', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER HEADERS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_headers(chat_id, user_id, '', '', '', [target])
+
+
+def _run_cors_normal(chat_id, user_id, target):
+    """Run cors scanner in normal mode"""
+    log_command(user_id, '', 'cors', '', target)
+    handle_cors(chat_id, user_id, '', '', '', [target])
+
+
+def _run_cors_vip(chat_id, user_id, target):
+    """Run cors scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'cors', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP CORS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_cors(chat_id, user_id, '', '', '', [target])
+
+
+def _run_cors_owner(chat_id, user_id, target):
+    """Run cors scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'cors', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER CORS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_cors(chat_id, user_id, '', '', '', [target])
+
+
+def _run_robots_normal(chat_id, user_id, target):
+    """Run robots scanner in normal mode"""
+    log_command(user_id, '', 'robots', '', target)
+    handle_robots(chat_id, user_id, '', '', '', [target])
+
+
+def _run_robots_vip(chat_id, user_id, target):
+    """Run robots scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'robots', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP ROBOTS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_robots(chat_id, user_id, '', '', '', [target])
+
+
+def _run_robots_owner(chat_id, user_id, target):
+    """Run robots scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'robots', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER ROBOTS</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_robots(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sitemap_normal(chat_id, user_id, target):
+    """Run sitemap scanner in normal mode"""
+    log_command(user_id, '', 'sitemap', '', target)
+    handle_sitemap(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sitemap_vip(chat_id, user_id, target):
+    """Run sitemap scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'sitemap', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP SITEMAP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_sitemap(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sitemap_owner(chat_id, user_id, target):
+    """Run sitemap scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'sitemap', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER SITEMAP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_sitemap(chat_id, user_id, '', '', '', [target])
+
+
+def _run_exposed_normal(chat_id, user_id, target):
+    """Run exposed scanner in normal mode"""
+    log_command(user_id, '', 'exposed', '', target)
+    handle_exposed(chat_id, user_id, '', '', '', [target])
+
+
+def _run_exposed_vip(chat_id, user_id, target):
+    """Run exposed scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'exposed', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP EXPOSED</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_exposed(chat_id, user_id, '', '', '', [target])
+
+
+def _run_exposed_owner(chat_id, user_id, target):
+    """Run exposed scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'exposed', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER EXPOSED</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_exposed(chat_id, user_id, '', '', '', [target])
+
+
+def _run_backup_normal(chat_id, user_id, target):
+    """Run backup scanner in normal mode"""
+    log_command(user_id, '', 'backup', '', target)
+    handle_backup(chat_id, user_id, '', '', '', [target])
+
+
+def _run_backup_vip(chat_id, user_id, target):
+    """Run backup scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'backup', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP BACKUP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_backup(chat_id, user_id, '', '', '', [target])
+
+
+def _run_backup_owner(chat_id, user_id, target):
+    """Run backup scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'backup', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER BACKUP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_backup(chat_id, user_id, '', '', '', [target])
+
+
+def _run_api_normal(chat_id, user_id, target):
+    """Run api scanner in normal mode"""
+    log_command(user_id, '', 'api', '', target)
+    handle_api(chat_id, user_id, '', '', '', [target])
+
+
+def _run_api_vip(chat_id, user_id, target):
+    """Run api scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'api', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP API</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_api(chat_id, user_id, '', '', '', [target])
+
+
+def _run_api_owner(chat_id, user_id, target):
+    """Run api scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'api', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER API</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_api(chat_id, user_id, '', '', '', [target])
+
+
+def _run_shell_normal(chat_id, user_id, target):
+    """Run shell scanner in normal mode"""
+    log_command(user_id, '', 'shell', '', target)
+    handle_shell(chat_id, user_id, '', '', '', [target])
+
+
+def _run_shell_vip(chat_id, user_id, target):
+    """Run shell scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'shell', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP SHELL</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_shell(chat_id, user_id, '', '', '', [target])
+
+
+def _run_shell_owner(chat_id, user_id, target):
+    """Run shell scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'shell', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER SHELL</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_shell(chat_id, user_id, '', '', '', [target])
+
+
+def _run_config_normal(chat_id, user_id, target):
+    """Run config scanner in normal mode"""
+    log_command(user_id, '', 'config', '', target)
+    handle_config(chat_id, user_id, '', '', '', [target])
+
+
+def _run_config_vip(chat_id, user_id, target):
+    """Run config scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'config', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP CONFIG</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_config(chat_id, user_id, '', '', '', [target])
+
+
+def _run_config_owner(chat_id, user_id, target):
+    """Run config scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'config', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER CONFIG</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_config(chat_id, user_id, '', '', '', [target])
+
+
+def _run_http_normal(chat_id, user_id, target):
+    """Run http scanner in normal mode"""
+    log_command(user_id, '', 'http', '', target)
+    handle_http(chat_id, user_id, '', '', '', [target])
+
+
+def _run_http_vip(chat_id, user_id, target):
+    """Run http scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'http', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP HTTP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_http(chat_id, user_id, '', '', '', [target])
+
+
+def _run_http_owner(chat_id, user_id, target):
+    """Run http scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'http', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER HTTP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_http(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sslchain_normal(chat_id, user_id, target):
+    """Run sslchain scanner in normal mode"""
+    log_command(user_id, '', 'sslchain', '', target)
+    handle_sslchain(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sslchain_vip(chat_id, user_id, target):
+    """Run sslchain scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'sslchain', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP SSLCHAIN</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_sslchain(chat_id, user_id, '', '', '', [target])
+
+
+def _run_sslchain_owner(chat_id, user_id, target):
+    """Run sslchain scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'sslchain', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER SSLCHAIN</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_sslchain(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ssl_normal(chat_id, user_id, target):
+    """Run ssl scanner in normal mode"""
+    log_command(user_id, '', 'ssl', '', target)
+    handle_ssl(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ssl_vip(chat_id, user_id, target):
+    """Run ssl scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'ssl', target)
+    # VIP mode: enhanced analysis with more depth
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP SSL</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_ssl(chat_id, user_id, '', '', '', [target])
+
+
+def _run_ssl_owner(chat_id, user_id, target):
+    """Run ssl scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'ssl', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER SSL</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_ssl(chat_id, user_id, '', '', '', [target])
+
 def handle_quick(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Quick Scan — info + headers + rate in one shot (file output)"""
     log_user(user_id, username, first_name, last_name)
@@ -8045,6 +8898,155 @@ def process_update(update):
             return
 
         # Tier selection callback: "tier:sqli:vip:example.com"
+        # ═══════════════════════════════════════════════════════════
+        #  MENU SYSTEM CALLBACKS v5.2
+        # ═══════════════════════════════════════════════════════════
+        
+        # Main menu pages
+        if cb_data == 'menu:back':
+            show_main_menu(chat_id, user_id, username, first_name)
+            return
+        
+        if cb_data == 'menu:vulns':
+            show_menu_vulns(chat_id, user_id)
+            return
+        
+        if cb_data == 'menu:recon':
+            show_menu_recon(chat_id, user_id)
+            return
+        
+        if cb_data == 'menu:audit':
+            show_menu_audit(chat_id, user_id)
+            return
+        
+        if cb_data == 'menu:files':
+            show_menu_files(chat_id, user_id)
+            return
+        
+        if cb_data == 'menu:vip':
+            show_menu_vip(chat_id, user_id)
+            return
+        
+        if cb_data == 'menu:owner':
+            show_menu_owner(chat_id, user_id)
+            return
+        
+        if cb_data == 'menu:stats':
+            handle_stats(chat_id, user_id, username, first_name, last_name)
+            return
+        
+        if cb_data == 'menu:lang':
+            buttons = [
+                [{"text": "🇧🇷 Português", "callback_data": "setlang:pt"},
+                 {"text": "🇺🇸 English", "callback_data": "setlang:en"},
+                 {"text": "🇪🇸 Español", "callback_data": "setlang:es"}],
+                [{"text": "🔙 Voltar", "callback_data": "menu:back"}],
+            ]
+            send_message_with_buttons(chat_id, 
+                "🌐 <b>Selecione seu idioma</b>\n━━━━━━━━━━━━━━━━━━━━━━\n",
+                buttons)
+            return
+        
+        # Owner-exclusive command callbacks
+        if cb_data == 'cmd:forensic':
+            if not is_owner(user_id):
+                send_msg(user_id, chat_id, "❌ Este comando é exclusivo para DONOS.")
+                return
+            handle_forensic(chat_id, user_id, username, first_name, last_name, args if args else [])
+            return
+        
+        if cb_data == 'cmd:pentest':
+            if not is_owner(user_id):
+                send_msg(user_id, chat_id, "❌ Este comando é exclusivo para DONOS.")
+                return
+            handle_pentest(chat_id, user_id, username, first_name, last_name, args if args else [])
+            return
+        
+        if cb_data == 'cmd:osint':
+            if not is_owner(user_id):
+                send_msg(user_id, chat_id, "❌ Este comando é exclusivo para DONOS.")
+                return
+            handle_osint(chat_id, user_id, username, first_name, last_name, args if args else [])
+            return
+        
+        # Target input flow: "target:cmd:tier"
+        if cb_data.startswith('target:'):
+            parts = cb_data.split(':')
+            if len(parts) >= 3:
+                scan_cmd = parts[1]
+                tier = parts[2]
+                
+                # Store pending target request
+                PENDING_TARGETS[user_id] = {'cmd': scan_cmd, 'tier': tier}
+                
+                # Show input prompt
+                cmd_display = {
+                    'sqli': 'SQLi Scanner',
+                    'xss': 'XSS Scanner',
+                    'admin': 'Admin Panel Finder',
+                    'ports': 'Port Scanner',
+                    'dirs': 'Directory Scanner',
+                    'sub': 'Subdomain Scanner',
+                    'wp': 'WordPress Scanner',
+                    'ftpssh': 'FTP/SSH Scanner',
+                    'emails': 'Email Scraper',
+                    'cms': 'CMS Detector',
+                    'reverse': 'Reverse IP Lookup',
+                    'dns': 'DNS Tools',
+                    'info': 'Website Information',
+                    'whois': 'Whois Lookup',
+                    'ip': 'GeoIP Analysis',
+                    'traceroute': 'Traceroute',
+                    'tech': 'Tech Detection',
+                    'ssl': 'SSL Audit',
+                    'sslchain': 'SSL Chain',
+                    'headers': 'Headers Analysis',
+                    'http': 'HTTP Analysis',
+                    'cors': 'CORS Test',
+                    'rate': 'Security Rating',
+                    'robots': 'Robots.txt',
+                    'sitemap': 'Sitemap Analysis',
+                    'exposed': 'Exposed Files',
+                    'backup': 'Backup Finder',
+                    'config': 'Config Scanner',
+                    'shell': 'Webshell Hunter',
+                    'api': 'API Discovery',
+                    'scanall': 'ScanAll',
+                    'deep': 'Deep Scan',
+                }
+                cmd_name = cmd_display.get(scan_cmd, scan_cmd)
+                tier_badge = "⭐ VIP" if tier == 'vip' else "👑 OWNER" if tier == 'owner' else ""
+                if tier_badge:
+                    tier_badge = f" ({tier_badge})"
+                
+                buttons = [[{"text": "❌ Cancelar", "callback_data": "menu:cancel_target"}]]
+                send_message_with_buttons(chat_id,
+                    f"📋 <b>Insira o alvo</b>{tier_badge}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"Ferramenta: <b>{cmd_name}</b>\n\n"
+                    f"Envie a URL, domínio ou IP do alvo.\n"
+                    f"<i>Exemplo: example.com, https://site.com, 192.168.1.1</i>\n\n"
+                    f"Para cancelar, pressione o botão abaixo.",
+                    buttons)
+            return
+        
+        if cb_data == 'menu:cancel_target':
+            PENDING_TARGETS.pop(user_id, None)
+            # Edit the message to show cancelled
+            try:
+                HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+                    "chat_id": chat_id,
+                    "message_id": cb_message_id,
+                    "text": "❌ <b>Scan cancelado.</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                            "Volte ao menu principal para selecionar outra ferramenta.",
+                    "parse_mode": "HTML",
+                    "reply_markup": '{"inline_keyboard": [[{"text": "🔙 Menu Principal", "callback_data": "menu:back"}]]}'
+                }, timeout=5)
+            except:
+                pass
+            return
+        
+
         if cb_data.startswith('tier:'):
             parts = cb_data.split(':', 3)
             if len(parts) >= 4:
@@ -8119,6 +9121,121 @@ def process_update(update):
     raw_cmd = parts[0].lower()
 
     # Remove @botname suffix: /command@MyBot -> /command
+    # ═══════════════════════════════════════════════════════════
+    #  MENU SYSTEM: Check for pending target input
+    # ═══════════════════════════════════════════════════════════
+    if user_id in PENDING_TARGETS:
+        pending = PENDING_TARGETS.pop(user_id)
+        scan_cmd = pending['cmd']
+        tier = pending['tier']
+        
+        # The text IS the target
+        target = text.strip()
+        if not target:
+            send_msg(user_id, chat_id, "❌ Alvo inválido. Tente novamente.")
+            return
+        
+        log_command(user_id, username, scan_cmd, target)
+        
+        # Delete the "input target" message
+        try:
+            msg_id = message.get('message_id')
+            if msg_id:
+                HTTP_SESSION.post(f"{API_URL}/deleteMessage", json={
+                    "chat_id": chat_id,
+                    "message_id": msg_id
+                }, timeout=3)
+        except:
+            pass
+        
+        # Route to the correct tier handler
+        cmd = scan_cmd  # Override cmd for routing
+        
+        # Map scan commands to handler functions
+        SCAN_MAP = {
+            'sqli': 'sqli',
+            'xss': 'xss',
+            'admin': 'admin',
+            'panel': 'panel',
+            'ports': 'ports',
+            'dirs': 'dirs',
+            'sub': 'sub',
+            'wp': 'wp',
+            'ftpssh': 'ftpssh',
+            'emails': 'emails',
+            'cms': 'cms',
+            'reverse': 'reverse',
+            'dns': 'dns',
+            'info': 'info',
+            'whois': 'whois',
+            'ip': 'ip',
+            'traceroute': 'traceroute',
+            'tech': 'tech',
+            'ssl': 'ssl',
+            'sslchain': 'sslchain',
+            'headers': 'headers',
+            'http': 'http',
+            'cors': 'cors',
+            'rate': 'rate',
+            'robots': 'robots',
+            'sitemap': 'sitemap',
+            'exposed': 'exposed',
+            'backup': 'backup',
+            'config': 'config',
+            'shell': 'shell',
+            'api': 'api',
+            'scanall': 'scanall',
+            'deep': 'deep',
+        }
+        
+        # For tiered scanners, use _run_* functions
+        TIERED_SCANNERS = ['sqli', 'xss', 'scanall', 'deep',
+                          'admin', 'ports', 'whois', 'rate',
+                          'headers', 'dns', 'robots', 'tech',
+                          'cms', 'exposed', 'backup', 'api',
+                          'shell', 'config', 'cors', 'http', 'sslchain', 'ssl']
+        
+        if scan_cmd in TIERED_SCANNERS:
+            fn_name = f"_run_{scan_cmd}_{tier}"
+            fn = globals().get(fn_name)
+            if fn:
+                fn(chat_id, user_id, target)
+                return
+            else:
+                # Fallback to normal
+                fn_name = f"_run_{scan_cmd}_normal"
+                fn = globals().get(fn_name)
+                if fn:
+                    fn(chat_id, user_id, target)
+                    return
+        
+        # Non-tiered scanners: use handle_* functions
+        handler_map = {
+            'info': handle_info,
+            'whois': handle_whois,
+            'ip': handle_ip,
+            'traceroute': handle_traceroute,
+            'tech': handle_tech,
+            'ssl': handle_ssl,
+            'sslchain': handle_sslchain,
+            'headers': handle_headers,
+            'http': handle_http,
+            'cors': handle_cors,
+            'rate': handle_rate,
+            'robots': handle_robots,
+            'sitemap': handle_sitemap,
+            'exposed': handle_exposed,
+            'backup': handle_backup,
+            'config': handle_config,
+            'shell': handle_shell,
+            'api': handle_api,
+        }
+        
+        if scan_cmd in handler_map:
+            handler_map[scan_cmd](chat_id, user_id, username, first_name, last_name, [target])
+            return
+    
+
     cmd = raw_cmd.split('@')[0]
     args = parts[1].split() if len(parts) > 1 else []
 

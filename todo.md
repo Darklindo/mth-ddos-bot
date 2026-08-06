@@ -122,4 +122,47 @@
 ## BUG FIXES
 - [x] Fix broadcast giving too many failures
 - [x] Fix bot not capturing username for all users (showing N/D)
-- [ ] Delete/edit the tier selection message after user picks a tier
+- [x] Delete/edit the tier selection message after user picks a tier
+## TIER BUTTONS FOR ALL SCANNERS
+- [ ] Add tier buttons to /panel (admin finder)
+- [ ] Add tier buttons to /admin
+- [ ] Add tier buttons to /dirs (directory scanner)
+- [ ] Add tier buttons to /sub (subdomain scanner)
+- [ ] Add tier buttons to /wp (wordpress scanner)
+- [ ] Add tier buttons to /ports
+- [ ] Add tier buttons to /ssl
+- [ ] Add tier buttons to /headers
+- [ ] Add tier buttons to /exposed
+- [ ] Add tier buttons to /backup
+- [ ] Add tier buttons to /api
+- [ ] Add tier buttons to /shell (webshell hunter)
+- [ ] Add tier buttons to /config
+- [ ] Add tier buttons to /cors
+- [ ] Add tier buttons to /robots
+- [ ] Add tier buttons to /sitemap
+- [ ] Add tier buttons to /tech
+- [ ] Add tier buttons to /ftpssh
+- [ ] Add tier buttons to /cms
+- [ ] Add tier buttons to /dns
+- [ ] Add tier buttons to /info
+- [ ] Add tier buttons to /quick
+- [ ] Add tier buttons to /http
+- [ ] Add tier buttons to /sslchain
+- [ ] Add tier buttons to /emails
+- [ ] Add tier buttons to /reverse
+- [ ] Add tier buttons to /whois
+- [ ] Add tier buttons to /rate
+- [ ] Add tier buttons to /ip
+- [ ] Add tier buttons to /compare
+- [ ] Add tier callback handlers for all new scanner tiers
+## INTERACTIVE MENU SYSTEM (V5.2 — Major UX Overhaul)
+- [ ] Create main menu with category pages (Vulnerabilidades, Recon, Auditoria, Arquivos)
+- [ ] Create VIP exclusive page with VIP-tier scanners
+- [ ] Create OWNER exclusive page with forensic/pentest/osint
+- [ ] Add target input flow (bot asks for URL after button click)
+- [ ] Add navigation callbacks (back button, page switching)
+- [ ] Add /start command that shows main menu
+- [ ] Add tier-gated buttons (Normal users don't see VIP/Owner pages)
+- [ ] Keep /commands working as fallback for power users
+- [ ] Update set_commands.py
+- [ ] Verify syntax, commit and push
