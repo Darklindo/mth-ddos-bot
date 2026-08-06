@@ -1,0 +1,39 @@
+# MTH Security V5.0 — Bugs Corrigidos na Revisão
+
+## Bugs Corrigidos (16 total):
+
+1. **BUG 1 - handle_notify tabela errada**: Usava tabela 'notifications' que não existe na DB. Corrigido para usar 'site_monitor' (INSERT OR REPLACE).
+
+2. **BUG 2 - STEALTH_MODE tipo errado**: Declarado como set() no início mas usado como boolean. Corrigido para boolean global.
+
+3. **BUG 3 - handle_stats cursor fora do with block**: c2 = conn.cursor() estava fora do bloco `with sqlite3.connect()`. Refatorado para manter todas as operações de DB dentro do with block.
+
+4. **BUG 5 - callback_query não processado**: process_update só processava 'message', ignorava callback_query (inline buttons do rescan). Adicionado handling completo de callback_query.
+
+5. **BUG 6 - allowed_updates sem callback_query (polling)**: Long polling não recebia callback_query. Adicionado "callback_query" ao allowed_updates.
+
+6. **BUG 7 - allowed_updates sem callback_query (webhook)**: set_webhook também faltava callback_query. Corrigido.
+
+7. **BUG 8 - scheduled_task_loop inexistente**: handle_schedule e handle_broadcast gravavam no DB mas não havia thread consumidora. Criada scheduled_task_loop() com thread daemon.
+
+8. **BUG 9 - handle_panel send_progress return value**: progress_msg_id podia ser None se send_progress falhasse. Adicionado tratamento de erro.
+
+9. **BUG 10 - Version strings v4.3**: Vários textos de UI ainda mostravam "v4.3" em vez de "v5.0". Corrigido em 4+ lugares.
+
+10. **BUG 11 - site_monitor_loop inexistente**: handle_notify gravava no DB mas não havia thread monitora. Criada site_monitor_loop() com thread daemon (check a cada 60s).
+
+11. **BUG 13 - handle_pdf tool_map incompleto**: Faltavam 'admin', 'emails', 'robots', 'sitemap', 'tech' no tool_map. Adicionados todos.
+
+12. **BUG 14 - handle_notify sem 'off'**: Mensagem dizia "Use /notify off para desativar" mas o comando não existia. Adicionado suporte a /notify off.
+
+13. **BUG 15 - Scheduled tasks threads não iniciadas**: Threads de site_monitor e scheduled_task não eram iniciadas no startup. Adicionadas ao bloco de polling.
+
+14. **BUG 16 - handle_help versão**: handle_help ainda referenciava V4.3. Atualizado para V5.0.
+
+## Verificações Adicionais Passaram:
+- Todos os 42 handlers declarados existem como funções
+- Todos os 24+ tool functions referenciadas existem
+- Nenhum handler referenciado no CMD_HANDLERS está faltando
+- Sintaxe Python valida (py_compile OK)
+- Callback query parsing correto (formato: "rescan:cmd:target")
+- Background threads (site_monitor, scheduled_tasks, health_check) iniciadas no polling mode

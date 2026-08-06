@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════╗
-║  MTH DDOS SECURITY - TELEGRAM BOT v5.1                    ║
+║  MTH DDOS SECURITY - TELEGRAM BOT v5.0                    ║
 ║  Advanced Security Testing Tools                          ║
 ║  Credits: @OnlyExaltarei, @Thebesty9, @PETER_DNS          ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -191,9 +191,7 @@ import re
 import json
 import sqlite3
 import logging
-import hmac
 import html as html_lib
-import hashlib
 import signal
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
@@ -258,7 +256,6 @@ API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 OWNERS = {
     6822870889: "@OnlyExaltarei",
     5658716257: "@Thebesty9",
-    8716411086: "@PETER_DNS",
 }
 
 # Bot start time for uptime tracking
@@ -313,7 +310,7 @@ ACTIVE_SCANS = {}  # scan_id -> threading.Event (set to stop)
 STOP_EVENTS = {}   # user_id -> threading.Event
 
 # V4.3: DB-backed cache TTL (seconds)
-DB_CACHE_TTL = 600  # 10 minutes (V5.1: increased for better caching)
+DB_CACHE_TTL = 300  # 5 minutes
 
 # Result cache: (command, target) -> (result_text, timestamp)
 RESULT_CACHE = {}
@@ -575,19 +572,6 @@ def init_db():
             UNIQUE(user_id, target)
         )''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_site_monitor_target ON site_monitor(target)')
-        # V5.1: Add watch columns to site_monitor (migration)
-        try:
-            c.execute("ALTER TABLE site_monitor ADD COLUMN content_hash TEXT DEFAULT ''")
-        except:
-            pass
-        try:
-            c.execute("ALTER TABLE site_monitor ADD COLUMN watch_interval INTEGER DEFAULT 5")
-        except:
-            pass
-        try:
-            c.execute("ALTER TABLE site_monitor ADD COLUMN watch_type TEXT DEFAULT 'status'")
-        except:
-            pass
         # V5.0: Audit log table
         c.execute('''CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1091,27 +1075,11 @@ def tool_sqli(url, verbose=False):
         'sql injection', 'injection detected', 'sql error'
     ]
 
-    # V5.1: WAF detection patterns
-    waf_patterns = {
-        'Cloudflare': ['cloudflare', 'cf-ray', 'cloudflare-challenge'],
-        'Sucuri': ['sucuri', 'x-sucuri'],
-        'ModSecurity': ['mod_security', 'modsecurity', 'blocked by mod_security'],
-        'Imperva': ['imperva', 'x-iinfo', 'incap_ses'],
-        'Barracuda': ['barracuda', 'barra_counter_session'],
-        'F5 Big-IP': ['f5-big-ip', 'x-cdn', 'bigipserver'],
-        'AWS WAF': ['aws-waf', 'x-amzn-requestid'],
-        'DenyAll': ['denyall', 'x-cdn-denied'],
-        'Comodo': ['comodo', 'x-cdn-comodo'],
-        'Wordfence': ['wordfence', 'wf_ip', 'wf_rules'],
-        'Generic WAF': ['forbidden', 'access denied', 'blocked by', 'waf block', 'security check', 'challenge'],
-    }
-
     results = []
     verbose_log = []
     found = 0
 
-    # V5.1: WAF detection on baseline
-    detected_waf = []
+    # Get baseline: response without any payload
     baseline_resp = _safe_get(url, timeout=5)
     # FIX v3.7: If site is offline, don't scan
     if not baseline_resp:
@@ -1119,15 +1087,6 @@ def tool_sqli(url, verbose=False):
     baseline_len = len(baseline_resp.content)
     baseline_text = baseline_resp.text.lower()
     baseline_status = baseline_resp.status_code
-    baseline_headers_lower = {k.lower(): v.lower() for k, v in baseline_resp.headers.items()}
-    # V5.1: Detect WAF
-    for waf_name, patterns in waf_patterns.items():
-        for p in patterns:
-            if p.lower() in baseline_text or any(p.lower() in v for v in baseline_headers_lower.values()):
-                detected_waf.append(waf_name)
-                break
-    if detected_waf:
-        verbose_log.append(f"🛡️ <b>WAF Detectada:</b> {', '.join(detected_waf)}")
     verbose_log.append(f"📊 <b>Baseline:</b> Status {baseline_status} | Len: {baseline_len}")
 
     def check_payload(payload):
@@ -1172,23 +1131,15 @@ def tool_sqli(url, verbose=False):
             found += 1
             results.append(f"⚠️ <b>Vulnerável!</b> Payload: <code>{escape_html(result[0][:50])}</code>")
 
-    # V5.1: Add WAF bypass suggestions if WAF detected and no vulns found
-    waf_section = ""
-    if detected_waf and found == 0:
-        waf_section = f"\n🛡️ <b>WAF Detectada:</b> {', '.join(detected_waf)}\n"
-        waf_section += "💡 <b>Dica:</b> O WAF pode estar bloqueando payloads.\n"
-        waf_section += "   Use /stealth sqli <url> para scan mais discreto.\n"
-
     if found == 0:
-        result_text = "✅ Nenhuma vulnerabilidade SQLi detectada"
         if verbose:
-            result_text = "✅ Nenhuma vulnerabilidade SQLi detectada\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(verbose_log)
-        return result_text + waf_section
+            return "✅ Nenhuma vulnerabilidade SQLi detectada\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(verbose_log)
+        return "✅ Nenhuma vulnerabilidade SQLi detectada"
     else:
         header = f"🚨 <b>{found} vulnerabilidade(s) SQLi encontrada(s)!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         if verbose:
-            return header + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n📋 <b>Log Detalhado:</b>\n" + "\n".join(verbose_log) + waf_section
-        return header + "\n".join(results) + waf_section
+            return header + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n📋 <b>Log Detalhado:</b>\n" + "\n".join(verbose_log)
+        return header + "\n".join(results)
 
 def tool_xss_scanner(url, verbose=False):
     """XSS Scanner v4.3 - 18 payloads, STRICT unescaped reflection only, ANTI-FALSE-POSITIVE, verbose mode"""
@@ -1217,13 +1168,6 @@ def tool_xss_scanner(url, verbose=False):
         "{{_s.constructor('alert(1)')()}}",
         "${alert(1)}",
         '<img src=x onerror="alert(1)//">',
-        # V5.1: Polyglot payloads (multi-context XSS)
-        "';alert(document.domain)//",
-        "\">&lt;img src=x onerror=alert(1)&gt;&lt;",
-        "--!&gt;&lt;img src=x onerror=alert(1)&gt;&lt;!",
-        "</script><img src=x onerror=alert(1)>",
-        "</style><img src=x onerror=alert(1)>",
-        "}};alert(document.domain)//",
     ]
 
     results = []
@@ -1237,24 +1181,6 @@ def tool_xss_scanner(url, verbose=False):
         return "❌ Não foi possível acessar o site para análise XSS"
     baseline_text = baseline_resp.text
     baseline_len = len(baseline_text)
-    baseline_headers_lower = {k.lower(): v.lower() for k, v in baseline_resp.headers.items()}
-    # V5.1: WAF detection
-    waf_patterns_xss = {
-        'Cloudflare': ['cloudflare', 'cf-ray'],
-        'Sucuri': ['sucuri', 'x-sucuri'],
-        'ModSecurity': ['mod_security', 'modsecurity'],
-        'Imperva': ['imperva', 'x-iinfo'],
-        'Wordfence': ['wordfence'],
-    }
-    detected_waf_xss = []
-    for waf_name, patterns in waf_patterns_xss.items():
-        for p in patterns:
-            if p.lower() in baseline_text.lower() or any(p.lower() in v for v in baseline_headers_lower.values()):
-                detected_waf_xss.append(waf_name)
-                break
-    if detected_waf_xss:
-        if verbose:
-            verbose_log.append(f"🛡️ <b>WAF Detectada:</b> {', '.join(detected_waf_xss)}")
     if verbose:
         verbose_log.append(f"📊 <b>Baseline:</b> Len: {baseline_len}")
 
@@ -1320,20 +1246,15 @@ def tool_xss_scanner(url, verbose=False):
             found += 1
             results.append(f"⚠️ <b>XSS Refletido!</b> Payload: <code>{escape_html(result[0][:40])}</code>")
 
-    # V5.1: WAF bypass suggestion
-    xss_waf_section = ""
-    if detected_waf_xss and found == 0:
-        xss_waf_section = f"\n🛡️ <b>WAF Detectada:</b> {', '.join(detected_waf_xss)}\n💡 Use /stealth xss <url> para scan mais discreto.\n"
-
     if found == 0:
         if verbose:
-            return "✅ Nenhuma vulnerabilidade XSS detectada\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(verbose_log) + xss_waf_section
-        return "✅ Nenhuma vulnerabilidade XSS detectada" + xss_waf_section
+            return "✅ Nenhuma vulnerabilidade XSS detectada\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(verbose_log)
+        return "✅ Nenhuma vulnerabilidade XSS detectada"
     else:
         header = f"🚨 <b>{found} vulnerabilidade(s) XSS encontrada(s)!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         if verbose:
-            return header + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n📋 <b>Log Detalhado:</b>\n" + "\n".join(verbose_log) + xss_waf_section
-        return header + "\n".join(results) + xss_waf_section
+            return header + "\n".join(results) + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n📋 <b>Log Detalhado:</b>\n" + "\n".join(verbose_log)
+        return header + "\n".join(results)
 
 def tool_admin_finder(url, progress_chat_id=None, progress_msg_id=None):
     """Admin Panel Finder v3.6 - 70+ paths, full URL, ANTI-FALSE-POSITIVE, deduped with dir scanner"""
@@ -1518,53 +1439,15 @@ def tool_port_scanner(target):
     results = f"🔍 <b>Scan de Portas</b> — {escape_html(hostname)} ({escape_html(target_ip)})\n━━━━━━━━━━━━━━━━━━━━━━\n"
     found = 0
 
-    def grab_banner(port, timeout=2):
-        """V5.1: Grab service banner for version detection"""
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(timeout)
-            sock.connect((target_ip, port))
-            # For HTTP/HTTPS, send a minimal request
-            if port in (80, 8080, 8000, 8443, 443, 9090, 9200, 3000, 4000, 5000):
-                sock.sendall(b"GET / HTTP/1.0\r\nHost: " + hostname.encode() + b"\r\n\r\n")
-            else:
-                # For other services, just wait for banner
-                pass
-            data = b""
-            try:
-                data = sock.recv(512)
-            except:
-                pass
-            sock.close()
-            if data:
-                banner = data.decode('utf-8', errors='replace').strip()
-                # Extract just the server header line
-                for line in banner.split('\n'):
-                    if line.lower().startswith('server:'):
-                        return line[7:].strip()
-                    if 'HTTP/' in line and 'Server' in banner:
-                        continue
-                # Return first line if it looks like a banner
-                first_line = banner.split('\n')[0].strip()
-                if first_line and len(first_line) < 100:
-                    return first_line
-            return ""
-        except:
-            return ""
-
     def scan_port(port):
         sock = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(1)
             result = sock.connect_ex((target_ip, port))
-            if result == 0:
-                # V5.1: Grab banner for version detection
-                banner = grab_banner(port)
-                return port, True, banner
-            return port, False, ""
+            return port, result == 0
         except:
-            return port, False, ""
+            return port, False
         finally:
             if sock:
                 try:
@@ -1575,11 +1458,10 @@ def tool_port_scanner(target):
     # PERF: Use shared SCAN_POOL
     futures = {SCAN_POOL.submit(scan_port, p): p for p in ports}
     for future in concurrent.futures.as_completed(futures):
-        port, is_open, banner = future.result()
+        port, is_open = future.result()
         if is_open:
             found += 1
-            banner_info = f" — <i>{escape_html(banner[:50])}</i>" if banner else ""
-            results += f"🔓 <b>Porta {port}</b> ({ports[port]}) — Aberta{banner_info}\n"
+            results += f"🔓 <b>Porta {port}</b> ({ports[port]}) — Aberta\n"
 
     if found == 0:
         results += "✅ Nenhuma porta aberta encontrada"
@@ -1606,7 +1488,7 @@ def tool_directory_scanner(url):
         'info.php', 'server-status',
         '.svn', '.hg', '.DS_Store', 'test',
         'debug', 'debug.log', 'php.ini',
-        # V5.1: Additional paths (expanded from 45 to 80+)
+        # Additional paths
         '.aws', '.ssh', 'vendor', 'node_modules',
         '.docker', 'docker-compose.yml',
         'Makefile', 'composer.json', 'package.json',
@@ -1615,24 +1497,6 @@ def tool_directory_scanner(url):
         'staging', 'dev', 'test-env',
         'old', 'archive', 'legacy',
         'db', 'database', 'sql',
-        # V5.1: More paths
-        '.env', '.htaccess', '.htpasswd', '.gitignore',
-        'wp-config.php', 'wp-content', 'wp-admin',
-        'phpmyadmin', 'phpmyadmin/', 'pma',
-        'mysql', 'pgadmin', 'adminer',
-        'webmail', 'mail', 'cpanel', 'whm',
-        'solr', 'elasticsearch', 'kibana',
-        'grafana', 'prometheus', 'swagger',
-        'graphql', 'rest', 'api/v1', 'api/v2',
-        '.npmrc', '.dockerignore', 'Dockerfile',
-        '.idea', '.vscode', '.project',
-        'wp-login.php', 'xmlrpc.php',
-        'server-info', 'server-status',
-        'cgi-bin', 'bin', 'shell',
-        'wp-json', 'rest-api',
-        'swagger.json', 'openapi.json',
-        '.well-known/caldav', '.well-known/carddav',
-        'phpinfo.php', 'phpinfo',
     ]
 
     base_url = url.rstrip('/')
@@ -1709,7 +1573,6 @@ def tool_subdomain_scanner(domain):
     """Subdomain Scanner v3.6 - 25 subs, filters same-IP, verifies HTTP response, ANTI-FALSE-POSITIVE"""
     # FIX v3.9: Extract clean hostname from URL if needed
     domain = extract_hostname(domain)
-    # V5.1: Expanded to 100+ subdomains + permutation scan
     subdomains = [
         'www', 'mail', 'ftp', 'webmail', 'smtp',
         'ns1', 'ns2', 'ns3', 'ns4', 'cpanel',
@@ -1719,32 +1582,6 @@ def tool_subdomain_scanner(domain):
         'login', 'forum', 'git', 'db', 'old',
         'new', 'v2', 'v3', 'docs', 'support',
         'remote', 'vpn', 'status',
-        # V5.1: More subdomains
-        'autodiscover', 'mx', 'pop', 'imap', 'dns',
-        'dns1', 'dns2', 'ns', 'host', 'gateway',
-        'router', 'firewall', 'proxy', 'loadbalancer',
-        'web', 'web2', 'web3', 'site', 'site2',
-        'cloud', 'cloud2', 'server', 'server2', 'server3',
-        'db', 'db2', 'mysql', 'postgres', 'mongodb',
-        'redis', 'elastic', 'kibana', 'grafana', 'prometheus',
-        'monitor', 'metrics', 'logs', 'log',
-        'backup', 'backups', 'mirror',
-        'internal', 'intranet', 'extranet',
-        'partners', 'resellers', 'clients',
-        'helpdesk', 'tickets', 'crm', 'erp',
-        'pay', 'payments', 'checkout', 'billing',
-        'sso', 'auth', 'oauth', 'idp', 'ldap',
-        'ci', 'cd', 'jenkins', 'gitlab', 'github',
-        'docker', 'k8s', 'kubernetes', 'rancher',
-        'monitoring', 'alerting', 'notify',
-        'push', 'webhook', 'hooks',
-        'chat', 'slack', 'discord', 'telegram',
-        'stream', 'video', 'live', 'rtmp',
-        'storage', 'files', 'media2', 'img', 'assets',
-        'analytics', 'tracking', 'stats',
-        'sandbox', 'lab', 'demo', 'preview',
-        'uat', 'qa', 'testing', 'perf',
-        'prod', 'production', 'live', 'release',
     ]
 
     results = []
@@ -1854,30 +1691,6 @@ def tool_wordpress_scanner(url):
             if len(plugins) > 5:
                 results += f"  → ... e mais {len(plugins)-5}\n"
 
-        # V5.1: Check known vulnerable plugins
-        vuln_plugins = {
-            'wp-file-manager': 'CVE-2020-11738',
-            'contact-form-7': 'Multiple CVEs (verify version)',
-            'elementor': 'CVE-2024-2558',
-            'woocommerce': 'Multiple CVEs (verify version)',
-            'wp-mail-smtp': 'CVE-2020-28851',
-            'ultimate-member': 'CVE-2021-24333',
-            'revslider': 'CVE-2015-4478',
-            'timthumb': 'CVE-2014-4676',
-            'gravityforms': 'CVE-2023-26326',
-            'duplicator': 'CVE-2020-11529',
-            'wp-cerber': 'Multiple CVEs (verify version)',
-            'wordfence': 'Multiple CVEs (verify version)',
-            'all-in-one-wp-security': 'CVE-2023-28121',
-            'classic-editor': 'Known safe',
-            'yoast-seo': 'Multiple CVEs (verify version)',
-            'wpforms': 'CVE-2023-25144',
-        }
-        found_vuln_plugins = []
-        for vp_name, vp_cve in vuln_plugins.items():
-            if vp_name in plugins:
-                found_vuln_plugins.append((vp_name, vp_cve))
-
         # Vuln checks - PARALLEL
         results += "\n🔒 <b>Verificação de Segurança:</b>\n"
         vuln_paths = [
@@ -1887,11 +1700,6 @@ def tool_wordpress_scanner(url):
             '/wp-config.php.bak',
             '/.wp-config.php.swp',
             '/readme.html',
-            '/wp-includes/wlwmanifest.xml',
-            '/wp-json/wp/v2/users',
-            '/wp-login.php?action=register',
-            '/wp-content/uploads/',
-            '/wp-cron.php',
         ]
 
         def check_vuln_path(path):
@@ -1948,13 +1756,6 @@ def tool_wordpress_scanner(url):
 
         if not vuln_results:
             results += "✅ Nenhum arquivo vulnerável exposto\n"
-
-        # V5.1: Show vulnerable plugins
-        if found_vuln_plugins:
-            results += f"\n⚠️ <b>Plugins com CVEs conhecidos ({len(found_vuln_plugins)}):</b>\n"
-            for vp_name, vp_cve in found_vuln_plugins:
-                results += f"  → {escape_html(vp_name)} ({vp_cve})\n"
-            results += "💡 Atualize os plugins para a versão mais recente!\n"
 
     except Exception as e:
         results = f"❌ Erro: {escape_html(str(e))}"
@@ -2171,64 +1972,6 @@ def tool_dns_tools(domain):
         except:
             pass
 
-    # V5.1: DNSSEC check
-    dnssec_found = False
-    try:
-        if has_dig:
-            dnssec_result = subprocess.run(['dig', '+dnssec', '+short', 'DS', domain], capture_output=True, text=True, timeout=5)
-            if dnssec_result.stdout.strip():
-                results += f"\n🔐 <b>DNSSEC:</b> Ativado ✅\n"
-                dnssec_found = True
-            else:
-                # Also try A record with DNSSEC
-                dnssec_a = subprocess.run(['dig', '+dnssec', 'A', domain, '+short'], capture_output=True, text=True, timeout=5)
-                if 'AD' in dnssec_a.stdout or dnssec_a.stdout.strip():
-                    results += f"\n🔐 <b>DNSSEC:</b> Ativado ✅\n"
-                    dnssec_found = True
-        if not dnssec_found:
-            results += f"\n🔐 <b>DNSSEC:</b> Não detectado (ou não suportado)\n"
-    except:
-        results += f"\n🔐 <b>DNSSEC:</b> Não foi possível verificar\n"
-
-    # V5.1: DMARC check
-    try:
-        dmarc_data = dns_query_via_doh('TXT')
-        dmarc_found = False
-        for d in dmarc_data:
-            if d.lower().startswith('v=dmarc1'):
-                results += f"\n📧 <b>DMARC:</b> Ativado ✅\n  → {escape_html(d.strip()[:80])}\n"
-                dmarc_found = True
-                break
-        if not dmarc_found:
-            results += f"\n📧 <b>DMARC:</b> Não configurado ❌ (recomendado para segurança de email)\n"
-    except:
-        pass
-
-    # V5.1: DKIM check (check _domainkey subdomain)
-    try:
-        dkim_data = dns_query_via_doh('TXT')
-        dkim_found = False
-        for d in dkim_data:
-            if 'dkim' in d.lower() or d.lower().startswith('v=dkim1'):
-                results += f"\n📧 <b>DKIM:</b> Detectado ✅\n"
-                dkim_found = True
-                break
-        # Also check common DKIM selectors
-        for selector in ['default', 'google', 'selector1', 'selector2', 'mail', 'default._domainkey']:
-            dkim_sel_data = dns_query_via_doh(f'TXT')  # placeholder, real check would need full name
-        if not dkim_found:
-            results += f"\n📧 <b>DKIM:</b> Não detectado via TXT público\n"
-    except:
-        pass
-
-    # V5.1: Reverse PTR lookup (for the main IP)
-    if ip:
-        try:
-            reverse_ip = socket.gethostbyaddr(ip)
-            results += f"\n🔄 <b>Reverse PTR:</b> {escape_html(reverse_ip[0])}\n"
-        except:
-            results += f"\n🔄 <b>Reverse PTR:</b> Não encontrado para {escape_html(ip)}\n"
-
     results += "\n━━━━━━━━━━━━━━━━━━━━━━"
     return results
 
@@ -2244,44 +1987,25 @@ def tool_cms_detector(url):
 
         cms_signatures = {
             'WordPress': ['/wp-content/', '/wp-includes/', 'wp-login.php', 'WordPress'],
-            'Joomla': ['/administrator/', '/components/', '/modules/', 'Joomla!', 'joomla'],
-            'Drupal': ['/sites/default/', '/sites/all/', 'Drupal.settings', 'drupal'],
-            'Magento': ['/skin/frontend/', 'Mage.Cookies', 'Magento', 'mage/'],
+            'Joomla': ['/administrator/', '/components/', '/modules/', 'Joomla!'],
+            'Drupal': ['/sites/default/', '/sites/all/', 'Drupal.settings'],
+            'Magento': ['/skin/frontend/', 'Mage.Cookies', 'Magento'],
             'PrestaShop': ['/prestashop/', '/modules/prestashop/', 'PrestaShop'],
             'Wix': ['wix.com', 'wixstatic.com'],
-            'Shopify': ['cdn.shopify.com', 'myshopify', 'shopify'],
-            'Ghost': ['ghost.io', 'ghost.content', 'ghost/'],
+            'Shopify': ['cdn.shopify.com', 'myshopify'],
+            'Ghost': ['ghost.io', 'ghost.content'],
             'OpenCart': ['opencart.com', 'catalog/view/theme'],
             'osCommerce': ['osCommerce', 'osc_id'],
-            'Laravel': ['laravel_session', '__laravel_', 'X-CSRF-TOKEN', 'laravel'],
-            'Django': ['django', 'csrftoken', 'x-django-csrf'],
+            'Laravel': ['laravel_session', '__laravel_', 'X-CSRF-TOKEN'],
+            'Django': ['django', 'csrftoken'],
             'Next.js': ['__NEXT_DATA__', '_next/'],
-            'WooCommerce': ['woocommerce', 'wc-api', 'wc-'],
+            'WooCommerce': ['woocommerce', 'wc-api'],
             'Flask': ['flask', '__flask', 'flask_session'],
             'FastAPI': ['fastapi', '__fastapi', 'openapi.json'],
             'Express.js': ['x-powered-by: express', 'express-session'],
             'Ruby on Rails': ['rails', 'actionpack', 'activesupport', 'csrf-token', 'rails_ujs'],
             'Squarespace': ['squarespace.com', 'sqspcdn.com', 'Squarespace'],
             'Weebly': ['weebly.com', 'weeblysite.com'],
-            # V5.1: More CMS detections
-            'Contentful': ['contentful.com', 'contentful'],
-            'Strapi': ['strapi', 'strapi/'],
-            'Sanity': ['sanity.io', 'cdn.sanity'],
-            'Gatsby': ['___loader', 'gatsby/'],
-            'Hugo': ['hugo/'],
-            'Jekyll': ['jekyll/'],
-            'Hexo': ['hexo/', 'hexo/'],
-            'Vue.js': ['__vue__', 'vue_devtools_', 'data-v-'],
-            'React': ['__REACT_DEVTOOLS_GLOBAL_HOOK__', 'reactRootContainer'],
-            'Angular': ['ng-controller', 'ng-app', 'angularjs'],
-            'Symfony': ['symfony', '_wdt', '_profiler'],
-            'Spring Boot': ['x-application-context', 'spring-boot'],
-            'ASP.NET': ['asp.net', 'aspx', '__viewstate'],
-            'TYPO3': ['typo3/', 'typo3conf/'],
-            'Concrete5': ['concrete5', 'c5/'],
-            'Blogger': ['blogger.com', 'blogspot'],
-            'Tumblr': ['tumblr.com', 'tumblr_'],
-            'Medium': ['medium.com', 'medium.com/'],
         }
 
         # PHASE 1: Check URL path signatures FIRST (most reliable)
@@ -2548,7 +2272,7 @@ def tool_ssl_audit(url):
     elif tls_version and 'TLSv1.3' in tls_version:
         results += "\n✅ <b>Vulnerabilidades:</b> Nenhuma conhecida (TLS 1.3 imune)\n"
 
-    # Cipher suite
+    # Cipher suite (simplified)
     try:
         import ssl
         ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -2559,60 +2283,9 @@ def tool_ssl_audit(url):
         cipher = tls2.cipher()
         if cipher:
             results += f"\n🔐 <b>Cipher:</b> {escape_html(cipher[0])}\n"
-        # V5.1: Certificate chain info
-        cert = tls2.getpeercert(binary_form=False)
-        if cert:
-            subject = dict(x[0] for x in cert.get('subject', []))
-            issuer = dict(x[0] for x in cert.get('issuer', []))
-            cn = subject.get('commonName', 'N/D')
-            issuer_org = issuer.get('organizationName', 'N/D')
-            not_after = cert.get('notAfter', '')
-            results += f"\n📜 <b>Certificado:</b> CN={escape_html(cn)}\n"
-            results += f"  → Emissor: {escape_html(issuer_org)}\n"
-            if not_after:
-                try:
-                    from datetime import datetime as dt
-                    exp_date = dt.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                    days_left = (exp_date - dt.utcnow()).days
-                    if days_left > 30:
-                        results += f"  → Expira em: {exp_date.strftime('%Y-%m-%d')} ({days_left} dias) ✅\n"
-                    elif days_left > 0:
-                        results += f"  → Expira em: {exp_date.strftime('%Y-%m-%d')} ({days_left} dias) ⚠️\n"
-                    else:
-                        results += f"  → EXPIRADO! ({abs(days_left)} dias atrás) ❌\n"
-                except:
-                    results += f"  → Expira em: {escape_html(not_after)}\n"
-            # V5.1: SAN (Subject Alternative Names)
-            san = cert.get('subjectAltName', [])
-            if san:
-                sans = [v for _, v in san if _ == 'DNS']
-                if len(sans) > 1:
-                    results += f"  → SANs: {len(sans)} domínios\n"
         tls2.close()
-    except ssl.SSLError:
-        pass
     except:
         pass
-
-    # V5.1: OCSP Stapling check
-    try:
-        import ssl
-        ctx3 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ctx3.verify_mode = ssl.CERT_NONE
-        sock3 = socket.create_connection((host, port), timeout=5)
-        sock3.settimeout(5)
-        tls3 = ctx3.wrap_socket(sock3, server_hostname=host)
-        # Check for OCSP stapling via TLS status_request extension
-        has_stapling = False
-        # Use the tls context to check
-        sock3.close()
-        # Simplified check: most modern TLS 1.3 servers support OCSP
-        if tls_version and 'TLSv1.3' in tls_version:
-            results += "\n📋 <b>OCSP Stapling:</b> Provável (TLS 1.3) ✅\n"
-        else:
-            results += "\n📋 <b>OCSP Stapling:</b> Verifique com sslscan para confirmar\n"
-    except:
-        results += "\n📋 <b>OCSP Stapling:</b> Não foi possível verificar\n"
 
     results += "\n━━━━━━━━━━━━━━━━━━━━━━"
     return results
@@ -2671,37 +2344,8 @@ def tool_headers_analysis(url):
         else:
             grade = "🇫 F"
 
-        # V5.1: Grade with color
-        if score >= 90:
-            grade = "🟢 <b>A</b> (Excelente)"
-        elif score >= 80:
-            grade = "🟢 <b>B</b> (Bom)"
-        elif score >= 70:
-            grade = "🟡 <b>C</b> (Razoável)"
-        elif score >= 60:
-            grade = "🟡 <b>D</b> (Ruim)"
-        elif score >= 40:
-            grade = "🟠 <b>E</b> (Muito Ruim)"
-        else:
-            grade = "🔴 <b>F</b> (Crítico)"
-
         results += f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
         results += f"📊 <b>Nota de Segurança:</b> {score}/100 — {grade}\n"
-
-        # V5.1: Suggestions for missing headers
-        if missing:
-            results += f"\n💡 <b>Sugestões de melhoria:</b>\n"
-            suggestion_map = {
-                'Content-Security-Policy': 'Adicione CSP para prevenir XSS e injeção de dados',
-                'Strict-Transport-Security': 'Force HTTPS com HSTS (max-age=31536000)',
-                'X-Frame-Options': 'Adicione X-Frame-Options: DENY ou SAMEORIGIN',
-                'X-Content-Type-Options': 'Adicione X-Content-Type-Options: nosniff',
-                'Referrer-Policy': 'Adicione Referrer-Policy: strict-origin-when-cross-origin',
-                'Permissions-Policy': 'Controle permissões de API do navegador',
-            }
-            for m in missing:
-                suggestion = suggestion_map.get(m, 'Configure este header para melhor segurança')
-                results += f"  → <b>{escape_html(m)}:</b> {suggestion}\n"
 
     except Exception as e:
         results += f"❌ Erro: {escape_html(str(e))}"
@@ -2980,19 +2624,16 @@ def tool_exposed_files(url):
 
     sensitive_files = [
         '/.env', '/.env.local', '/.env.production', '/.env.staging',
-        '/.env.example', '/.env.test', '/.env.development',
         '/.git/config', '/.git/HEAD', '/.git/refs/heads/master',
-        '/.git/logs/HEAD', '/.git/index', '/.git/objects/',
+        '/.git/logs/HEAD', '/.git/index',
         '/.htpasswd', '/.htaccess', '/.htaccess.bak',
         '/wp-config.php', '/wp-config.php.bak', '/wp-config.php.old',
-        '/wp-config.php.save', '/wp-config.php~',
         '/config.php', '/config.inc.php', '/settings.php',
         '/database.yml', '/config/database.yml', '/config/database.php',
         '/phpinfo.php', '/info.php', '/test.php',
         '/.svn/entries', '/.svn/prop-base', '/.svn/text-base',
         '/.DS_Store', '/thumbs.db',
         '/composer.json', '/composer.lock', '/package.json',
-        '/package-lock.json', '/yarn.lock',
         '/Dockerfile', '/docker-compose.yml', '/docker-compose.yaml',
         '/server.js', '/app.js', '/index.js',
         '/web.config', '/web.config.bak',
@@ -3000,23 +2641,6 @@ def tool_exposed_files(url):
         '/phpmyadmin/', '/phpMyAdmin/', '/pma/',
         '/admin/', '/administrator/', '/manager/',
         '/.well-known/security.txt', '/security.txt',
-        # V5.1: More sensitive files
-        '/.npmrc', '/.dockerignore', '/.docker/daemon.json',
-        '/.aws/credentials', '/.aws/config',
-        '/.ssh/id_rsa', '/.ssh/id_dsa', '/.ssh/authorized_keys',
-        '/.bash_history', '/.history',
-        '/debug.log', '/error.log', '/access.log',
-        '/laravel.log', '/storage/logs/laravel.log',
-        '/app.log', '/var/log/error.log',
-        '/php.ini', '/php.ini.bak', '/php.ini~',
-        '/myadmin/', '/myadmin', '/dbadmin/',
-        '/mysql/', '/mysqladmin/',
-        '/.well-known/security.txt', '/security.txt',
-        '/swagger.json', '/openapi.json', '/api-docs',
-        '/.idea/workspace.xml', '/.vscode/settings.json',
-        '/.project', '/.classpath',
-        '/Gemfile.lock', '/requirements.txt', '/Pipfile',
-        '/terraform.tfstate', '/.terraform.tfstate.backup',
     ]
 
     found = 0
@@ -3160,7 +2784,6 @@ def tool_api_discovery(url):
 
     api_paths = [
         '/api', '/api/', '/api/v1', '/api/v1/', '/api/v2', '/api/v2/', '/api/v3',
-        '/api/v4', '/api/v5',
         '/graphql', '/graphql/', '/api/graphql',
         '/swagger', '/swagger/', '/swagger-ui', '/swagger-ui/', '/swagger.json',
         '/api-docs', '/api-docs/', '/api/docs', '/docs', '/docs/',
@@ -3171,26 +2794,9 @@ def tool_api_discovery(url):
         '/graphql/playground', '/graphiql',
         '/api/v1/users', '/api/v1/auth', '/api/v1/health',
         '/actuator', '/actuator/health', '/actuator/info',
-        '/actuator/env', '/actuator/beans', '/actuator/mappings',
         '/.well-known/openid-configuration',
         '/api/robots.txt', '/robots.txt',
         '/wp-json', '/wp-json/', '/wp-json/wp/v2/users',
-        # V5.1: More API endpoints
-        '/api/me', '/api/profile', '/api/account',
-        '/api/settings', '/api/config', '/api/admin',
-        '/api/search', '/api/query',
-        '/api/upload', '/api/files',
-        '/api/notifications', '/api/messages',
-        '/api/orders', '/api/products', '/api/cart',
-        '/api/webhook', '/api/hooks',
-        '/api/internal', '/api/debug',
-        '/api/monitoring', '/api/metrics',
-        '/.well-known/jwks.json',
-        '/favicon.ico', '/manifest.json',
-        '/sitemap.xml', '/sitemap.xml.gz',
-        '/crossdomain.xml', '/clientaccesspolicy.xml',
-        '/api/oauth', '/api/token', '/oauth/authorize',
-        '/api/payment', '/api/checkout', '/api/billing',
     ]
 
     found = 0
@@ -3380,40 +2986,40 @@ Olá {escape_html(first_name)}! Bem-vindo ao bot de segurança!
 
 <b>👑 Créditos:</b> @OnlyExaltarei, @Thebesty9, @PETER_DNS
 
-Este bot possui <b>46 ferramentas avançadas</b> para testes de segurança.
+Este bot possui <b>36 ferramentas avançadas</b> para testes de segurança.
 Digite <b>/help</b> para ver a lista completa de comandos.
 
-<i>Mth Ddos Security v5.1</i>"""
+<i>Mth Ddos Security v5.0</i>"""
 
     send_message_safe(chat_id, msg)
 
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
 
-    msg = """🔧 <b>Mth Ddos Security v5.1 — Comandos</b>
+    msg = """🔧 <b>Mth Ddos Security v5.0 — Comandos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📡 Info & Recon:</b>
-/info &lt;url&gt; — Informações completas do site
-/dns &lt;domain&gt; — Análise DNS: A, MX, NS, TXT, DKIM, DNSSEC, PTR
-/cms &lt;url&gt; — Detecta CMS (30+ CMS)
-/reverse &lt;ip&gt; — Hostname de um IP + GeoIP
+/info &lt;url&gt; — Informações completas do site (IP, headers, tecnologia, CMS)
+/dns &lt;domain&gt; — Análise DNS: A Record, MX, NS, TXT, Reverse DNS
+/cms &lt;url&gt; — Detecta CMS (WordPress, Joomla, Drupal, Shopify, Wix, 16+)
+/reverse &lt;ip&gt; — Hostname de um IP + localização GeoIP
 /emails &lt;url&gt; — Extrai emails da página
 
 <b>⚡ Scanners de Vulnerabilidade:</b>
-/sqli &lt;url&gt; [verbose] — SQL Injection (30+ payloads, WAF detection)
-/xss &lt;url&gt; [verbose] — XSS Refletido (18+ payloads, WAF detection)
+/sqli &lt;url&gt; [verbose] — SQL Injection com 30 payloads
+/xss &lt;url&gt; [verbose] — XSS Refletido com 18 payloads
 /admin &lt;url&gt; — Painéis admin (~25 paths)
 /panel &lt;url&gt; — Admin Finder COMPLETO (100+ paths)
-/ports &lt;ip&gt; — 50+ portas com banner grabbing
-/dirs &lt;url&gt; — Diretórios expostos (80+ paths)
-/sub &lt;domain&gt; — Subdomínios (100+ subs + permutações)
-/wp &lt;url&gt; — WordPress Scanner + CVE check
+/ports &lt;ip&gt; — 35 portas comuns
+/dirs &lt;url&gt; — Diretórios expostos (45 paths)
+/sub &lt;domain&gt; — Subdomínios (38 conhecidos)
+/wp &lt;url&gt; — WordPress Scanner completo
 /ftpssh &lt;ip&gt; — FTP/SSH banner
 
 <b>🛡️ Scanners V5.0:</b>
-/ssl &lt;url&gt; — Auditoria SSL/TLS + OCSP + chain
-/headers &lt;url&gt; — Security Headers + suggestions
+/ssl &lt;url&gt; — Auditoria SSL/TLS (versão, ciphers, vulnerabilidades)
+/headers &lt;url&gt; — Security Headers (CSP, HSTS, X-Frame, etc.)
 /cors &lt;url&gt; — CORS misconfiguration
 /robots &lt;url&gt; — Robots.txt + diretórios escondidos
 /sitemap &lt;url&gt; — Sitemap.xml + URLs expostas
@@ -3423,17 +3029,6 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /api &lt;url&gt; — Endpoints de API (/api/v1, /graphql, etc.)
 /shell &lt;url&gt; — Webshells (c99, r57, c100, etc.)
 /config &lt;url&gt; — Configs expostas (config.php, settings.json)
-
-<b>⚡ Comandos Rápidos V5.1:</b>
-/quick &lt;url&gt; — Scan rápido (info + headers)
-/scanall &lt;url&gt; — Scan completo (6 ferramentas)
-/deep &lt;url&gt; — Deep scan vulns (6 scanners)
-/http &lt;url&gt; — Análise HTTP response completa
-/sslchain &lt;url&gt; — Cadeia de certificados SSL
-/batch &lt;cmd&gt; &lt;urls...&gt; — Scan múltiplos targets
-/watch &lt;url&gt; [min] — Monitorar mudanças de conteúdo
-/cancel — Cancelar scan ativo
-/report &lt;url&gt; — Relatório completo em TXT
 
 <b>🔍 Ferramentas Extras:</b>
 /traceroute &lt;ip&gt; — Rastreamento de rota
@@ -3445,14 +3040,14 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /pdf &lt;comando&gt; &lt;url&gt; — Exportar relatório TXT
 /schedule &lt;min&gt; &lt;comando&gt; &lt;url&gt; — Agendar scan
 /stealth &lt;comando&gt; &lt;url&gt; — Scan lento (anti-detect)
-/notify &lt;url&gt; — Notificar quando mudar status
+/notify &lt;url&gt; — Notificar quando mudar
 
 <b>📋 Sistema:</b>
 /ping — Latência do bot
 /status — Health check
 /about — Sobre o bot
 /feedback &lt;msg&gt; — Enviar sugestão
-/bugreport &lt;msg&gt; — Reportar bug
+/report &lt;msg&gt; — Reportar bug
 /rescan &lt;comando&gt; &lt;url&gt; — Refazer scan
 /stop [id] — Parar scan
 
@@ -3479,14 +3074,14 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /top — Top sites escaneados
 
 ━━━━━━━━━━━━━━━━━━━━━━
-<i>Mth Ddos Security v5.1</i>
+<i>Mth Ddos Security v5.0</i>
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
 
     send_message_safe(chat_id, msg)
 
 def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
-    msg = """🛡️ <b>Mth Ddos Security v5.1</b>
+    msg = """🛡️ <b>Mth Ddos Security</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>Desenvolvedores:</b>
@@ -3494,45 +3089,51 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 @Thebesty9
 @PETER_DNS
 
-<b>Versão:</b> 5.1
+<b>Versão:</b> 5.0
 <b>Plataforma:</b> Telegram Bot (Python)
-<b>Ferramentas:</b> 46 ferramentas avançadas com anti-false-positive
-<b>Banco:</b> SQLite com índices, otimizações e cache inteligente
+<b>Ferramentas:</b> 36 ferramentas avançadas com anti-false-positive
+<b>Banco:</b> SQLite com índices e otimizações
 <b>Segurança:</b> Sistema de donos + VIP + rate limit custom
 
-<b>Novidades V5.1:</b>
-• /quick — Scan rápido em 1 segundo
-• /scanall — Scan completo (6 scanners)
-• /deep — Deep scan de vulnerabilidades
-• /http — Análise HTTP response detalhada
-• /sslchain — Cadeia de certificados SSL
-• /batch — Scan múltiplos targets
-• /watch — Monitorar mudanças de conteúdo
-• /cancel — Cancelar scan ativo
-• /report — Relatório completo em TXT
-• WAF Detection no SQLi e XSS
-• Banner grabbing no port scanner
-• 100+ subdomínios + permutações
-• DNSSEC, DKIM, DMARC, Reverse PTR
-• Cache inteligente (10 min TTL)
-• Inline buttons para rescan
-• 30+ CMS detection
-
 <b>Recursos V5.0:</b>
-• 30+ payloads SQLi com WAF detection
-• 18+ payloads XSS com WAF detection
+• 30 payloads SQLi com baseline comparison
+• 18 payloads XSS com verificação de escape
 • 100+ paths para Painel Admin Finder
-• 50+ portas com banner grabbing
-• 80+ diretórios expostos
-• Filtros anti-false-positive
-• Connection pooling + thread pool
-• 11 scanners V5.0 (SSL, Headers, CORS, etc.)
+• Filtros anti-false-positive em todos os scanners
+• Rate limiting e retry automático
+• Connection pooling (HTTP session)
+• Shared thread pool
+• Broadcast /msg para donos
+• Painel admin do bot (/botpanel)
+• Sistema de ban/desban
+• Exportação de usuários
 • DNS-over-HTTPS
+
+<b>Novos Recursos V5.0:</b>
+• SSL/TLS Audit completo
+• Security Headers analysis
+• CORS misconfiguration test
+• robots.txt + sitemap analysis
+• Tech stack detection
+• Exposed files scanner
+• Backup finder
+• API discovery
+• Webshell hunter
+• Config scanner
 • Traceroute + Whois + GeoIP
 • Security rating (0-100)
-• Scheduled scans + Stealth mode
-• Maintenance mode + VIP system
-• Audit logs + Queue system
+• Site comparison
+• Scan history
+• PDF report export
+• Scheduled scans
+• Stealth mode (anti-detect)
+• Notify on change
+• Maintenance mode
+• VIP system
+• Custom rate limits
+• Audit logs
+• Scheduled broadcasts
+• Queue system
 
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
     send_message_safe(chat_id, msg)
@@ -4803,28 +4404,10 @@ def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
         db_cache_set("shell", target, result)
         send_message_safe(chat_id, result)
     elif scan_cmd == '/config':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Config</b> em {escape_html(target)}...")
+        send_message_safe(chat_id, f"🔍 <b>Rescan Config</b> de {escape_html(target)}...")
         result = tool_config_scanner(target)
         db_cache_set("config", target, result)
         send_message_safe(chat_id, result)
-    elif scan_cmd == '/scanall':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Completo</b> em {escape_html(target)}...")
-        handle_scanall(chat_id, user_id, username, first_name, last_name, [target])
-    elif scan_cmd == '/deep':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Deep</b> em {escape_html(target)}...")
-        handle_deep(chat_id, user_id, username, first_name, last_name, [target])
-    elif scan_cmd == '/quick':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Quick</b> em {escape_html(target)}...")
-        handle_quick(chat_id, user_id, username, first_name, last_name, [target])
-    elif scan_cmd == '/http':
-        send_message_safe(chat_id, f"🔍 <b>Rescan HTTP</b> em {escape_html(target)}...")
-        handle_http(chat_id, user_id, username, first_name, last_name, [target])
-    elif scan_cmd == '/sslchain':
-        send_message_safe(chat_id, f"🔍 <b>Rescan SSL Chain</b> em {escape_html(target)}...")
-        handle_sslchain(chat_id, user_id, username, first_name, last_name, [target])
-    elif scan_cmd == '/report':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Report</b> em {escape_html(target)}...")
-        handle_report_url(chat_id, user_id, username, first_name, last_name, [target])
     else:
         send_message_safe(chat_id, f"❌ Comando /{args[0]} não suportado para rescan.")
 
@@ -5540,423 +5123,6 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
         send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 
-# ═══════════════════════════════════════════════════════════════
-#  V5.1: NEW COMMAND HANDLERS
-# ═══════════════════════════════════════════════════════════════
-
-def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Scan All — runs info + ports + dns + ssl + headers + exposed on a URL"""
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /scanall &lt;url&gt;\nExemplo: /scanall google.com")
-        return
-    target = args[0]
-    log_command(user_id, username, "scanall", target)
-    clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos.")
-
-    results = []
-    # Info
-    results.append(f"📋 <b>1/6 — Info:</b>")
-    r = tool_website_info(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
-
-    # DNS
-    results.append(f"\n📋 <b>2/6 — DNS:</b>")
-    r = tool_dns_tools(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
-
-    # Ports
-    results.append(f"\n📋 <b>3/6 — Portas:</b>")
-    r = tool_port_scanner(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
-
-    # SSL
-    results.append(f"\n📋 <b>4/6 — SSL/TLS:</b>")
-    r = tool_ssl_audit(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
-
-    # Headers
-    results.append(f"\n📋 <b>5/6 — Security Headers:</b>")
-    r = tool_headers_analysis(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
-
-    # Exposed files
-    results.append(f"\n📋 <b>6/6 — Arquivos Expostos:</b>")
-    r = tool_exposed_files(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
-
-    send_message_safe(chat_id, f"✅ <b>Scan Completo finalizado</b> em {escape_html(clean_target)}")
-
-def handle_deep(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Deep Scan — sqli + xss + admin + exposed + shell + config"""
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /deep &lt;url&gt;\nExemplo: /deep site.com/?id=1")
-        return
-    target = args[0]
-    log_command(user_id, username, "deep", target)
-    clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar.")
-
-    # SQLi
-    send_message_safe(chat_id, "📋 <b>1/6 — SQL Injection:</b>")
-    r = tool_sqli(target)
-    send_message_safe(chat_id, r)
-
-    # XSS
-    send_message_safe(chat_id, "📋 <b>2/6 — XSS:</b>")
-    r = tool_xss_scanner(target)
-    send_message_safe(chat_id, r)
-
-    # Admin
-    send_message_safe(chat_id, "📋 <b>3/6 — Admin Panels:</b>")
-    r = tool_admin_finder(target)
-    send_message_safe(chat_id, r)
-
-    # Exposed
-    send_message_safe(chat_id, "📋 <b>4/6 — Arquivos Expostos:</b>")
-    r = tool_exposed_files(target)
-    send_message_safe(chat_id, r)
-
-    # Webshells
-    send_message_safe(chat_id, "📋 <b>5/6 — Webshells:</b>")
-    r = tool_webshell_hunter(target)
-    send_message_safe(chat_id, r)
-
-    # Config
-    send_message_safe(chat_id, "📋 <b>6/6 — Config Files:</b>")
-    r = tool_config_scanner(target)
-    send_message_safe(chat_id, r)
-
-    send_message_safe(chat_id, f"✅ <b>Deep Scan finalizado</b> em {escape_html(clean_target)}")
-
-def handle_quick(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Quick Scan — info + headers + rate in one shot"""
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /quick &lt;url&gt;\nExemplo: /quick google.com")
-        return
-    target = args[0]
-    log_command(user_id, username, "quick", target)
-    clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"⚡ <b>Quick Scan</b> em {escape_html(clean_target)}...")
-
-    # Info
-    r = tool_website_info(target)
-    send_message_safe(chat_id, r)
-
-    # Headers
-    r = tool_headers_analysis(target)
-    send_message_safe(chat_id, r)
-
-    send_message_safe(chat_id, f"✅ <b>Quick Scan finalizado</b> em {escape_html(clean_target)}")
-
-def handle_cancel(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Cancel any running scan for the user"""
-    log_user(user_id, username, first_name, last_name)
-    if user_id in STOP_EVENTS:
-        STOP_EVENTS[user_id].set()
-        send_message_safe(chat_id, "🛑 <b>Scan cancelado!</b> Processos interrompidos.")
-    else:
-        send_message_safe(chat_id, "ℹ️ <b>Nenhum scan em andamento.</b>")
-
-def handle_batch(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Batch scan multiple URLs with the same command
-    Usage: /batch sqli url1 url2 url3
-    """
-    log_user(user_id, username, first_name, last_name)
-    if len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /batch &lt;comando&gt; &lt;url1&gt; &lt;url2&gt; ...\nExemplo: /batch sqli site1.com site2.com site3.com")
-        return
-    scan_cmd = args[0]
-    targets = args[1:]
-    log_command(user_id, username, "batch", f"{scan_cmd} x{len(targets)} targets")
-    send_message_safe(chat_id, f"🔍 <b>Batch Scan</b> — {len(targets)} targets com /{scan_cmd}...")
-
-    tool_map = {
-        'info': tool_website_info, 'sqli': tool_sqli, 'xss': tool_xss_scanner,
-        'admin': tool_admin_finder, 'ports': tool_port_scanner,
-        'dirs': tool_directory_scanner, 'sub': tool_subdomain_scanner,
-        'wp': tool_wordpress_scanner, 'dns': tool_dns_tools,
-        'cms': tool_cms_detector, 'ssl': tool_ssl_audit,
-        'headers': tool_headers_analysis, 'exposed': tool_exposed_files,
-        'backup': tool_backup_finder, 'api': tool_api_discovery,
-        'shell': tool_webshell_hunter, 'config': tool_config_scanner,
-        'reverse': tool_reverse_ip, 'ftpssh': tool_ftp_ssh,
-        'emails': tool_email_scraper, 'robots': tool_robots_txt,
-        'sitemap': tool_sitemap, 'tech': tool_tech_detect,
-        'cors': tool_cors_test,
-    }
-    tool_fn = tool_map.get(scan_cmd)
-    if not tool_fn:
-        send_message_safe(chat_id, f"❌ Comando /{scan_cmd} não suportado em batch.")
-        return
-
-    for i, t in enumerate(targets, 1):
-        if user_id in STOP_EVENTS:
-            break
-        ct = extract_hostname(t)
-        send_message_safe(chat_id, f"\n━━━━━━━━━━━━━━━━━━━━━━\n📋 <b>[{i}/{len(targets)}] {escape_html(ct)}</b>")
-        try:
-            r = tool_fn(t)
-            # Truncate long results for batch
-            if len(r) > 3000:
-                r = r[:3000] + "\n... <i>(truncado)</i>"
-            send_message_safe(chat_id, r)
-        except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e)[:100])}")
-
-    send_message_safe(chat_id, f"\n✅ <b>Batch Scan finalizado!</b> {len(targets)} targets processados.")
-
-def handle_http(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: HTTP Response Analysis — status, timing, redirects, tech headers"""
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /http &lt;url&gt;\nExemplo: /http google.com")
-        return
-    target = args[0]
-    log_command(user_id, username, "http", target)
-    clean_target = extract_hostname(target)
-    url = clean_target
-    if not url.startswith(('http://', 'https://')):
-        url = 'http://' + url
-    send_message_safe(chat_id, f"🔍 <b>Análise HTTP</b> em {escape_html(clean_target)}...")
-
-    results = f"🌐 <b>Análise HTTP</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
-    try:
-        import time as t_module
-        start = t_module.time()
-        resp = _safe_get(url, timeout=10, allow_redirects=True)
-        elapsed = (t_module.time() - start) * 1000
-        if not resp:
-            results += "❌ Não foi possível acessar o site\n"
-        else:
-            # Status
-            status_emoji = "🟢" if resp.status_code < 300 else "🟡" if resp.status_code < 400 else "🔴"
-            results += f"{status_emoji} <b>Status:</b> {resp.status_code}\n"
-            # Timing
-            results += f"⏱️ <b>Tempo:</b> {elapsed:.0f}ms\n"
-            # Content type
-            ct = resp.headers.get('Content-Type', 'N/D')
-            results += f"📄 <b>Content-Type:</b> {escape_html(ct[:80])}\n"
-            # Server
-            server = resp.headers.get('Server', 'N/D')
-            results += f"🖥️ <b>Server:</b> {escape_html(server)}\n"
-            # Encoding
-            enc = resp.headers.get('Content-Encoding', 'N/D')
-            results += f"📦 <b>Encoding:</b> {escape_html(enc)}\n"
-            # Size
-            size_kb = len(resp.content) / 1024
-            results += f"📊 <b>Tamanho:</b> {size_kb:.1f} KB ({len(resp.content)} bytes)\n"
-            # Redirect chain
-            if resp.history:
-                results += f"\n🔗 <b>Redirects ({len(resp.history)}):</b>\n"
-                for i, h in enumerate(resp.history):
-                    results += f"  → {h.status_code} {escape_html(h.url[:100])}\n"
-            else:
-                results += f"\n🔗 <b>Redirects:</b> Nenhum\n"
-            # Key security headers
-            results += f"\n🔒 <b>Security Headers:</b>\n"
-            sec_headers = {
-                'HSTS': 'Strict-Transport-Security',
-                'X-Frame': 'X-Frame-Options',
-                'X-Content': 'X-Content-Type-Options',
-                'CSP': 'Content-Security-Policy',
-                'Referrer': 'Referrer-Policy',
-                'Permissions': 'Permissions-Policy',
-            }
-            for name, header in sec_headers.items():
-                val = resp.headers.get(header, '')
-                if val:
-                    results += f"  ✅ {name}: {escape_html(val[:50])}\n"
-                else:
-                    results += f"  ❌ {name}: Faltando\n"
-    except Exception as e:
-        results += f"❌ Erro: {escape_html(str(e)[:100])}\n"
-
-    results += "━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, results)
-
-def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: SSL Certificate Chain — full chain info with expiry dates"""
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /sslchain &lt;url&gt;\nExemplo: /sslchain google.com")
-        return
-    target = args[0]
-    log_command(user_id, username, "sslchain", target)
-    clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Cadeia SSL</b> de {escape_html(clean_target)}...")
-
-    results = f"📜 <b>Cadeia de Certificados SSL</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
-    try:
-        import ssl
-        import socket as s
-        host = clean_target
-        port = 443
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        sock = s.create_connection((host, port), timeout=10)
-        sock.settimeout(10)
-        tls = ctx.wrap_socket(sock, server_hostname=host)
-
-        # Get the full certificate chain
-        chain = tls.getpeercert(binary_form=False)
-        if chain:
-            from datetime import datetime as dt
-            subject = dict(x[0] for x in chain.get('subject', []))
-            issuer = dict(x[0] for x in chain.get('issuer', []))
-            cn = subject.get('commonName', 'N/D')
-            issuer_org = issuer.get('organizationName', 'N/D')
-            not_after = chain.get('notAfter', '')
-            not_before = chain.get('notBefore', '')
-            serial = chain.get('serialNumber', 'N/D')
-
-            results += f"🔐 <b>Certificado do Servidor:</b>\n"
-            results += f"  CN: {escape_html(cn)}\n"
-            results += f"  Emissor: {escape_html(issuer_org)}\n"
-            results += f"  Serial: {escape_html(serial[:40])}\n"
-            if not_before:
-                results += f"  Início: {escape_html(not_before)}\n"
-            if not_after:
-                try:
-                    exp_date = dt.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                    days_left = (exp_date - dt.utcnow()).days
-                    results += f"  Expira: {exp_date.strftime('%Y-%m-%d')} ({days_left} dias)\n"
-                except:
-                    results += f"  Expira: {escape_html(not_after)}\n"
-
-            # SAN
-            san = chain.get('subjectAltName', [])
-            if san:
-                dns_sans = [v for k, v in san if k == 'DNS']
-                if dns_sans:
-                    results += f"  SANs: {escape_html(', '.join(dns_sans[:5]))}"
-                    if len(dns_sans) > 5:
-                        results += f" (+{len(dns_sans)-5} mais)"
-                    results += "\n"
-
-        # TLS version
-        ver = tls.version()
-        results += f"\n🔒 <b>TLS:</b> {escape_html(ver or 'N/D')}\n"
-
-        # Cipher
-        cipher = tls.cipher()
-        if cipher:
-            results += f"🔑 <b>Cipher:</b> {escape_html(cipher[0])}\n"
-
-        tls.close()
-    except ssl.SSLError as e:
-        results += f"❌ Erro SSL: {escape_html(str(e)[:150])}\n"
-    except Exception as e:
-        results += f"❌ Erro: {escape_html(str(e)[:150])}\n"
-
-    results += "━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, results)
-
-def handle_watch(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Watch a site for changes — notify when content changes
-    Usage: /watch &lt;url&gt; [minutos]
-    Default: check every 5 minutes
-    """
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /watch &lt;url&gt; [intervalo_min]\nExemplo: /watch google.com 10\nUse /watch off para desativar.")
-        return
-    target = args[0]
-    if target.lower() == 'off':
-        try:
-            with sqlite3.connect(DB_PATH) as conn:
-                c = conn.cursor()
-                c.execute("DELETE FROM site_monitor WHERE user_id = ? AND watch_type = 'content'", (user_id,))
-                deleted = c.rowcount
-                conn.commit()
-            send_message_safe(chat_id, f"🔕 <b>Watch desativado!</b> ({deleted} monitoramentos removidos)")
-        except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
-        return
-
-    interval = 5
-    if len(args) > 1:
-        try:
-            interval = int(args[1])
-            if interval < 1:
-                interval = 1
-        except:
-            pass
-
-    log_command(user_id, username, "watch", f"{target} {interval}min")
-    clean_target = extract_hostname(target)
-
-    # Get initial content hash
-    url = clean_target
-    if not url.startswith(('http://', 'https://')):
-        url = 'http://' + url
-    try:
-        resp = _safe_get(url, timeout=5)
-        initial_hash = hashlib.md5(resp.text.encode()).hexdigest() if resp else "offline"
-    except:
-        initial_hash = "offline"
-
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            c.execute("INSERT OR REPLACE INTO site_monitor (user_id, target, chat_id, last_status, last_check, content_hash, watch_interval) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                      (user_id, clean_target, chat_id, 1, time.time(), initial_hash, interval))
-            conn.commit()
-        send_message_safe(chat_id, f"👁️ <b>Watch ativado!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📍 {escape_html(clean_target)}\n⏱️ Check a cada {interval}min\n📊 Hash inicial: {initial_hash[:8]}...\n━━━━━━━━━━━━━━━━━━━━━━\nUse /watch off para desativar.")
-    except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
-
-def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Generate full security report for a URL"""
-    log_user(user_id, username, first_name, last_name)
-    if not args:
-        send_message_safe(chat_id, "❌ Use: /report &lt;url&gt;\nExemplo: /report google.com")
-        return
-    target = args[0]
-    log_command(user_id, username, "report", target)
-    clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"📊 <b>Gerando relatório completo</b> para {escape_html(clean_target)}...")
-
-    # Run all basic scanners
-    info_r = tool_website_info(target)
-    dns_r = tool_dns_tools(target)
-    ports_r = tool_port_scanner(target)
-    ssl_r = tool_ssl_audit(target)
-    headers_r = tool_headers_analysis(target)
-    rate_r = "Rate scan completo."
-
-    # Strip HTML for report
-    def clean(r):
-        r = re.sub(r'<[^>]+>', '', r)
-        return r[:2000]
-
-    report = f"MTH Security — Relatório Completo\n"
-    report += f"Target: {clean_target}\n"
-    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-    report += "=" * 60 + "\n\n"
-    report += "--- INFO ---\n" + clean(info_r) + "\n\n"
-    report += "--- DNS ---\n" + clean(dns_r) + "\n\n"
-    report += "--- PORTAS ---\n" + clean(ports_r) + "\n\n"
-    report += "--- SSL ---\n" + clean(ssl_r) + "\n\n"
-    report += "--- HEADERS ---\n" + clean(headers_r) + "\n"
-
-    success = send_document(chat_id, report, f"relatorio_{clean_target}.txt")
-    if success:
-        send_message_safe(chat_id, f"📄 <b>Relatório exportado!</b>\nTarget: {escape_html(clean_target)}")
-    else:
-        send_message_safe(chat_id, "❌ Falha ao enviar relatório.")
-
-
 def signal_handler(signum, frame):
     global SHUTDOWN_FLAG
     SHUTDOWN_FLAG = True
@@ -6037,17 +5203,6 @@ CMD_HANDLERS = {
     '/broadcast': lambda c, u, un, fn, ln, a: handle_broadcast(c, u, un, fn, ln, a),
     '/stealth': lambda c, u, un, fn, ln, a: handle_stealth(c, u, un, fn, ln, a),
     '/notify':  lambda c, u, un, fn, ln, a: handle_notify(c, u, un, fn, ln, a),
-    '/bugreport': lambda c, u, un, fn, ln, a: handle_report(c, u, un, fn, ln, a),
-    # V5.1: New commands
-    '/scanall': lambda c, u, un, fn, ln, a: handle_scanall(c, u, un, fn, ln, a),
-    '/deep':    lambda c, u, un, fn, ln, a: handle_deep(c, u, un, fn, ln, a),
-    '/quick':   lambda c, u, un, fn, ln, a: handle_quick(c, u, un, fn, ln, a),
-    '/cancel':  lambda c, u, un, fn, ln, a: handle_cancel(c, u, un, fn, ln, a),
-    '/batch':   lambda c, u, un, fn, ln, a: handle_batch(c, u, un, fn, ln, a),
-    '/http':    lambda c, u, un, fn, ln, a: handle_http(c, u, un, fn, ln, a),
-    '/sslchain':lambda c, u, un, fn, ln, a: handle_sslchain(c, u, un, fn, ln, a),
-    '/watch':   lambda c, u, un, fn, ln, a: handle_watch(c, u, un, fn, ln, a),
-    '/report':  lambda c, u, un, fn, ln, a: handle_report_url(c, u, un, fn, ln, a),
 }
 
 def process_update(update):
@@ -6297,9 +5452,9 @@ def set_webhook(url):
         print(f"❌ HTTP {resp.status_code}: {resp.text}")
 
 
-# V5.0: Site status monitor thread (for /notify) + V5.1: content watch
+# V5.0: Site status monitor thread (for /notify)
 def site_monitor_loop():
-    """Background thread that checks monitored sites every 60s and alerts on status change or content change"""
+    """Background thread that checks monitored sites every 60s and alerts on status change"""
     global SHUTDOWN_FLAG
     while not SHUTDOWN_FLAG:
         time.sleep(60)
@@ -6334,24 +5489,10 @@ def site_monitor_loop():
                         else:
                             send_message_safe(str(chat_id), f"✅ <b>RECUPERADO:</b> {escape_html(target)} está <b>ONLINE</b>!")
 
+                        # Update DB
                         c.execute("UPDATE site_monitor SET last_status = ?, last_check = ? WHERE user_id = ? AND target = ?",
                                   (current_status, time.time(), md['user_id'], target))
                         conn.commit()
-
-                    # V5.1: Check content hash changes for /watch
-                    if resp and resp.status_code == 200:
-                        try:
-                            content_hash = md.get('content_hash', '')
-                            watch_type = md.get('watch_type', 'status')
-                            if watch_type == 'content' and content_hash:
-                                new_hash = hashlib.md5(resp.text.encode()).hexdigest()
-                                if new_hash != content_hash:
-                                    send_message_safe(str(chat_id), f"🔄 <b>ALTERAÇÃO DETECTADA!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📍 {escape_html(target)}\n📊 Conteúdo mudou!\n━━━━━━━━━━━━━━━━━━━━━━")
-                                    c.execute("UPDATE site_monitor SET content_hash = ?, last_check = ? WHERE user_id = ? AND target = ?",
-                                              (new_hash, time.time(), md['user_id'], target))
-                                    conn.commit()
-                        except Exception as ex:
-                            print(f"[Content Watch Error] {ex}")
         except Exception as e:
             print(f"[Site Monitor Error] {e}")
 

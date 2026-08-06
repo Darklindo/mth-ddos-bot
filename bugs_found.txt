@@ -1,0 +1,36 @@
+# BUGS FOUND IN V5.0 REVIEW
+# Based on code review + file overview analysis
+
+## CRITICAL BUGS:
+1. **handle_notify inserts into non-existent 'notifications' table** (line ~5098)
+   - DB has 'site_monitor' table but handler uses 'notifications'
+   - FIX: Change to INSERT INTO site_monitor
+
+2. **STEALTH_MODE is a set() but used as boolean** (line ~299 and ~5061)
+   - Global: STEALTH_MODE = set()
+   - Handler: STEALTH_MODE = True (overwrites set with bool)
+   - Also _safe_get_stealth checks 'user_id in STEALTH_MODE' but handler sets it to True
+   - FIX: Change to boolean STEALTH_MODE = False globally, or fix usage
+
+3. **handle_stats uses conn/c2 after with-block closed** (lines ~3839-3871)
+   - DB connection opened in 'with' block, cursor used outside
+   - FIX: Move cursor operations inside the with block
+
+4. **handle_panel passes send_progress response object instead of msg_id** (line ~3527-3531)
+   - send_progress returns msg_id but code may use the response object
+
+5. **No callback_query handling** - /rescan inline buttons use callback_data but process_update only handles message text
+   - FIX: Add callback_query processing in process_update
+
+6. **handle_schedule inserts into DB but never executes** (lines ~4861-4882)
+   - Scheduled tasks are saved to DB but no thread checks them
+   - FIX: Add scheduled task checker thread (already have SCHEDULED_TASKS dict but no consumer)
+
+7. **Stale v4.3 version strings** in /help, /about, /start
+
+8. **handle_pdf actually generates .txt not PDF** (lines ~4816-4858)
+   - Minor: name is misleading but functionality works
+
+9. **handle_stealth tool_map references tools that don't exist as top-level functions**
+   - tool_xss_scanner, tool_admin_finder, tool_port_scanner, tool_directory_scanner, tool_subdomain_scanner, tool_wordpress_scanner, tool_dns_tools, tool_reverse_ip, tool_ftp_ssh, tool_website_info, tool_email_scraper
+   - Need to verify actual function names
