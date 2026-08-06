@@ -164,8 +164,12 @@
 - [x] Add /start command that shows main menu
 - [x] Add tier-gated buttons (Normal users don't see VIP/Owner pages)
 - [x] Keep /commands working as fallback for power users
-- [ ] Update set_commands.py
+- [x] Update set_commands.py
 - [x] Verify syntax, commit and push
+## BROADCAST PROGRESS FIX
+- [x] Broadcast should edit a single message instead of sending multiple progress messages
+- [x] Fix progress spam in broadcast (10%, 20%, 30% etc sending new messages)
+
 ## v5.2 BUG REVIEW (LINE BY LINE)
 - [x] Fix: handle_stats() missing args in menu:stats callback (already correct in v5.2)
 - [x] Fix: 'args' not defined in callback_query section (flow correctly falls through)

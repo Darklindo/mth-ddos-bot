@@ -5504,19 +5504,54 @@ def _broadcast_retry_send(api_method, payload, max_retries=2):
 
 
 def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, owner_user_id):
-    """Execute a broadcast loop with progress updates every 10 users.
+    """Execute a broadcast loop with a SINGLE edited progress message.
     Returns (sent, failed_trans, blocked)."""
     sent = 0
     failed = 0
     blocked = 0
     total = len(users)
-    update_interval = max(10, total // 10)  # progress update every ~10% or at least every 10
+    update_interval = max(10, total // 10)  # edit every ~10% or at least every 10
+    # Send initial progress message and capture its ID for editing
+    progress_text = f"📢 <b>Broadcast em andamento...</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📊 Progresso: 0/{total} (0%)\n✅ Enviados: 0 | ⚠️ Bloqueados: 0 | ❌ Falhas: 0"
+    progress_msg_id = None
+    try:
+        resp = HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+            "chat_id": owner_chat_id,
+            "text": progress_text,
+            "parse_mode": "HTML"
+        }, timeout=10)
+        if resp and resp.status_code == 200:
+            progress_msg_id = resp.json().get('result', {}).get('message_id')
+    except:
+        pass
+
+    def _edit_progress(sent, failed, blocked, current, total):
+        """Edit the single progress message with updated stats."""
+        if progress_msg_id is None:
+            return
+        pct = (current / total * 100) if total else 0
+        bar_len = 20
+        filled = int(bar_len * current / total) if total else 0
+        bar = '█' * filled + '░' * (bar_len - filled)
+        new_text = (f"📢 <b>Broadcast em andamento...</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"📊 [{bar}] {pct:.0f}%\n"
+                    f"📡 Progresso: {current}/{total}\n"
+                    f"✅ Enviados: {sent} | ⚠️ Bloqueados: {blocked} | ❌ Falhas: {failed}")
+        try:
+            HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+                "chat_id": owner_chat_id,
+                "message_id": progress_msg_id,
+                "text": new_text,
+                "parse_mode": "HTML"
+            }, timeout=5)
+        except:
+            pass
 
     for idx, u in enumerate(users):
         uid = str(u['id'])
         success = False
         fatal = False
-
         if media_type:
             api_method = {
                 'sticker': 'sendSticker',
@@ -5526,7 +5561,6 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
             }.get(media_type, '')
             if not api_method:
                 return sent, failed, blocked
-
             payload = {"chat_id": uid}
             if media_type == 'sticker':
                 payload["sticker"] = file_id
@@ -5534,7 +5568,6 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
                 payload[media_type] = file_id
                 payload["caption"] = broadcast_text or ''
                 payload["parse_mode"] = "HTML"
-
             success, fatal = _broadcast_retry_send(api_method, payload)
         else:
             payload = {
@@ -5544,7 +5577,6 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
                 "disable_web_page_preview": True
             }
             success, fatal = _broadcast_retry_send('sendMessage', payload)
-
         if success:
             sent += 1
             # For stickers, also send caption text after
@@ -5557,16 +5589,11 @@ def _do_broadcast(media_type, file_id, broadcast_text, users, owner_chat_id, own
             blocked += 1
         else:
             failed += 1
-
         # Rate limit to avoid 429 (Telegram allows 30 msg/s to different chats)
         time.sleep(0.05)
-
-        # Progress update
+        # Edit progress message (not send new one)
         if (idx + 1) % update_interval == 0 or (idx + 1) == total:
-            pct = ((idx + 1) / total) * 100
-            send_message_safe(owner_chat_id,
-                f"📢 <b>Progresso:</b> {idx+1}/{total} ({pct:.0f}%)\n✅ Enviados: {sent} | ⚠️ Bloqueados: {blocked} | ❌ Falhas: {failed}")
-
+            _edit_progress(sent, failed, blocked, idx + 1, total)
     return sent, failed, blocked
 
 
@@ -5619,32 +5646,26 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
         }.get(media_type, 'mídia')
 
         send_msg(user_id, chat_id,
-            f"📢 <b>Broadcast de {type_label} iniciado!</b>\n👥 Total de usuários: {total}")
-
+            f"📢 <b>Broadcast de {type_label} iniciado!</b>\n👥 Total de usuários: {total}\n━━━━━━━━━━━━━━━━━━━━━━\n<i>O progresso será atualizado em uma única mensagem...</i>")
         sent, failed, blocked = _do_broadcast(media_type, file_id, caption, users, chat_id, user_id)
-
     else:
         # TEXT BROADCAST
         send_msg(user_id, chat_id,
-            f"📢 <b>Broadcast iniciado!</b>\n👥 Total de usuários: {total}\n📝 Mensagem: {escape_html(message_text[:100])}")
-
+            f"📢 <b>Broadcast iniciado!</b>\n👥 Total de usuários: {total}\n📝 Mensagem: {escape_html(message_text[:100])}\n━━━━━━━━━━━━━━━━━━━━━━\n<i>O progresso será atualizado em uma única mensagem...</i>")
         broadcast = f"""📢 <b>Mensagem dos Donos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
-
 {escape_html(message_text)}
-
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>— Mth Ddos Security Team</i>"""
-
         sent, failed, blocked = _do_broadcast(None, None, broadcast, users, chat_id, user_id)
-
     final_pct = ((sent + failed + blocked) / total * 100) if total else 0
+    # Replace the progress message with final result
     send_msg(user_id, chat_id,
         f"✅ <b>Broadcast concluído!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         f"👥 Total: {total}\n"
         f"✅ Enviado com sucesso: {sent}\n"
-        f"⚠️ Bloqueados (usuário bloqueou o bot): {blocked}\n"
-        f"❌ Falhas temporárias: {failed}\n"
+        f"⚠️ Bloqueados: {blocked}\n"
+        f"❌ Falhas: {failed}\n"
         f"📊 Taxa de entrega: {final_pct:.0f}%")
 
 # ═══════════════════════════════════════════════════════════════
@@ -7125,34 +7146,34 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
 
 
 def _run_scanall_normal(chat_id, user_id, target):
-    """Execute normal scanall (6 scanners)"""
+    """Execute normal scanall (6 scanners) with progress editing."""
     clean_target = extract_hostname(target)
     send_msg(user_id, chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos. Os resultados serão enviados em um arquivo .txt")
-
     def _clean_html(text):
         return re.sub(r'<[^>]+>', '', text)
-
     sections = []
-    send_msg(user_id, chat_id, "📋 <b>1/6 — Info...</b>")
+    # Send initial progress and capture msg_id for editing
+    progress_msg_id = send_progress(chat_id, 'scanall_normal', 0, 6, f"Scan Completo — {clean_target}")
+    # Step 1: Info
+    edit_progress(progress_msg_id, chat_id, 1, 6, f"Scan Completo — {clean_target} — Info...")
     sections.append("═" * 50 + "\n1/6 — INFORMATION\n" + "═" * 50 + "\n" + _clean_html(tool_website_info(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>2/6 — DNS...</b>")
+    # Step 2: DNS
+    edit_progress(progress_msg_id, chat_id, 2, 6, f"Scan Completo — {clean_target} — DNS...")
     sections.append("\n" + "═" * 50 + "\n2/6 — DNS ANALYSIS\n" + "═" * 50 + "\n" + _clean_html(tool_dns_tools(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>3/6 — Portas...</b>")
+    # Step 3: Portas
+    edit_progress(progress_msg_id, chat_id, 3, 6, f"Scan Completo — {clean_target} — Portas...")
     sections.append("\n" + "═" * 50 + "\n3/6 — PORT SCAN\n" + "═" * 50 + "\n" + _clean_html(tool_port_scanner(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>4/6 — SSL/TLS...</b>")
+    # Step 4: SSL/TLS
+    edit_progress(progress_msg_id, chat_id, 4, 6, f"Scan Completo — {clean_target} — SSL/TLS...")
     sections.append("\n" + "═" * 50 + "\n4/6 — SSL/TLS AUDIT\n" + "═" * 50 + "\n" + _clean_html(tool_ssl_audit(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>5/6 — Security Headers...</b>")
+    # Step 5: Security Headers
+    edit_progress(progress_msg_id, chat_id, 5, 6, f"Scan Completo — {clean_target} — Headers...")
     sections.append("\n" + "═" * 50 + "\n5/6 — SECURITY HEADERS\n" + "═" * 50 + "\n" + _clean_html(tool_headers_analysis(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>6/6 — Arquivos Expostos...</b>")
+    # Step 6: Arquivos Expostos
+    edit_progress(progress_msg_id, chat_id, 6, 6, f"Scan Completo — {clean_target} — Arquivos Expostos...")
     sections.append("\n" + "═" * 50 + "\n6/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(tool_exposed_files(target)))
-
     report = f"MTH Security v5.1 — Scan Completo\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
-
+    finish_progress(progress_msg_id, chat_id, "✅ Scan Completo finalizado!")
     success = send_document(chat_id, report, f"scanall_{clean_target}.txt")
     if success:
         send_msg(user_id, chat_id, f"✅ <b>Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
@@ -7221,34 +7242,33 @@ def handle_deep(chat_id, user_id, username, first_name, last_name, args):
 
 
 def _run_deep_normal(chat_id, user_id, target):
-    """Execute normal deep scan (6 scanners)"""
+    """Execute normal deep scan (6 scanners) with progress editing."""
     clean_target = extract_hostname(target)
     send_msg(user_id, chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar. Os resultados serão enviados em um arquivo .txt")
-
     def _clean_html(text):
         return re.sub(r'<[^>]+>', '', text)
-
     sections = []
-    send_msg(user_id, chat_id, "📋 <b>1/6 — SQL Injection...</b>")
+    progress_msg_id = send_progress(chat_id, 'deep_normal', 0, 6, f"Deep Scan — {clean_target}")
+    # Step 1: SQLi
+    edit_progress(progress_msg_id, chat_id, 1, 6, f"Deep Scan — {clean_target} — SQL Injection...")
     sections.append("═" * 50 + "\n1/6 — SQL INJECTION\n" + "═" * 50 + "\n" + _clean_html(tool_sqli(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>2/6 — XSS...</b>")
+    # Step 2: XSS
+    edit_progress(progress_msg_id, chat_id, 2, 6, f"Deep Scan — {clean_target} — XSS...")
     sections.append("\n" + "═" * 50 + "\n2/6 — XSS (CROSS-SITE SCRIPTING)\n" + "═" * 50 + "\n" + _clean_html(tool_xss_scanner(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>3/6 — Admin Panels...</b>")
+    # Step 3: Admin Panels
+    edit_progress(progress_msg_id, chat_id, 3, 6, f"Deep Scan — {clean_target} — Admin Panels...")
     sections.append("\n" + "═" * 50 + "\n3/6 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean_html(tool_admin_finder(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>4/6 — Arquivos Expostos...</b>")
+    # Step 4: Arquivos Expostos
+    edit_progress(progress_msg_id, chat_id, 4, 6, f"Deep Scan — {clean_target} — Arquivos Expostos...")
     sections.append("\n" + "═" * 50 + "\n4/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(tool_exposed_files(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>5/6 — Webshells...</b>")
+    # Step 5: Webshells
+    edit_progress(progress_msg_id, chat_id, 5, 6, f"Deep Scan — {clean_target} — Webshells...")
     sections.append("\n" + "═" * 50 + "\n5/6 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean_html(tool_webshell_hunter(target)))
-
-    send_msg(user_id, chat_id, "📋 <b>6/6 — Config Files...</b>")
+    # Step 6: Config Files
+    edit_progress(progress_msg_id, chat_id, 6, 6, f"Deep Scan — {clean_target} — Config Files...")
     sections.append("\n" + "═" * 50 + "\n6/6 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean_html(tool_config_scanner(target)))
-
     report = f"MTH Security v5.1 — Deep Scan\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
-
+    finish_progress(progress_msg_id, chat_id, "✅ Deep Scan finalizado!")
     success = send_document(chat_id, report, f"deep_scan_{clean_target}.txt")
     if success:
         send_msg(user_id, chat_id, f"✅ <b>Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
@@ -8029,10 +8049,8 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
     targets = args[1:]
     log_command(user_id, username, "batch", f"{scan_cmd} x{len(targets)} targets")
     send_msg(user_id, chat_id, f"🔍 <b>Batch Scan</b> — {len(targets)} targets com /{scan_cmd}...\n⚠️ Use /cancel para parar.")
-
     # V5.1: Create stop event so /cancel works
     STOP_EVENTS[user_id] = threading.Event()
-
     tool_map = {
         'info': tool_website_info, 'sqli': tool_sqli, 'xss': tool_xss_scanner,
         'admin': tool_admin_finder, 'ports': tool_port_scanner,
@@ -8057,12 +8075,13 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
         else:
             send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} não suportado em batch.")
         return
-
+    # Send initial progress message and edit it for each target
+    progress_msg_id = send_progress(chat_id, 'batch', 0, len(targets), f"Batch /{scan_cmd} — {len(targets)} targets")
     for i, t in enumerate(targets, 1):
         if user_id in STOP_EVENTS and STOP_EVENTS[user_id].is_set():
             break
         ct = extract_hostname(t)
-        send_msg(user_id, chat_id, f"\n━━━━━━━━━━━━━━━━━━━━━━\n📋 <b>[{i}/{len(targets)}] {escape_html(ct)}</b>")
+        edit_progress(progress_msg_id, chat_id, i, len(targets), f"Batch /{scan_cmd} — [{i}/{len(targets)}] {ct}")
         try:
             r = tool_fn(t)
             # Truncate long results for batch
@@ -8070,9 +8089,9 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
                 r = r[:3000] + "\n... <i>(truncado)</i>"
             send_msg(user_id, chat_id, r)
         except Exception as e:
-            send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e)[:100])}")
-
-    send_msg(user_id, chat_id, f"\n✅ <b>Batch Scan finalizado!</b> {len(targets)} targets processados.")
+            send_msg(user_id, chat_id, f"❌ Erro em {escape_html(ct)}: {escape_html(str(e)[:100])}")
+    finish_progress(progress_msg_id, chat_id, f"✅ Batch Scan finalizado! {len(targets)} targets processados.")
+    send_msg(user_id, chat_id, f"✅ <b>Batch Scan finalizado!</b> {len(targets)} targets processados.")
 
     # Cleanup stop event
     if user_id in STOP_EVENTS:
