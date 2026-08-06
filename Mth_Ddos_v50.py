@@ -312,6 +312,7 @@ USER_LANG: dict = {}  # user_id -> language code
 # When user clicks a scanner button, we store what they want to run
 # Then when they send a URL, we execute it
 PENDING_TARGETS: dict = {}  # user_id -> {cmd, tier}
+MENU_MSG_IDS: dict = {}  # user_id -> message_id (for editing menu messages)
 
 def get_user_lang(user_id: int) -> str:
     """Return the user's preferred language code ('pt', 'en', or 'es')."""
@@ -1564,6 +1565,39 @@ def send_message_with_buttons(chat_id, text, buttons, parse_mode="HTML"):
         print(f"[Send Buttons Error] {e}")
         return None
 
+
+
+def edit_menu(chat_id, text, buttons, parse_mode="HTML"):
+    """Edit an existing menu message instead of sending a new one.
+    Falls back to send_message_with_buttons if no message_id is tracked."""
+    # Find user_id for this chat_id
+    for uid, mid in MENU_MSG_IDS.items():
+        if mid:  # Only edit if we have a message_id
+            try:
+                resp = HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+                    "chat_id": chat_id,
+                    "message_id": mid,
+                    "text": text,
+                    "parse_mode": parse_mode,
+                    "disable_web_page_preview": True,
+                    "reply_markup": {"inline_keyboard": buttons}
+                }, timeout=10)
+                if resp and resp.status_code == 200:
+                    return resp
+                # If edit fails (e.g., message was deleted), send new
+            except:
+                pass
+            break  # Only try one user's message_id per chat
+    # Fallback: send new message
+    resp = send_message_with_buttons(chat_id, text, buttons, parse_mode)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[chat_id] = mid
+        except:
+            pass
+    return resp
 
 def send_feedback_to_channel(user_id, username, first_name, message, channel_type="feedback"):
     """Forward feedback/bug report to the channel and return channel message_id"""
@@ -4588,7 +4622,25 @@ def show_main_menu(chat_id, user_id, username='', first_name=''):
     ])
     lang_labels = {'pt': '🌐 Idioma', 'en': '🌐 Language', 'es': '🌐 Idioma', 'vi': '🌐 Ngôn ngữ', 'id': '🌐 Bahasa'}
     buttons.append([{"text": lang_labels.get(lang, '🌐 Idioma'), "callback_data": "menu:lang"}])
-    send_message_with_buttons(chat_id, msg, buttons)
+    resp = edit_menu(chat_id,
+        f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"<b>{b['exclusive']}</b>\n\n"
+        f"{b['enter']}",
+        buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 def show_menu_vulns(chat_id, user_id):
     """Show clean Vulnerability Exploration page"""
@@ -4618,9 +4670,16 @@ def show_menu_vulns(chat_id, user_id):
          {"text": b['deep'], "callback_data": "target:deep:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    send_message_with_buttons(chat_id,
+    resp = edit_menu(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 
 def show_menu_recon(chat_id, user_id):
@@ -4647,9 +4706,16 @@ def show_menu_recon(chat_id, user_id):
          {"text": b['emails'], "callback_data": "target:emails:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    send_message_with_buttons(chat_id,
+    resp = edit_menu(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 def show_menu_audit(chat_id, user_id):
     """Show clean Security Audit page"""
@@ -4673,9 +4739,16 @@ def show_menu_audit(chat_id, user_id):
          {"text": b['sitemap'], "callback_data": "target:sitemap:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    send_message_with_buttons(chat_id,
+    resp = edit_menu(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 def show_menu_files(chat_id, user_id):
     """Show clean Files & Directories page"""
@@ -4701,9 +4774,16 @@ def show_menu_files(chat_id, user_id):
          {"text": b['wp'], "callback_data": "target:wp:normal"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    send_message_with_buttons(chat_id,
+    resp = edit_menu(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n{b['enter']}",
         buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 def show_menu_vip(chat_id, user_id):
     """Show clean VIP exclusive page"""
@@ -4737,11 +4817,18 @@ def show_menu_vip(chat_id, user_id):
          {"text": b['robots'], "callback_data": "target:robots:vip"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    send_message_with_buttons(chat_id,
+    resp = edit_menu(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>{b['access']}:</b> {badge}\n\n"
         f"{b['enter']}",
         buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 
 def show_menu_owner(chat_id, user_id):
@@ -4784,11 +4871,18 @@ def show_menu_owner(chat_id, user_id):
          {"text": b['shell'], "callback_data": "target:shell:owner"}],
         [{"text": b['back'], "callback_data": "menu:back"}],
     ]
-    send_message_with_buttons(chat_id,
+    resp = edit_menu(chat_id,
         f"{b['title']}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>{b['exclusive']}</b>\n\n"
         f"{b['enter']}",
         buttons)
+    if resp and resp.status_code == 200:
+        try:
+            mid = resp.json().get('result', {}).get('message_id')
+            if mid:
+                MENU_MSG_IDS[user_id] = mid
+        except:
+            pass
 
 
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
@@ -9416,6 +9510,7 @@ def process_update(update):
                         _run_sqli_owner(chat_id, user_id, target)
                     else:
                         _run_sqli_normal(chat_id, user_id, target)
+                    show_main_menu(chat_id, user_id)
                 elif scan_cmd == 'xss':
                     if tier == 'vip':
                         _run_xss_vip(chat_id, user_id, target)
@@ -9423,6 +9518,7 @@ def process_update(update):
                         _run_xss_owner(chat_id, user_id, target)
                     else:
                         _run_xss_normal(chat_id, user_id, target)
+                    show_main_menu(chat_id, user_id)
                 elif scan_cmd == 'scanall':
                     if tier == 'vip':
                         _run_scanall_vip(chat_id, user_id, target)
@@ -9430,6 +9526,7 @@ def process_update(update):
                         _run_scanall_owner(chat_id, user_id, target)
                     else:
                         _run_scanall_normal(chat_id, user_id, target)
+                    show_main_menu(chat_id, user_id)
                 elif scan_cmd == 'deep':
                     if tier == 'vip':
                         _run_deep_vip(chat_id, user_id, target)
@@ -9437,6 +9534,7 @@ def process_update(update):
                         _run_deep_owner(chat_id, user_id, target)
                     else:
                         _run_deep_normal(chat_id, user_id, target)
+                    show_main_menu(chat_id, user_id)
                 else:
                     send_msg(user_id, chat_id, f"❌ Scanner /{scan_cmd} não suportado em tier mode.")
             return
@@ -9501,12 +9599,15 @@ def process_update(update):
         # Owner commands (forensic/pentest/osint) — route to handlers directly
         if scan_cmd == 'forensic':
             handle_forensic(chat_id, user_id, username, first_name, last_name, [target])
+            show_main_menu(chat_id, user_id)
             return
         if scan_cmd == 'pentest':
             handle_pentest(chat_id, user_id, username, first_name, last_name, [target])
+            show_main_menu(chat_id, user_id)
             return
         if scan_cmd == 'osint':
             handle_osint(chat_id, user_id, username, first_name, last_name, [target])
+            show_main_menu(chat_id, user_id)
             return
         # Map scan commands to handler functions
         SCAN_MAP = {
@@ -9560,6 +9661,7 @@ def process_update(update):
             fn = globals().get(fn_name)
             if fn:
                 fn(chat_id, user_id, target)
+                show_main_menu(chat_id, user_id)
                 return
             else:
                 # Fallback to normal
@@ -9567,6 +9669,7 @@ def process_update(update):
                 fn = globals().get(fn_name)
                 if fn:
                     fn(chat_id, user_id, target)
+                    show_main_menu(chat_id, user_id)
                     return
         
         # Non-tiered scanners: use handle_* functions
@@ -9593,6 +9696,7 @@ def process_update(update):
         
         if scan_cmd in handler_map:
             handler_map[scan_cmd](chat_id, user_id, username, first_name, last_name, [target])
+            show_main_menu(chat_id, user_id)
             return
     
 
