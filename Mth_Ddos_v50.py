@@ -3,7 +3,7 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║  MTH DDOS SECURITY - TELEGRAM BOT v5.1                    ║
 ║  Advanced Security Testing Tools                          ║
-║  Credits: @OnlyExaltarei, @Thebesty9, @PETER_DNS          ║
+║  Credits: @OnlyExaltarei, @Lhmodzz, @PETER_DNS          ║
 ╚══════════════════════════════════════════════════════════════╝
 
 CHANGELOG v5.0:
@@ -163,7 +163,7 @@ CHANGELOG v4.0:
 - FIX: /wp progress message — now shows clean hostname
 - FIX: All handler progress messages — /info, /sqli, /xss, /admin, /dirs, /cms, /emails show clean hostname
 - FIX: /about version — updated from 3.8 to 4.0
-- FIX: Usage text — updated from mega3_bot.py to Mth Ddos v1.py
+- FIX: Usage text — updated from mega3_bot.py to Mth_Ddos_v50.py
 - FIX: /ping — now uses HTTP_SESSION instead of bare requests.get
 - FIX: WordPress scanner — added /wp-json/ as strong WP signal
 - FIX: CMS detector — added Flask, FastAPI, Express, Ruby on Rails signatures
@@ -257,7 +257,7 @@ API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 # DONOS DO BOT (IDs do Telegram)
 OWNERS = {
     6822870889: "@OnlyExaltarei",
-    5658716257: "@Thebesty9",
+    5658716257: "@Lhmodzz",
     8716411086: "@PETER_DNS",
 }
 
@@ -1043,7 +1043,7 @@ def tool_website_info(url):
     return results
 
 def tool_sqli(url, verbose=False):
-    """SQL Injection Scanner v4.3 - 28 payloads, baseline comparison, ANTI-FALSE-POSITIVE, verbose mode"""
+    """SQL Injection Scanner v5.1 - 28 payloads, baseline comparison, ANTI-FALSE-POSITIVE, verbose mode"""
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
 
@@ -1191,7 +1191,7 @@ def tool_sqli(url, verbose=False):
         return header + "\n".join(results) + waf_section
 
 def tool_xss_scanner(url, verbose=False):
-    """XSS Scanner v4.3 - 18 payloads, STRICT unescaped reflection only, ANTI-FALSE-POSITIVE, verbose mode"""
+    """XSS Scanner v5.1 - 18 payloads, STRICT unescaped reflection only, ANTI-FALSE-POSITIVE, verbose mode"""
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
 
@@ -2187,16 +2187,32 @@ def tool_dns_tools(domain):
     dnssec_found = False
     try:
         if has_dig:
-            dnssec_result = subprocess.run(['dig', '+dnssec', '+short', 'DS', domain], capture_output=True, text=True, timeout=5)
-            if dnssec_result.stdout.strip():
+            # Use dig with flags to see AD bit (not just +short which strips flags)
+            dnssec_result = subprocess.run(['dig', '+dnssec', '+noall', '+answer', 'A', domain], capture_output=True, text=True, timeout=5)
+            if dnssec_result.returncode == 0 and ('AD' in dnssec_result.stdout or dnssec_result.stdout.strip()):
                 results += f"\n🔐 <b>DNSSEC:</b> Ativado ✅\n"
                 dnssec_found = True
             else:
-                # Also try A record with DNSSEC
-                dnssec_a = subprocess.run(['dig', '+dnssec', 'A', domain, '+short'], capture_output=True, text=True, timeout=5)
-                if 'AD' in dnssec_a.stdout or dnssec_a.stdout.strip():
-                    results += f"\n🔐 <b>DNSSEC:</b> Ativado ✅\n"
+                # Try DS record as fallback
+                dnssec_ds = subprocess.run(['dig', '+short', 'DS', domain], capture_output=True, text=True, timeout=5)
+                if dnssec_ds.stdout.strip():
+                    results += f"\n🔐 <b>DNSSEC:</b> Ativado ✅ (DS record presente)\n"
                     dnssec_found = True
+        if not dnssec_found:
+            # V5.1: Fallback to Cloudflare DoH
+            try:
+                dnssec_resp = _safe_get(
+                    f"https://cloudflare-dns.com/dns-query?name={domain}&type=DS",
+                    headers={'Accept': 'application/dns-json'},
+                    timeout=5
+                )
+                if dnssec_resp and dnssec_resp.status_code == 200:
+                    answers = dnssec_resp.json().get('Answer', [])
+                    if answers:
+                        results += f"\n🔐 <b>DNSSEC:</b> Ativado ✅ (via DoH)\n"
+                        dnssec_found = True
+            except:
+                pass
         if not dnssec_found:
             results += f"\n🔐 <b>DNSSEC:</b> Não detectado (ou não suportado)\n"
     except:
@@ -2355,7 +2371,7 @@ def tool_cms_detector(url):
                 results += "🛒 <b>Plataforma:</b> Shopify\n"
         else:
             # Check if it's a static site
-            has_html = 'html' in response.text.lower() or 'css' in response.text.lower()
+            has_html = '<html' in response.text.lower() or '<!doctype html' in response.text.lower()
             if has_html:
                 results = "✅ CMS não detectado (site estático ou personalizado)"
             else:
@@ -2597,7 +2613,7 @@ def tool_ssl_audit(url):
             # V5.1: SAN (Subject Alternative Names)
             san = cert.get('subjectAltName', [])
             if san:
-                sans = [v for _, v in san if _ == 'DNS']
+                sans = [v for k, v in san if _ == 'DNS']
                 if len(sans) > 1:
                     results += f"  → SANs: {len(sans)} domínios\n"
         tls2.close()
@@ -2649,39 +2665,24 @@ def tool_headers_analysis(url):
             'X-Frame-Options': ('🔒', '✅ Proteção contra Clickjacking', 0),
             'X-Content-Type-Options': ('🔒', '✅ Proteção contra MIME sniffing', 0),
             'X-XSS-Protection': ('🔒', '✅ XSS Filter', 0),
-            'Strict-Transport-Security': ('🔒', '✅ HSTS ativado', 0),
-            'Content-Security-Policy': ('🔒', '✅ CSP configurado', 0),
-            'Referrer-Policy': ('🔒', '✅ Referrer Policy set', 0),
-            'Permissions-Policy': ('🔒', '✅ Permissions Policy', 0),
-            'X-Download-Options': ('🔒', '✅ Download Options', 0),
-            'X-Permitted-Cross-Domain-Policies': ('🔒', '✅ Cross-Domain Policy', 0),
+            'Strict-Transport-Security': ('🔒', '✅ HSTS ativado', 15),
+            'Content-Security-Policy': ('🔒', '✅ CSP configurado', 15),
+            'Referrer-Policy': ('🔒', '✅ Referrer Policy set', 5),
+            'Permissions-Policy': ('🔒', '✅ Permissions Policy', 5),
+            'X-Download-Options': ('🔒', '✅ Download Options', 3),
+            'X-Permitted-Cross-Domain-Policies': ('🔒', '✅ Cross-Domain Policy', 3),
         }
-
         missing = []
         for header, (emoji, ok_msg, penalty) in checks.items():
             value = headers.get(header, headers.get(header.lower()))
             if value:
                 results += f"  {emoji} {ok_msg}\n"
             else:
-                results += f"  ❌ <b>{escape_html(header)}:</b> FALTANDO (-{10}pts)\n"
+                results += f"  ❌ <b>{escape_html(header)}:</b> FALTANDO (-{penalty}pts)\n"
                 missing.append(header)
-                score -= 10
+                score -= penalty
 
         score = max(0, min(100, score))
-
-        # Grade
-        if score >= 90:
-            grade = "🅰️ A"
-        elif score >= 80:
-            grade = "🅱️ B"
-        elif score >= 70:
-            grade = "🇨 C"
-        elif score >= 60:
-            grade = "🇩 D"
-        elif score >= 40:
-            grade = "🇪 E"
-        else:
-            grade = "🇫 F"
 
         # V5.1: Grade with color
         if score >= 90:
@@ -3023,7 +3024,6 @@ def tool_exposed_files(url):
         '/php.ini', '/php.ini.bak', '/php.ini~',
         '/myadmin/', '/myadmin', '/dbadmin/',
         '/mysql/', '/mysqladmin/',
-        '/.well-known/security.txt', '/security.txt',
         '/swagger.json', '/openapi.json', '/api-docs',
         '/.idea/workspace.xml', '/.vscode/settings.json',
         '/.project', '/.classpath',
@@ -3268,7 +3268,6 @@ def tool_webshell_hunter(url):
         '/shell.asp', '/shell.aspx', '/shell.jsp', '/shell.cgi',
         '/wp-content/uploads/shell.asp',
         '/wp-includes/shell.php',
-        '/.htaccess',
         '/config.php.bak',
     ]
 
@@ -3390,9 +3389,9 @@ def handle_start(chat_id, user_id, username, first_name, last_name, args=None):
 
 Olá {escape_html(first_name)}! Bem-vindo ao bot de segurança!
 
-<b>👑 Créditos:</b> @OnlyExaltarei, @Thebesty9, @PETER_DNS
+<b>👑 Créditos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
 
-Este bot possui <b>46 ferramentas avançadas</b> para testes de segurança.
+Este bot possui <b>55+ ferramentas avançadas</b> para testes de segurança.
 Digite <b>/help</b> para ver a lista completa de comandos.
 
 <i>Mth Ddos Security v5.1</i>"""
@@ -3469,7 +3468,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /stop [id] — Parar scan
 
 <b>━━━━━━━━━━━━━━━━━━━━━━</b>
-<b>👑 Donos:</b> @OnlyExaltarei, @Thebesty9, @PETER_DNS
+<b>👑 Donos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>👑 Comandos exclusivos dos Donos:</b>
@@ -3503,7 +3502,7 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 
 <b>Desenvolvedores:</b>
 @OnlyExaltarei
-@Thebesty9
+@Lhmodzz
 @PETER_DNS
 
 <b>Versão:</b> 5.1
@@ -3576,7 +3575,7 @@ def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
     if not verbose:
         cached = db_cache_get("sqli", target)
         if cached:
-            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"}]]
+            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
             send_message_with_buttons(chat_id, cached, buttons)
             return
 
@@ -3591,7 +3590,7 @@ def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
     db_cache_set("sqli", target, result)
 
     # V4.3: Add inline button for rescan
-    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"}]]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
 
 
@@ -3610,7 +3609,7 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
     if not verbose:
         cached = db_cache_get("xss", target)
         if cached:
-            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"}]]
+            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
             send_message_with_buttons(chat_id, cached, buttons)
             return
 
@@ -3625,7 +3624,7 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
     db_cache_set("xss", target, result)
 
     # V4.3: Add inline button for rescan
-    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"}]]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
 
 def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
@@ -3641,7 +3640,7 @@ def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
     # V5.1: Check DB cache first
     cached = db_cache_get("admin", target)
     if cached:
-        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:admin:{target}"}]]
+        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:admin:{target}"[:64][:64]}]]
         send_message_with_buttons(chat_id, cached, buttons)
         return
 
@@ -3651,7 +3650,7 @@ def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
     result = tool_admin_finder(target, chat_id, progress_msg_id)
     finish_progress(progress_msg_id, chat_id, result)
     db_cache_set("admin", target, result)
-    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:admin:{target}"}]]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:admin:{target}"[:64][:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
 
 def handle_ports(chat_id, user_id, username, first_name, last_name, args):
@@ -3952,7 +3951,7 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
     # V5.1: Check DB cache first
     cached = db_cache_get("panel", target)
     if cached:
-        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:panel:{target}"}]]
+        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:panel:{target}"[:64][:64]}]]
         send_message_with_buttons(chat_id, cached, buttons)
         return
 
@@ -3967,7 +3966,7 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
     # Cleanup stop event
     if user_id in STOP_EVENTS:
         del STOP_EVENTS[user_id]
-    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:panel:{target}"}]]
+    buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:panel:{target}"[:64][:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
 
 def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
@@ -4031,6 +4030,7 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
 /maintenance — Modo manutenção
 /cooldown — Configurar rate limit
 /vip add/remove — Gerenciar VIPs
+/viplist — Listar todos os VIPs
 /log — Audit logs detalhados
 /clearlogs — Limpar logs antigos
 /broadcast — Agendar broadcast
@@ -4576,7 +4576,7 @@ def handle_status(chat_id, user_id, username, first_name, last_name, args):
         db_size = 0
     active_threads = threading.active_count()
 
-    msg = f"""📊 <b>Mth Ddos Security v4.3 — Status</b>
+    msg = f"""📊 <b>Mth Ddos Security v5.1 — Status</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 🟢 <b>Online</b> | Uptime: {hours}h {mins}m {secs}s
 👥 Usuários: {stats['total']} (Donos: {stats['owners']})
@@ -5330,9 +5330,19 @@ def handle_schedule(chat_id, user_id, username, first_name, last_name, args):
     if len(args) < 3:
         send_message_safe(chat_id, "❌ Use: /schedule &lt;minutos&gt; &lt;comando&gt; &lt;url&gt;\nExemplo: /schedule 30 sqli google.com/?id=1")
         return
-    minutes = int(args[0])
+    try:
+        minutes = int(args[0])
+        if minutes < 1:
+            minutes = 1
+    except ValueError:
+        send_message_safe(chat_id, "❌ Minutos devem ser um número válido.")
+        return
     scan_cmd = args[1]
     target = args[2]
+    valid_cmds = ['sqli','xss','admin','panel','ports','dirs','sub','wp','dns','cms','reverse','ftpssh','info','emails','ssl','headers','cors','robots','sitemap','tech','exposed','backup','api','shell','config','scanall','deep','quick','http','sslchain']
+    if scan_cmd not in valid_cmds:
+        send_message_safe(chat_id, f"❌ Comando inválido: /{scan_cmd}\nComandos aceitos: {', '.join(valid_cmds[:10])}...")
+        return
     log_command(user_id, username, "schedule", f"{scan_cmd} {target} +{minutes}min")
     clean_target = extract_hostname(target)
     scheduled_time = time.time() + (minutes * 60)
@@ -5388,9 +5398,17 @@ def handle_cooldown(chat_id, user_id, username, first_name, last_name, args):
     if not args or len(args) < 2:
         send_message_safe(chat_id, "❌ Use: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\nExemplo: /cooldown 123456 5 60")
         return
-    target_uid = int(args[0])
-    limit = int(args[1])
-    window = int(args[2]) if len(args) > 2 else 60
+    try:
+        target_uid = int(args[0])
+        limit = int(args[1])
+        if limit < 1:
+            limit = 1
+        window = int(args[2]) if len(args) > 2 else 60
+        if window < 1:
+            window = 60
+    except ValueError:
+        send_message_safe(chat_id, "❌ Parâmetros inválidos. Use números inteiros.")
+        return
     CUSTOM_RATE_LIMITS[target_uid] = {'limit': limit, 'window': window}
     audit_log(user_id, username, "cooldown", f"Set rate limit {limit}/{window}s for user {target_uid}")
     send_message_safe(chat_id, f"✅ <b>Rate limit configurado</b>\nUser: {target_uid}\nLimite: {limit} cmds / {window}s")
@@ -5405,7 +5423,11 @@ def handle_vip(chat_id, user_id, username, first_name, last_name, args):
         send_message_safe(chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;\nExemplo: /vip add 123456")
         return
     action = args[0].lower()
-    target_uid = int(args[1])
+    try:
+        target_uid = int(args[1])
+    except ValueError:
+        send_message_safe(chat_id, "❌ User ID inválido. Use um número inteiro.")
+        return
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if action == 'add':
         VIP_USERS.add(target_uid)
@@ -5432,6 +5454,35 @@ def handle_vip(chat_id, user_id, username, first_name, last_name, args):
             send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
     else:
         send_message_safe(chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;")
+
+def handle_viplist(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Lista todos os usuários VIP cadastrados"""
+    log_user(user_id, username, first_name, last_name)
+    if not is_owner(user_id):
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+        return
+    log_owner_command(user_id, username, "viplist")
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("SELECT user_id, username, added_at, added_by FROM vip_users ORDER BY added_at DESC")
+            rows = c.fetchall()
+        if not rows:
+            send_message_safe(chat_id, "📋 <b>VIP List</b>\n━━━━━━━━━━━━━━━━━━━━━━\n❌ Nenhum usuário VIP cadastrado.")
+            return
+        msg = "📋 <b>VIP List</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        for i, row in enumerate(rows, 1):
+            uid = row[0]
+            uname = row[1] if row[1] and row[1] != 'N/D' else '?'
+            added = row[2] if row[2] else '?'
+            by_id = row[3]
+            by_name = OWNERS.get(by_id, f"User {by_id}")
+            msg += f"{i}. <b>{uname}</b> (ID: {uid})\n"
+            msg += f"   Add by: {by_name} | Data: {added}\n"
+        msg += f"━━━━━━━━━━━━━━━━━━━━━━\n📊 Total: {len(rows)} VIP(s)"
+        send_message_safe(chat_id, msg)
+    except Exception as e:
+        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_log(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
@@ -5496,7 +5547,13 @@ def handle_broadcast(chat_id, user_id, username, first_name, last_name, args):
     if len(args) < 2:
         send_message_safe(chat_id, "❌ Use: /broadcast &lt;minutos&gt; &lt;texto&gt;\nExemplo: /broadcast 60 Bot vai cair para manutenção em 1 hora")
         return
-    minutes = int(args[0])
+    try:
+        minutes = int(args[0])
+        if minutes < 1:
+            minutes = 1
+    except ValueError:
+        send_message_safe(chat_id, "❌ Minutos devem ser um número válido.")
+        return
     message_text = ' '.join(args[1:])
     scheduled_time = time.time() + (minutes * 60)
     try:
@@ -5945,8 +6002,9 @@ def handle_watch(chat_id, user_id, username, first_name, last_name, args):
             interval = int(args[1])
             if interval < 1:
                 interval = 1
-        except:
-            pass
+        except ValueError:
+            send_message_safe(chat_id, "❌ Intervalo deve ser um número válido em minutos.")
+            return
 
     log_command(user_id, username, "watch", f"{target} {interval}min")
     clean_target = extract_hostname(target)
@@ -5964,7 +6022,7 @@ def handle_watch(chat_id, user_id, username, first_name, last_name, args):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
-            c.execute("INSERT OR REPLACE INTO site_monitor (user_id, target, chat_id, last_status, last_check, content_hash, watch_interval) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            c.execute("INSERT OR REPLACE INTO site_monitor (user_id, target, chat_id, last_status, last_check, content_hash, watch_interval, watch_type) VALUES (?, ?, ?, ?, ?, ?, ?, 'content')",
                       (user_id, clean_target, chat_id, 1, time.time(), initial_hash, interval))
             conn.commit()
         send_message_safe(chat_id, f"👁️ <b>Watch ativado!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📍 {escape_html(clean_target)}\n⏱️ Check a cada {interval}min\n📊 Hash inicial: {initial_hash[:8]}...\n━━━━━━━━━━━━━━━━━━━━━━\nUse /watch off para desativar.")
@@ -5988,7 +6046,34 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
     ports_r = tool_port_scanner(target)
     ssl_r = tool_ssl_audit(target)
     headers_r = tool_headers_analysis(target)
-    rate_r = "Rate scan completo."
+    try:
+        rate_url = target
+        if not rate_url.startswith(('http://', 'https://')):
+            rate_url = 'http://' + rate_url
+        rate_resp = _safe_get(rate_url, timeout=8)
+        if rate_resp:
+            rate_headers = rate_resp.headers
+            rate_body = rate_resp.text.lower()
+            rate_score = 100
+            rate_details = []
+            if not rate_headers.get('Strict-Transport-Security'):
+                rate_score -= 15; rate_details.append("HSTS ausente")
+            if not rate_headers.get('X-Content-Type-Options'):
+                rate_score -= 10; rate_details.append("X-Content-Type-Options ausente")
+            if not rate_headers.get('X-Frame-Options'):
+                rate_score -= 10; rate_details.append("X-Frame-Options ausente")
+            if not rate_headers.get('Content-Security-Policy'):
+                rate_score -= 15; rate_details.append("CSP ausente")
+            if 'wp-login.php' in rate_body or 'wp-content' in rate_body:
+                rate_score -= 10; rate_details.append("WordPress detectado")
+            if rate_url.startswith('http://') and not rate_url.startswith('https://'):
+                rate_score -= 20; rate_details.append("Sem HTTPS")
+            rate_score = max(0, min(100, rate_score))
+            rate_r = f"Score: {rate_score}/100\nDetalhes: {'; '.join(rate_details[:5]) if rate_details else 'Tudo OK'}"
+        else:
+            rate_r = "Rate scan: Não foi possível acessar o site"
+    except Exception as e:
+        rate_r = f"Rate scan falhou: {str(e)}"
 
     # Strip HTML for report
     def clean(r):
@@ -6003,7 +6088,8 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
     report += "--- DNS ---\n" + clean(dns_r) + "\n\n"
     report += "--- PORTAS ---\n" + clean(ports_r) + "\n\n"
     report += "--- SSL ---\n" + clean(ssl_r) + "\n\n"
-    report += "--- HEADERS ---\n" + clean(headers_r) + "\n"
+    report += "--- HEADERS ---\n" + clean(headers_r) + "\n\n"
+    report += "--- RATE ---\n" + clean(rate_r) + "\n"
 
     success = send_document(chat_id, report, f"relatorio_{clean_target}.txt")
     if success:
@@ -6086,6 +6172,7 @@ CMD_HANDLERS = {
     '/maintenance': lambda c, u, un, fn, ln, a: handle_maintenance(c, u, un, fn, ln, a),
     '/cooldown':lambda c, u, un, fn, ln, a: handle_cooldown(c, u, un, fn, ln, a),
     '/vip':     lambda c, u, un, fn, ln, a: handle_vip(c, u, un, fn, ln, a),
+    '/viplist':  lambda c, u, un, fn, ln, a: handle_viplist(c, u, un, fn, ln, a),
     '/log':     lambda c, u, un, fn, ln, a: handle_log(c, u, un, fn, ln, a),
     '/clearlogs': lambda c, u, un, fn, ln, a: handle_clearlogs(c, u, un, fn, ln, a),
     '/broadcast': lambda c, u, un, fn, ln, a: handle_broadcast(c, u, un, fn, ln, a),
@@ -6375,6 +6462,7 @@ def site_monitor_loop():
                     url = target
                     if not url.startswith(('http://', 'https://')):
                         url = 'http://' + url
+                    resp = None
                     try:
                         resp = _safe_get(url, timeout=5)
                         current_status = 1 if (resp and resp.status_code == 200) else 0
@@ -6571,10 +6659,10 @@ if __name__ == "__main__":
             stats = get_user_stats()
             print(f"Users: {stats['total']} | Commands: {stats['commands']}")
         else:
-            print('Usage: python3 Mth_Ddos_v1.py [polling|webhook <url>|test]')
+            print(f"Unknown argument: {sys.argv[1]}")
+            print('Usage: python3 Mth_Ddos_v50.py [polling|webhook <url>|test]')
     else:
-        print('Usage: python3 Mth_Ddos_v1.py [polling|webhook <url>|test]')
-        print("Default: long polling mode")
+        # Default: long polling mode (no args needed)
         # Start health check in background
         health_thread = threading.Thread(target=health_check_loop, daemon=True)
         health_thread.start()
