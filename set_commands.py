@@ -85,6 +85,10 @@ commands = [
     {"command": "clearlogs", "description": "Limpar logs (donos)"},
     {"command": "broadcast", "description": "Agendar broadcast (donos)"},
     {"command": "top", "description": "Top sites (donos)"},
+    # Owner-exclusive scanners
+    {"command": "forensic", "description": "Forensic analysis (donos)"},
+    {"command": "pentest", "description": "Pentest automation (donos)"},
+    {"command": "osint", "description": "OSINT intelligence (donos)"},
 ]
 
 resp = requests.post(f"{API}/setMyCommands", json={"commands": commands})

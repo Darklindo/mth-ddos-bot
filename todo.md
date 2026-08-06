@@ -111,3 +111,11 @@
 - [ ] Replace hardcoded PT messages with translated versions
 - [ ] Add /lang command for manual language selection
 - [ ] Update /help and /about for all languages
+## TIERED SCANNING SYSTEM (Normal/VIP/Owner)
+- [x] Design tier system: Normal users get basic scanner, VIP sees 2 buttons (Normal/VIP), Owner sees 3 buttons (Normal/VIP/Owner)
+- [x] Add VIP scanner upgrade: deeper analysis, more payloads, banner grabbing, subdomain enum, vuln path scan
+- [x] Add Owner scanner upgrade: full WAF bypass, 0-day patterns, API fuzzing, config exposure, sensitive file scan
+- [x] Add tier buttons to /sqli, /xss, /scanall, /deep (callback handlers for tier:prefix)
+- [x] Add owner-exclusive commands: /forensic, /pentest, /osint
+- [x] Update set_commands.py with new commands
+- [ ] Verify syntax, commit and push

