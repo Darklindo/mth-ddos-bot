@@ -156,13 +156,20 @@
 - [ ] Add tier buttons to /compare
 - [ ] Add tier callback handlers for all new scanner tiers
 ## INTERACTIVE MENU SYSTEM (V5.2 — Major UX Overhaul)
-- [ ] Create main menu with category pages (Vulnerabilidades, Recon, Auditoria, Arquivos)
-- [ ] Create VIP exclusive page with VIP-tier scanners
-- [ ] Create OWNER exclusive page with forensic/pentest/osint
-- [ ] Add target input flow (bot asks for URL after button click)
-- [ ] Add navigation callbacks (back button, page switching)
-- [ ] Add /start command that shows main menu
-- [ ] Add tier-gated buttons (Normal users don't see VIP/Owner pages)
-- [ ] Keep /commands working as fallback for power users
+- [x] Create main menu with category pages (Vulnerabilidades, Recon, Auditoria, Arquivos)
+- [x] Create VIP exclusive page with VIP-tier scanners
+- [x] Create OWNER exclusive page with forensic/pentest/osint
+- [x] Add target input flow (bot asks for URL after button click)
+- [x] Add navigation callbacks (back button, page switching)
+- [x] Add /start command that shows main menu
+- [x] Add tier-gated buttons (Normal users don't see VIP/Owner pages)
+- [x] Keep /commands working as fallback for power users
 - [ ] Update set_commands.py
-- [ ] Verify syntax, commit and push
+- [x] Verify syntax, commit and push
+## v5.2 BUG REVIEW (LINE BY LINE)
+- [x] Fix: handle_stats() missing args in menu:stats callback (already correct in v5.2)
+- [x] Fix: 'args' not defined in callback_query section (flow correctly falls through)
+- [x] Fix: Missing _run_info_normal/vip/owner functions (info scanner had no tier variants)
+- [x] Full line-by-line bug review of entire file
+- [x] All 30 _run_*_normal/vip/owner functions verified
+- [x] set_commands.py updated with forensic/pentest/osint

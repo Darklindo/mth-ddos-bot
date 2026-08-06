@@ -7741,8 +7741,26 @@ def _run_sitemap_owner(chat_id, user_id, target):
         return
     send_msg(user_id, chat_id, f"👑 <b>OWNER SITEMAP</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
     handle_sitemap(chat_id, user_id, '', '', '', [target])
-
-
+def _run_info_normal(chat_id, user_id, target):
+    """Run info scanner in normal mode"""
+    log_command(user_id, '', 'info', '', target)
+    handle_info(chat_id, user_id, '', '', '', [target])
+def _run_info_vip(chat_id, user_id, target):
+    """Run info scanner in VIP mode (enhanced analysis)"""
+    log_command(user_id, '', 'info', '', target)
+    if not is_vip(user_id) and not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para membros VIP.")
+        return
+    send_msg(user_id, chat_id, f"⭐ <b>VIP INFO</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_info(chat_id, user_id, '', '', '', [target])
+def _run_info_owner(chat_id, user_id, target):
+    """Run info scanner in Owner mode (maximum analysis)"""
+    log_command(user_id, '', 'info', '', target)
+    if not is_owner(user_id):
+        send_msg(user_id, chat_id, "❌ Este scan é exclusivo para DONOS.")
+        return
+    send_msg(user_id, chat_id, f"👑 <b>OWNER INFO</b> — {target}\n━━━━━━━━━━━━━━━━━━━━━━\n")
+    handle_info(chat_id, user_id, '', '', '', [target])
 def _run_exposed_normal(chat_id, user_id, target):
     """Run exposed scanner in normal mode"""
     log_command(user_id, '', 'exposed', '', target)
@@ -8071,7 +8089,16 @@ def handle_forensic(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, "🔒 <b>Acesso negado!</b> Este comando é exclusivo dos donos.")
         return
     if not args:
-        send_msg(user_id, chat_id, "❌ Use: /forensic &lt;url&gt;\nExemplo: /forensic example.com")
+        # Called from menu — ask for target
+        PENDING_TARGETS[user_id] = {'cmd': 'forensic', 'tier': 'owner'}
+        buttons = [[{"text": "❌ Cancelar", "callback_data": "menu:cancel_target"}]]
+        send_message_with_buttons(chat_id,
+            "🔬 <b>Insira o alvo</b> (👑 OWNER)\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Ferramenta: <b>Forensic Analysis</b>\n\n"
+            "Envie a URL, domínio ou IP do alvo.\n"
+            "<i>Exemplo: example.com, https://site.com, 192.168.1.1</i>\n\n"
+            "Para cancelar, pressione o botão abaixo.",
+            buttons)
         return
     target = args[0]
     log_command(user_id, username, "forensic", target)
@@ -8193,7 +8220,16 @@ def handle_pentest(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, "🔒 <b>Acesso negado!</b> Este comando é exclusivo dos donos.")
         return
     if not args:
-        send_msg(user_id, chat_id, "❌ Use: /pentest &lt;url&gt;\nExemplo: /pentest example.com/?id=1")
+        # Called from menu — ask for target
+        PENDING_TARGETS[user_id] = {'cmd': 'pentest', 'tier': 'owner'}
+        buttons = [[{"text": "❌ Cancelar", "callback_data": "menu:cancel_target"}]]
+        send_message_with_buttons(chat_id,
+            "💀 <b>Insira o alvo</b> (👑 OWNER)\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Ferramenta: <b>Pentest Automation</b>\n\n"
+            "Envie a URL, domínio ou IP do alvo.\n"
+            "<i>Exemplo: example.com, https://site.com/?id=1</i>\n\n"
+            "Para cancelar, pressione o botão abaixo.",
+            buttons)
         return
     target = args[0]
     log_command(user_id, username, "pentest", target)
@@ -8330,7 +8366,16 @@ def handle_osint(chat_id, user_id, username, first_name, last_name, args):
         send_msg(user_id, chat_id, "🔒 <b>Acesso negado!</b> Este comando é exclusivo dos donos.")
         return
     if not args:
-        send_msg(user_id, chat_id, "❌ Use: /osint &lt;domain or ip&gt;\nExemplo: /osint example.com")
+        # Called from menu — ask for target
+        PENDING_TARGETS[user_id] = {'cmd': 'osint', 'tier': 'owner'}
+        buttons = [[{"text": "❌ Cancelar", "callback_data": "menu:cancel_target"}]]
+        send_message_with_buttons(chat_id,
+            "🕵️ <b>Insira o alvo</b> (👑 OWNER)\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Ferramenta: <b>OSINT Intelligence</b>\n\n"
+            "Envie o domínio ou IP do alvo.\n"
+            "<i>Exemplo: example.com, 192.168.1.1</i>\n\n"
+            "Para cancelar, pressione o botão abaixo.",
+            buttons)
         return
     target = args[0]
     log_command(user_id, username, "osint", target)
@@ -8932,7 +8977,7 @@ def process_update(update):
             return
         
         if cb_data == 'menu:stats':
-            handle_stats(chat_id, user_id, username, first_name, last_name)
+            handle_stats(chat_id, user_id, username, first_name, last_name, [])
             return
         
         if cb_data == 'menu:lang':
@@ -8952,21 +8997,19 @@ def process_update(update):
             if not is_owner(user_id):
                 send_msg(user_id, chat_id, "❌ Este comando é exclusivo para DONOS.")
                 return
-            handle_forensic(chat_id, user_id, username, first_name, last_name, args if args else [])
+            handle_forensic(chat_id, user_id, username, first_name, last_name, [])
             return
-        
         if cb_data == 'cmd:pentest':
             if not is_owner(user_id):
                 send_msg(user_id, chat_id, "❌ Este comando é exclusivo para DONOS.")
                 return
-            handle_pentest(chat_id, user_id, username, first_name, last_name, args if args else [])
+            handle_pentest(chat_id, user_id, username, first_name, last_name, [])
             return
-        
         if cb_data == 'cmd:osint':
             if not is_owner(user_id):
                 send_msg(user_id, chat_id, "❌ Este comando é exclusivo para DONOS.")
                 return
-            handle_osint(chat_id, user_id, username, first_name, last_name, args if args else [])
+            handle_osint(chat_id, user_id, username, first_name, last_name, [])
             return
         
         # Target input flow: "target:cmd:tier"
@@ -9013,6 +9056,9 @@ def process_update(update):
                     'api': 'API Discovery',
                     'scanall': 'ScanAll',
                     'deep': 'Deep Scan',
+                    'forensic': 'Forensic Analysis',
+                    'pentest': 'Pentest Automation',
+                    'osint': 'OSINT Intelligence',
                 }
                 cmd_name = cmd_display.get(scan_cmd, scan_cmd)
                 tier_badge = "⭐ VIP" if tier == 'vip' else "👑 OWNER" if tier == 'owner' else ""
@@ -9150,7 +9196,16 @@ def process_update(update):
         
         # Route to the correct tier handler
         cmd = scan_cmd  # Override cmd for routing
-        
+        # Owner commands (forensic/pentest/osint) — route to handlers directly
+        if scan_cmd == 'forensic':
+            handle_forensic(chat_id, user_id, username, first_name, last_name, [target])
+            return
+        if scan_cmd == 'pentest':
+            handle_pentest(chat_id, user_id, username, first_name, last_name, [target])
+            return
+        if scan_cmd == 'osint':
+            handle_osint(chat_id, user_id, username, first_name, last_name, [target])
+            return
         # Map scan commands to handler functions
         SCAN_MAP = {
             'sqli': 'sqli',
@@ -9190,10 +9245,13 @@ def process_update(update):
         
         # For tiered scanners, use _run_* functions
         TIERED_SCANNERS = ['sqli', 'xss', 'scanall', 'deep',
-                          'admin', 'ports', 'whois', 'rate',
-                          'headers', 'dns', 'robots', 'tech',
-                          'cms', 'exposed', 'backup', 'api',
-                          'shell', 'config', 'cors', 'http', 'sslchain', 'ssl']
+                          'admin', 'ports', 'dirs', 'sub', 'wp',
+                          'ftpssh', 'emails', 'reverse',
+                          'whois', 'rate', 'headers', 'dns',
+                          'robots', 'tech', 'cms', 'exposed',
+                          'backup', 'api', 'shell', 'config',
+                          'cors', 'http', 'sslchain', 'ssl',
+                          'info', 'sitemap']
         
         if scan_cmd in TIERED_SCANNERS:
             fn_name = f"_run_{scan_cmd}_{tier}"
