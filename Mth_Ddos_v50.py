@@ -296,7 +296,7 @@ CUSTOM_RATE_LIMITS = {}  # user_id -> {limit: int, window: int}
 SCHEDULED_TASKS = {}  # task_id -> {time: float, chat_id: int, cmd: str, target: str, user_id: int}
 
 # V5.0: Stealth mode tracking
-STEALTH_MODE = set()  # user_ids in stealth mode
+STEALTH_MODE = False  # boolean: True when a stealth scan is active
 
 # V5.0: Scan queue for managing concurrency
 SCAN_QUEUE = []  # Queue of pending scans
@@ -3095,7 +3095,7 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 <b>Banco:</b> SQLite com índices e otimizações
 <b>Segurança:</b> Sistema de donos + VIP + rate limit custom
 
-<b>Recursos V4.3:</b>
+<b>Recursos V5.0:</b>
 • 30 payloads SQLi com baseline comparison
 • 18 payloads XSS com verificação de escape
 • 100+ paths para Painel Admin Finder
@@ -3400,7 +3400,7 @@ def handle_ping(chat_id, user_id, username, first_name, last_name, args):
         speed_icon = "🔴"
         speed_label = "Muito lento"
 
-    msg = f"""🏓 <b>Ping — Mth Ddos Security v4.3</b>
+    msg = f"""🏓 <b>Ping — MTH Security v5.0</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📡 <b>Latência do Bot:</b> {bot_latency:.1f}ms
@@ -3525,7 +3525,8 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
     clean_target = extract_hostname(target)
     send_message_safe(chat_id, f"🔍 <b>Painel Admin Finder</b> em {escape_html(clean_target)}...")
     # Send initial progress
-    progress_msg_id = send_progress(chat_id, f"panel_{user_id}_{time.time()}", 0, 100, "Escaneando paths...")
+    scan_id = f"panel_{user_id}_{time.time()}"
+    progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
     result = tool_admin_finder(target, chat_id, progress_msg_id)
     finish_progress(progress_msg_id, chat_id, result)
     send_message_safe(chat_id, result)
@@ -3561,7 +3562,7 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
     except:
         db_size_str = "N/D"
 
-    msg = f"""📊 <b>Painel do Bot — Mth Ddos Security v4.3</b>
+    msg = f"""📊 <b>Painel do Bot — MTH Security v5.0</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Estatísticas:</b>
@@ -3836,37 +3837,39 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
     if args:
         search_term = ' '.join(args)
         try:
+            user_data = []
             with sqlite3.connect(DB_PATH) as conn:
                 conn.row_factory = sqlite3.Row
                 c = conn.cursor()
                 # Search by username or user_id
                 c.execute("SELECT * FROM users WHERE username LIKE ? OR id = ? ORDER BY command_count DESC",
                           (f"%{search_term}%", search_term))
-                rows = [dict(r) for r in c.fetchall()]
+                rows = c.fetchall()
 
-            if not rows:
-                send_message_safe(chat_id, f"🔍 Nenhum usuário encontrado para: {escape_html(search_term)}")
-                return
+                if not rows:
+                    send_message_safe(chat_id, f"🔍 Nenhum usuário encontrado para: {escape_html(search_term)}")
+                    return
 
-            msg = f"📊 <b>Estatísticas — Buscar: {escape_html(search_term)}</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
-            for r in rows[:10]:
-                msg += f"\n<b>@{escape_html(r['username'] or 'N/D')}</b> (ID: {r['id']})\n"
-                msg += f"  Nome: {escape_html(r['first_name'])} {escape_html(r['last_name'] or '')}\n"
-                msg += f"  Comandos: {r['command_count']}\n"
-                msg += f"  Dono: {'Sim' if r['is_owner'] else 'Não'}\n"
-                msg += f"  Primeiro acesso: {r['first_seen']}\n"
-                msg += f"  Último acesso: {r['last_seen']}\n"
-                # Get user's top commands
-                c2 = conn.cursor()
-                c2.execute("SELECT command, COUNT(*) as cnt FROM logs WHERE user_id = ? GROUP BY command ORDER BY cnt DESC LIMIT 3",
-                           (r['id'],))
-                top_cmds = c2.fetchall()
-                if top_cmds:
-                    top_parts = []
-                    for d in top_cmds:
-                        dd = dict(d)
-                        top_parts.append(f"/{dd['command']}({dd['cnt']}x)")
-                    msg += f"  Top comandos: {', '.join(top_parts)}\n"
+                msg = f"📊 <b>Estatísticas — Buscar: {escape_html(search_term)}</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+                for r in rows[:10]:
+                    d = dict(r)
+                    msg += f"\n<b>@{escape_html(d['username'] or 'N/D')}</b> (ID: {d['id']})\n"
+                    msg += f"  Nome: {escape_html(d['first_name'])} {escape_html(d['last_name'] or '')}\n"
+                    msg += f"  Comandos: {d['command_count']}\n"
+                    msg += f"  Dono: {'Sim' if d['is_owner'] else 'Não'}\n"
+                    msg += f"  Primeiro acesso: {d['first_seen']}\n"
+                    msg += f"  Último acesso: {d['last_seen']}\n"
+                    # Get user's top commands (still inside with block)
+                    c2 = conn.cursor()
+                    c2.execute("SELECT command, COUNT(*) as cnt FROM logs WHERE user_id = ? GROUP BY command ORDER BY cnt DESC LIMIT 3",
+                               (d['id'],))
+                    top_cmds = c2.fetchall()
+                    if top_cmds:
+                        top_parts = []
+                        for dd in top_cmds:
+                            ddd = dict(dd)
+                            top_parts.append(f"/{ddd['command']}({ddd['cnt']}x)")
+                        msg += f"  Top comandos: {', '.join(top_parts)}\n"
 
             send_message_safe(chat_id, msg[:4000])
         except Exception as e:
@@ -3889,7 +3892,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
         except:
             top_users = []
 
-        msg = f"""📊 <b>Mth Ddos Security v4.3 — Estatísticas</b>
+        msg = f"""📊 <b>MTH Security v5.0 — Estatísticas</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📈 Gerais:</b>
@@ -4101,7 +4104,7 @@ def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
     mins = (uptime_secs % 3600) // 60
     secs = uptime_secs % 60
 
-    msg = f"""⏱️ <b>Mth Ddos Security v4.3 — Uptime</b>
+    msg = f"""⏱️ <b>MTH Security v5.0 — Uptime</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🟢 <b>Online há:</b>
@@ -4825,13 +4828,18 @@ def handle_pdf(chat_id, user_id, username, first_name, last_name, args):
     send_message_safe(chat_id, f"🔍 <b>Gerando relatório PDF</b> de /{scan_cmd} em {escape_html(clean_target)}...")
     # Run the scan first
     tool_map = {
-        'sqli': tool_sqli, 'xss': tool_xss_scanner, 'ports': tool_port_scanner,
-        'dirs': tool_directory_scanner, 'sub': tool_subdomain_scanner,
-        'wp': tool_wordpress_scanner, 'dns': tool_dns_tools, 'cms': tool_cms_detector,
-        'reverse': tool_reverse_ip, 'ftpssh': tool_ftp_ssh, 'info': tool_website_info,
-        'ssl': tool_ssl_audit, 'headers': tool_headers_analysis, 'cors': tool_cors_test,
-        'exposed': tool_exposed_files, 'backup': tool_backup_finder, 'api': tool_api_discovery,
-        'shell': tool_webshell_hunter, 'config': tool_config_scanner,
+        'sqli': tool_sqli, 'xss': tool_xss_scanner, 'admin': tool_admin_finder,
+        'ports': tool_port_scanner, 'dirs': tool_directory_scanner,
+        'sub': tool_subdomain_scanner, 'wp': tool_wordpress_scanner,
+        'dns': tool_dns_tools, 'cms': tool_cms_detector,
+        'reverse': tool_reverse_ip, 'ftpssh': tool_ftp_ssh,
+        'info': tool_website_info, 'emails': tool_email_scraper,
+        'ssl': tool_ssl_audit, 'headers': tool_headers_analysis,
+        'cors': tool_cors_test, 'robots': tool_robots_txt,
+        'sitemap': tool_sitemap, 'tech': tool_tech_detect,
+        'exposed': tool_exposed_files, 'backup': tool_backup_finder,
+        'api': tool_api_discovery, 'shell': tool_webshell_hunter,
+        'config': tool_config_scanner,
     }
     tool_fn = tool_map.get(scan_cmd)
     if not tool_fn:
@@ -5087,16 +5095,28 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
     """Set up notification when a site changes status"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /notify &lt;url&gt;\nExemplo: /notify google.com")
+        send_message_safe(chat_id, "❌ Use: /notify &lt;url&gt;\nExemplo: /notify google.com\nUse /notify off para desativar todas.")
         return
     target = args[0]
+    if target.lower() == 'off':
+        # Remove all notifications for this user
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute("DELETE FROM site_monitor WHERE user_id = ?", (user_id,))
+                deleted = c.rowcount
+                conn.commit()
+            send_message_safe(chat_id, f"🔕 <b>Notificações desativadas!</b>\nRemovidos: {deleted} monitoramentos.")
+        except Exception as e:
+            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        return
     log_command(user_id, username, "notify", target)
     clean_target = extract_hostname(target)
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
-            c.execute("INSERT INTO notifications (user_id, chat_id, target, created_at) VALUES (?, ?, ?, ?)",
-                      (user_id, chat_id, clean_target, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            c.execute("INSERT OR REPLACE INTO site_monitor (user_id, target, chat_id, last_status, last_check) VALUES (?, ?, ?, 0, ?)",
+                      (user_id, clean_target, chat_id, time.time()))
             conn.commit()
         send_message_safe(chat_id, f"🔔 <b>Notificação ativada!</b>\n━━━━━━━━━━━━━━━━━━━━━━\nVou avisar se {escape_html(clean_target)} mudar de status.\nUse /notify off para desativar.\n━━━━━━━━━━━━━━━━━━━━━━")
     except Exception as e:
@@ -5187,6 +5207,46 @@ CMD_HANDLERS = {
 
 def process_update(update):
     """Process a Telegram update and route to the correct handler"""
+    # V5.0 FIX: Handle callback_query for inline buttons (rescan)
+    callback_query = update.get('callback_query')
+    if callback_query:
+        cb_data = callback_query.get('data', '')
+        chat_id = str(callback_query['message']['chat']['id'])
+        user_id = callback_query['from']['id']
+        username = callback_query['from'].get('username', '')
+        first_name = callback_query['from'].get('first_name', '')
+        last_name = callback_query['from'].get('last_name', '')
+        cb_message_id = callback_query['message'].get('message_id')
+
+        # Acknowledge the callback to remove loading spinner
+        try:
+            HTTP_SESSION.post(f"{API_URL}/answerCallbackQuery", json={
+                "callback_query_id": callback_query['id']
+            }, timeout=5)
+        except:
+            pass
+
+        # Parse callback data: "rescan:sqli:example.com" or "rescan:sqli:example.com/1"
+        if cb_data.startswith('rescan:'):
+            parts = cb_data.split(':', 2)
+            if len(parts) >= 3:
+                scan_cmd = parts[1]
+                target = parts[2]
+                # Route to handle_rescan with parsed args
+                handle_rescan(chat_id, user_id, username, first_name, last_name, [scan_cmd, target])
+                # Edit the original message to show rescan is happening
+                try:
+                    HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+                        "chat_id": chat_id,
+                        "message_id": cb_message_id,
+                        "text": f"🔄 <b>Rescan:</b> /{scan_cmd} {escape_html(target)}...\n<i>Processando...</i>",
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True
+                    }, timeout=5)
+                except:
+                    pass
+        return
+
     message = update.get('message')
     if not message or not message.get('text'):
         return
@@ -5310,7 +5370,7 @@ def long_polling():
     consecutive_errors = 0
     max_consecutive_errors = 30  # Stop after 30 consecutive errors (~5 min)
 
-    print("🚀 Mth Ddos Security v4.3 started (long polling mode)")
+    print("🚀 MTH Security v5.0 started (long polling mode)")
     print(f"👑 Owners: {OWNERS}")
     print(f"📱 DB: {DB_PATH}")
 
@@ -5319,7 +5379,7 @@ def long_polling():
             resp = HTTP_SESSION.get(f"{API_URL}/getUpdates", params={
                 "offset": offset,
                 "timeout": 30,
-                "allowed_updates": ["message"]
+                "allowed_updates": ["message", "callback_query"]
             }, timeout=35)
 
             if resp.status_code == 200:
@@ -5372,14 +5432,14 @@ def long_polling():
             print(f"[Polling] Too many consecutive errors ({consecutive_errors}). Stopping.")
             break
 
-    print("🛑 Mth Ddos Security v4.3 stopped.")
+    print("🛑 MTH Security v5.0 stopped.")
 
 
 def set_webhook(url):
     """Set webhook URL"""
     resp = HTTP_SESSION.post(f"{API_URL}/setWebhook", json={
         "url": url,
-        "allowed_updates": ["message"],
+        "allowed_updates": ["message", "callback_query"],
         "drop_pending_updates": True
     })
     if resp.status_code == 200:
@@ -5390,6 +5450,138 @@ def set_webhook(url):
             print(f"❌ Failed to set webhook: {data}")
     else:
         print(f"❌ HTTP {resp.status_code}: {resp.text}")
+
+
+# V5.0: Site status monitor thread (for /notify)
+def site_monitor_loop():
+    """Background thread that checks monitored sites every 60s and alerts on status change"""
+    global SHUTDOWN_FLAG
+    while not SHUTDOWN_FLAG:
+        time.sleep(60)
+        if SHUTDOWN_FLAG:
+            break
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT * FROM site_monitor")
+                monitors = c.fetchall()
+                for m in monitors:
+                    md = dict(m)
+                    target = md['target']
+                    last_status = md['last_status']
+                    chat_id = md['chat_id']
+
+                    # Check if site is online
+                    url = target
+                    if not url.startswith(('http://', 'https://')):
+                        url = 'http://' + url
+                    try:
+                        resp = _safe_get(url, timeout=5)
+                        current_status = 1 if (resp and resp.status_code == 200) else 0
+                    except:
+                        current_status = 0
+
+                    # If status changed, notify
+                    if current_status != last_status:
+                        if current_status == 0:
+                            send_message_safe(str(chat_id), f"⚠️ <b>ALERTA:</b> {escape_html(target)} está <b>OFFLINE</b>!")
+                        else:
+                            send_message_safe(str(chat_id), f"✅ <b>RECUPERADO:</b> {escape_html(target)} está <b>ONLINE</b>!")
+
+                        # Update DB
+                        c.execute("UPDATE site_monitor SET last_status = ?, last_check = ? WHERE user_id = ? AND target = ?",
+                                  (current_status, time.time(), md['user_id'], target))
+                        conn.commit()
+        except Exception as e:
+            print(f"[Site Monitor Error] {e}")
+
+
+# V5.0: Scheduled task consumer thread
+def scheduled_task_loop():
+    """Background thread that checks scheduled_tasks DB and executes pending tasks"""
+    global SHUTDOWN_FLAG
+    tool_map = {
+        'sqli': tool_sqli, 'xss': tool_xss_scanner, 'admin': tool_admin_finder,
+        'panel': tool_admin_finder, 'ports': tool_port_scanner,
+        'dirs': tool_directory_scanner, 'sub': tool_subdomain_scanner,
+        'wp': tool_wordpress_scanner, 'dns': tool_dns_tools, 'cms': tool_cms_detector,
+        'reverse': tool_reverse_ip, 'ftpssh': tool_ftp_ssh, 'info': tool_website_info,
+        'emails': tool_email_scraper, 'ssl': tool_ssl_audit, 'headers': tool_headers_analysis,
+        'cors': tool_cors_test, 'robots': tool_robots_txt, 'sitemap': tool_sitemap,
+        'tech': tool_tech_detect, 'exposed': tool_exposed_files, 'backup': tool_backup_finder,
+        'api': tool_api_discovery, 'shell': tool_webshell_hunter, 'config': tool_config_scanner,
+    }
+    while not SHUTDOWN_FLAG:
+        time.sleep(15)  # Check every 15 seconds
+        if SHUTDOWN_FLAG:
+            break
+        try:
+            now = time.time()
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT * FROM scheduled_tasks WHERE status = 'pending' AND scheduled_time <= ? LIMIT 5",
+                          (now,))
+                tasks = c.fetchall()
+                for task in tasks:
+                    t = dict(task)
+                    # Mark as executing first to prevent double execution
+                    c.execute("UPDATE scheduled_tasks SET status = 'executing' WHERE id = ?", (t['id'],))
+                    conn.commit()
+
+                    cmd = t['cmd']
+                    target = t['target']
+                    chat_id = t['chat_id']
+
+                    if cmd == 'broadcast':
+                        # Broadcast: send target (which is the message text) to all users
+                        msg = target
+                        try:
+                            c2 = conn.cursor()
+                            c2.execute("SELECT id FROM users")
+                            users = [r['id'] for r in c2.fetchall()]
+                            sent = 0
+                            for uid in users:
+                                try:
+                                    HTTP_SESSION.post(f"{API_URL}/sendMessage", json={
+                                        "chat_id": str(uid),
+                                        "text": msg,
+                                        "parse_mode": "HTML",
+                                        "disable_web_page_preview": True
+                                    }, timeout=5)
+                                    sent += 1
+                                    time.sleep(0.2)
+                                except:
+                                    pass
+                            send_message_safe(str(t['chat_id']), f"✅ <b>Broadcast executado!</b>\nEnviado para {sent} usuários.")
+                        except Exception as e:
+                            print(f"[Schedule Error] broadcast: {e}")
+                    else:
+                        # Regular scan
+                        tool_fn = tool_map.get(cmd)
+                        if tool_fn:
+                            try:
+                                send_message_safe(str(chat_id), f"⏰ <b>Scan agendado executando:</b> /{cmd} {escape_html(extract_hostname(target))}")
+                                result = tool_fn(target)
+                                send_message_safe(str(chat_id), result)
+                                db_cache_set(cmd, target, result)
+                            except Exception as e:
+                                send_message_safe(str(chat_id), f"❌ Erro no scan agendado: {escape_html(str(e))}")
+                        else:
+                            send_message_safe(str(chat_id), f"❌ Comando /{cmd} não suportado em scans agendados.")
+
+                    # Mark as completed
+                    c.execute("UPDATE scheduled_tasks SET status = 'completed' WHERE id = ?", (t['id'],))
+                    conn.commit()
+
+            # Cleanup old completed tasks (older than 24h)
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute("DELETE FROM scheduled_tasks WHERE status = 'completed' AND scheduled_time < ?", (now - 86400,))
+                conn.commit()
+        except Exception as e:
+            print(f"[Scheduled Task Error] {e}")
 
 
 def health_check_loop():
@@ -5446,10 +5638,15 @@ if __name__ == "__main__":
             # Start health check in background
             health_thread = threading.Thread(target=health_check_loop, daemon=True)
             health_thread.start()
+            # V5.0: Start site monitor and scheduled task threads
+            monitor_thread = threading.Thread(target=site_monitor_loop, daemon=True)
+            monitor_thread.start()
+            sched_thread = threading.Thread(target=scheduled_task_loop, daemon=True)
+            sched_thread.start()
             # Start bot with auto-restart
             run_with_restart()
         elif sys.argv[1] == "test":
-            print("Mth Ddos Security v4.3")
+            print("MTH Security v5.0")
             print(f"Owners: {OWNERS}")
             print(f"DB: {DB_PATH}")
             stats = get_user_stats()
