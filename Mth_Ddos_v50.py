@@ -91,83 +91,12 @@ CHANGELOG v4.3:
 - IMPROVE: Cache de resultados salvo no banco (scan_cache table)
 - NEW: DB tables: feedback, bug_reports, scan_cache, scan_tasks
 
-CHANGELOG v3.6:
-- FIX: SQLi scanner — safe="" in requests.utils.quote to encode quotes properly
-- FIX: XSS scanner — stricter unescaped reflection check, partial match removed
-- FIX: DNS Tools — Android fallback (nslookup/getaddrinfo instead of dig)
-- FIX: FTP/SSH scanner — proper socket cleanup on banner recv failure
-- FIX: /ping — bot latency now measured separately from API latency
-- FIX: /logs — SQL injection via f-string in LIMIT clause fixed (parameterized)
-- FIX: /logs username search — escape LIKE wildcards (% and _)
-- FIX: Admin Finder — added 20+ more paths, removed duplicates with dir scanner
-- FIX: Directory Scanner — removed duplicate paths already in Admin Finder
-- FIX: Subdomain Scanner — now verifies HTTP response, not just DNS resolution
-- FIX: send_document — waits for send confirmation before deleting temp file
-- FIX: send_long_message — respects 4096 char limit properly
-- FIX: log_user/log_command — uses context manager for DB connections
-- FIX: Polling — added max retry limit for 502/503, prevents infinite loop
-- FIX: Polling — offset not advanced on process_update crash
-- FIX: send_message_safe — plain text fallback sanitizes HTML entities
-- FIX: Rate limit (429) handling with exponential backoff
-- FIX: Removed duplicate paths between /admin and /dirs
-- FIX: /help and /start now show different, purpose-specific messages
-- IMPROVE: Added retry with exponential backoff for all HTTP requests
-- IMPROVE: Added graceful shutdown with SIGTERM/SIGINT
-- IMPROVE: Added thread pool limit to prevent OOM from spam
-- IMPROVE: All tools now use proper timeout and error handling
-- IMPROVE: Admin Finder now 70+ paths with dedup
-- IMPROVE: XSS scanner now checks context of reflection (inside tags vs plain text)
-
-CHANGELOG v3.7:
-- FIX: /ping bot latency now correctly excludes API latency
-- FIX: send_document returns True/False for success confirmation
-- FIX: /bancodds verifies send_document success before confirming
-- FIX: handle_logs LIKE search uses with-context for DB connection
-- FIX: Offset only advances after handler confirms completion
-- FIX: Port scanner socket always closed (finally block)
-- FIX: Offline detection — scanners show "site offline" instead of "no vuln found"
-- FIX: send_message_safe HTML entity decode order corrected
-- FIX: /info and /sqli — handle None baseline before starting scan
-- IMPROVE: Version bumped to v3.7 in all display messages
-
-CHANGELOG v3.9:
-- PERF: Shared HTTP session (requests.Session) — connection pooling saves 100-300ms/request
-- PERF: Shared thread pool — no more creating ThreadPoolExecutor per handler
-- PERF: DB indexes on logs(user_id, username, timestamp) — faster queries
-- PERF: get_user_stats single query — 4 queries → 1 query
-- PERF: handlers dict moved to global scope — no lambda creation per update
-- PERF: _safe_get retry delay reduced from 1s to 0.5s
-- PERF: LAST_SEND_TIME auto-cleanup every 5 min — prevents memory leak
-- PERF: send_message uses shared HTTP session
-- PERF: Subdomain scanner uses _safe_get (has retry) instead of bare requests.get
-- PERF: DNS tools checks `which dig` once at startup
-- PERF: handle_ping / handle_panel use single datetime.now() call
-
-CHANGELOG v3.9:
-- FIX: log_user — UPSERT now updates username/first_name/last_name when they change
-- FIX: /dns header — extract_hostname called BEFORE building the display header
-- FIX: /sub — extract_hostname so full URLs are accepted
-- FIX: /ports /ftpssh /dns handlers — show clean hostname in progress message
-- FIX: send_message_safe — only fallback to plain text on HTML parse errors, not all 400s
-- FIX: send_message 429 — max 3 retries to prevent RecursionError
-- FIX: send_long_message — split lines longer than MAX into chunks
-- FIX: CMS detector Django — removed duplicate 'Django' signature that caused false positive
-- FIX: Admin Finder — deduplicated paths (admin1/admin2/admin3/cpanel were listed twice)
-- FIX: init_db — uses context manager to prevent connection leak on crash
-- FIX: /bancodds inline dump — escape HTML in dump content to prevent XSS
-- FIX: DNS tools TXT — added nslookup fallback for Android/Termux
-
-CHANGELOG v4.0:
-- FIX: DNS DoH — _safe_get now accepts headers parameter (was silently ignored, DoH never worked)
-- FIX: /reverse progress message — now shows clean hostname (extract_hostname)
-- FIX: /wp progress message — now shows clean hostname
-- FIX: All handler progress messages — /info, /sqli, /xss, /admin, /dirs, /cms, /emails show clean hostname
-- FIX: /about version — updated from 3.8 to 4.0
-- FIX: Usage text — updated from mega3_bot.py to Mth_Ddos_v50.py
-- FIX: /ping — now uses HTTP_SESSION instead of bare requests.get
-- FIX: WordPress scanner — added /wp-json/ as strong WP signal
-- FIX: CMS detector — added Flask, FastAPI, Express, Ruby on Rails signatures
-- PERF: _safe_get accepts custom headers (needed for DoH)
+CHANGELOG v3.6–v4.0 (resumo):
+- FIX: SQLi/XSS scanners, DNS tools, FTP/SSH, send_document, polling offset, rate limit 429
+- FIX: log_user UPSERT, extract_hostname on all handler progress messages
+- FIX: CMS detector duplicates, Admin Finder dedup, DNS DoH headers
+- PERF: Shared HTTP session, shared thread pool, DB indexes, single-query stats
+- IMPROVE: Graceful shutdown, timeout/error handling, retry backoff, thread pool limit
 - PERF: Port scanner timeout reduced to 1s (faster scans)
 - PERF: Email scraper — stricter TLD validation (min 2 chars after dot)
 - PERF: Reverse IP — added ip-api.com fallback when socket reverse fails
@@ -369,40 +298,8 @@ def load_banned_users():
     except:
         pass
 
-def sanitize_url(url):
-    """Sanitize URL input to prevent command injection and SSRF attempts"""
-    if not url:
-        return None
-    url = url.strip()
-    # Remove dangerous chars (command injection, SSRF, pipe)
-    for char in [';', '|', '&', '$', '`', '(', ')']:
-        url = url.replace(char, '')
-    # Limit length
-    if len(url) > 2048:
-        url = url[:2048]
-    return url
-
-def get_cached_result(cmd, target):
-    """Get cached result if available and not expired"""
-    key = (cmd, target)
-    if key in RESULT_CACHE:
-        result, ts = RESULT_CACHE[key]
-        if time.time() - ts < CACHE_TTL:
-            return result
-        else:
-            del RESULT_CACHE[key]
-    return None
-
-def set_cached_result(cmd, target, result):
-    """Store result in cache"""
-    key = (cmd, target)
-    RESULT_CACHE[key] = (result, time.time())
-    # Cleanup old entries if cache is too big
-    if len(RESULT_CACHE) > 200:
-        now = time.time()
-        stale = [k for k, (_, ts) in RESULT_CACHE.items() if now - ts > CACHE_TTL]
-        for k in stale:
-            del RESULT_CACHE[k]
+# NOTE: sanitize_url, get_cached_result, set_cached_result removed (unused/dead)
+# URL sanitization is handled by extract_hostname(); caching uses db_cache_get/set.
 
 # Error log file
 def log_error(module, error):
@@ -946,30 +843,7 @@ def is_owner(user_id):
 #  SECURITY TOOLS v3.6
 # ═══════════════════════════════════════════════════════════════
 
-def _safe_get_stealth(url, timeout=10, headers=None):
-    """Stealth GET request - slower, with randomized user agents to avoid detection"""
-    stealth_ua = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
-    ]
-    if not headers:
-        headers = {}
-    headers.setdefault('User-Agent', random.choice(stealth_ua))
-    for attempt in range(2):
-        try:
-            return HTTP_SESSION.get(url, timeout=timeout, allow_redirects=True, headers=headers)
-        except requests.exceptions.ConnectionError:
-            if attempt < 1:
-                time.sleep(random.uniform(1, 3))
-            else:
-                return None
-        except Exception:
-            return None
-    return None
-
+# NOTE: _safe_get_stealth removed (unused dead function)
 def _safe_get(url, timeout=5, headers=None):
     """Safe GET request with retry on connection errors (uses shared HTTP session).
     Supports custom headers (needed for DNS-over-HTTPS queries)."""
@@ -3462,12 +3336,11 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 /feedback &lt;msg&gt; — Enviar sugestão
 /bugreport &lt;msg&gt; — Reportar bug
 /rescan &lt;comando&gt; &lt;url&gt; — Refazer scan
-/stop [id] — Parar scan
 
 ━━━━━━━━━━━━━━━━━━━━━━
+<i>Use /listdn para ver comandos exclusivos de donos.</i>
 <b>👑 Donos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
 ━━━━━━━━━━━━━━━━━━━━━━
-
 <i>Mth Ddos Security v5.1</i>
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
 
@@ -5643,7 +5516,7 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
 # ═══════════════════════════════════════════════════════════════
 
 def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Scan All — runs info + ports + dns + ssl + headers + exposed on a URL"""
+    """V5.1: Scan All — runs info + ports + dns + ssl + headers + exposed on a URL. Results sent as .txt file."""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_message_safe(chat_id, "❌ Use: /scanall &lt;url&gt;\nExemplo: /scanall google.com")
@@ -5651,49 +5524,82 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "scanall", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos.")
+    send_message_safe(chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos. Os resultados serão enviados em um arquivo .txt")
 
-    results = []
-    # Info
-    results.append(f"📋 <b>1/6 — Info:</b>")
+    def _clean_html(text):
+        """Strip HTML tags for plain text report."""
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
+    # 1/6 — Info
+    send_message_safe(chat_id, "📋 <b>1/6 — Info...</b>")
     r = tool_website_info(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
+    sections.append("═" * 50)
+    sections.append("1/6 — INFORMATION")
+    sections.append("═" * 50)
+    sections.append(_clean_html(r))
 
-    # DNS
-    results.append(f"\n📋 <b>2/6 — DNS:</b>")
+    # 2/6 — DNS
+    send_message_safe(chat_id, "📋 <b>2/6 — DNS...</b>")
     r = tool_dns_tools(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
+    sections.append("\n" + "═" * 50)
+    sections.append("2/6 — DNS ANALYSIS")
+    sections.append("═" * 50)
+    sections.append(_clean_html(r))
 
-    # Ports
-    results.append(f"\n📋 <b>3/6 — Portas:</b>")
+    # 3/6 — Ports
+    send_message_safe(chat_id, "📋 <b>3/6 — Portas...</b>")
     r = tool_port_scanner(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
+    sections.append("\n" + "═" * 50)
+    sections.append("3/6 — PORT SCAN")
+    sections.append("═" * 50)
+    sections.append(_clean_html(r))
 
-    # SSL
-    results.append(f"\n📋 <b>4/6 — SSL/TLS:</b>")
+    # 4/6 — SSL
+    send_message_safe(chat_id, "📋 <b>4/6 — SSL/TLS...</b>")
     r = tool_ssl_audit(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
+    sections.append("\n" + "═" * 50)
+    sections.append("4/6 — SSL/TLS AUDIT")
+    sections.append("═" * 50)
+    sections.append(_clean_html(r))
 
-    # Headers
-    results.append(f"\n📋 <b>5/6 — Security Headers:</b>")
+    # 5/6 — Headers
+    send_message_safe(chat_id, "📋 <b>5/6 — Security Headers...</b>")
     r = tool_headers_analysis(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
+    sections.append("\n" + "═" * 50)
+    sections.append("5/6 — SECURITY HEADERS")
+    sections.append("═" * 50)
+    sections.append(_clean_html(r))
 
-    # Exposed files
-    results.append(f"\n📋 <b>6/6 — Arquivos Expostos:</b>")
+    # 6/6 — Exposed files
+    send_message_safe(chat_id, "📋 <b>6/6 — Arquivos Expostos...</b>")
     r = tool_exposed_files(target)
-    results.append(r.split('\n', 1)[1] if '\n' in r else r)
-    send_message_safe(chat_id, "\n".join(results))
+    sections.append("\n" + "═" * 50)
+    sections.append("6/6 — EXPOSED FILES")
+    sections.append("═" * 50)
+    sections.append(_clean_html(r))
 
-    send_message_safe(chat_id, f"✅ <b>Scan Completo finalizado</b> em {escape_html(clean_target)}")
+    # Build final report
+    report = f"MTH Security v5.1 — Scan Completo\n"
+    report += f"Target: {clean_target}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "═" * 50 + "\n\n"
+    report += "\n".join(sections)
+
+    # Send as .txt file
+    success = send_document(chat_id, report, f"scanall_{clean_target}.txt")
+    if success:
+        send_message_safe(chat_id, f"✅ <b>Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
+    else:
+        send_message_safe(chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
+        # Fallback: send truncated text
+        for section in sections:
+            safe_text = section[:4000]
+            if safe_text.strip():
+                send_message_safe(chat_id, safe_text)
 
 def handle_deep(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Deep Scan — sqli + xss + admin + exposed + shell + config"""
+    """V5.1: Deep Scan — sqli + xss + admin + exposed + shell + config. Results sent as .txt file."""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_message_safe(chat_id, "❌ Use: /deep &lt;url&gt;\nExemplo: /deep site.com/?id=1")
@@ -5701,42 +5607,62 @@ def handle_deep(chat_id, user_id, username, first_name, last_name, args):
     target = args[0]
     log_command(user_id, username, "deep", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar.")
+    send_message_safe(chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar. Os resultados serão enviados em um arquivo .txt")
 
+    def _clean_html(text):
+        return re.sub(r'<[^>]+>', '', text)
+
+    sections = []
     # SQLi
-    send_message_safe(chat_id, "📋 <b>1/6 — SQL Injection:</b>")
+    send_message_safe(chat_id, "📋 <b>1/6 — SQL Injection...</b>")
     r = tool_sqli(target)
-    send_message_safe(chat_id, r)
+    sections.append("═" * 50 + "\n1/6 — SQL INJECTION\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # XSS
-    send_message_safe(chat_id, "📋 <b>2/6 — XSS:</b>")
+    send_message_safe(chat_id, "📋 <b>2/6 — XSS...</b>")
     r = tool_xss_scanner(target)
-    send_message_safe(chat_id, r)
+    sections.append("\n" + "═" * 50 + "\n2/6 — XSS (CROSS-SITE SCRIPTING)\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Admin
-    send_message_safe(chat_id, "📋 <b>3/6 — Admin Panels:</b>")
+    send_message_safe(chat_id, "📋 <b>3/6 — Admin Panels...</b>")
     r = tool_admin_finder(target)
-    send_message_safe(chat_id, r)
+    sections.append("\n" + "═" * 50 + "\n3/6 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Exposed
-    send_message_safe(chat_id, "📋 <b>4/6 — Arquivos Expostos:</b>")
+    send_message_safe(chat_id, "📋 <b>4/6 — Arquivos Expostos...</b>")
     r = tool_exposed_files(target)
-    send_message_safe(chat_id, r)
+    sections.append("\n" + "═" * 50 + "\n4/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Webshells
-    send_message_safe(chat_id, "📋 <b>5/6 — Webshells:</b>")
+    send_message_safe(chat_id, "📋 <b>5/6 — Webshells...</b>")
     r = tool_webshell_hunter(target)
-    send_message_safe(chat_id, r)
+    sections.append("\n" + "═" * 50 + "\n5/6 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Config
-    send_message_safe(chat_id, "📋 <b>6/6 — Config Files:</b>")
+    send_message_safe(chat_id, "📋 <b>6/6 — Config Files...</b>")
     r = tool_config_scanner(target)
-    send_message_safe(chat_id, r)
+    sections.append("\n" + "═" * 50 + "\n6/6 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean_html(r))
 
-    send_message_safe(chat_id, f"✅ <b>Deep Scan finalizado</b> em {escape_html(clean_target)}")
+    # Build final report
+    report = f"MTH Security v5.1 — Deep Scan\n"
+    report += f"Target: {clean_target}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "═" * 50 + "\n\n"
+    report += "\n".join(sections)
+
+    # Send as .txt file
+    success = send_document(chat_id, report, f"deep_scan_{clean_target}.txt")
+    if success:
+        send_message_safe(chat_id, f"✅ <b>Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
+    else:
+        send_message_safe(chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
+        for section in sections:
+            safe_text = section[:4000]
+            if safe_text.strip():
+                send_message_safe(chat_id, safe_text)
 
 def handle_quick(chat_id, user_id, username, first_name, last_name, args):
-    """V5.1: Quick Scan — info + headers + rate in one shot"""
+    """V5.1: Quick Scan — info + headers + rate in one shot (file output)"""
     log_user(user_id, username, first_name, last_name)
     if not args:
         send_message_safe(chat_id, "❌ Use: /quick &lt;url&gt;\nExemplo: /quick google.com")
@@ -5746,15 +5672,26 @@ def handle_quick(chat_id, user_id, username, first_name, last_name, args):
     clean_target = extract_hostname(target)
     send_message_safe(chat_id, f"⚡ <b>Quick Scan</b> em {escape_html(clean_target)}...")
 
-    # Info
-    r = tool_website_info(target)
-    send_message_safe(chat_id, r)
+    # Gather all results
+    info_r = tool_website_info(target)
+    headers_r = tool_headers_analysis(target)
 
-    # Headers
-    r = tool_headers_analysis(target)
-    send_message_safe(chat_id, r)
+    # Strip HTML for file output
+    def _clean(r):
+        return re.sub(r'<[^>]+>', '', r)
 
-    send_message_safe(chat_id, f"✅ <b>Quick Scan finalizado</b> em {escape_html(clean_target)}")
+    report = f"MTH Security — Quick Scan\n"
+    report += f"Target: {clean_target}\n"
+    report += f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += "=" * 60 + "\n\n"
+    report += "--- INFO ---\n" + _clean(info_r) + "\n\n"
+    report += "--- HEADERS ---\n" + _clean(headers_r) + "\n"
+
+    success = send_document(chat_id, report, f"quick_scan_{clean_target}.txt")
+    if success:
+        send_message_safe(chat_id, f"📄 <b>Quick Scan finalizado!</b>\nTarget: {escape_html(clean_target)}")
+    else:
+        send_message_safe(chat_id, f"✅ <b>Quick Scan finalizado</b> em {escape_html(clean_target)}")
 
 def handle_cancel(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Cancel any running scan for the user"""
