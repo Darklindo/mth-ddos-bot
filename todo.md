@@ -106,9 +106,25 @@
 - [x] /cancel para parar scan em andamento
 - [x] /batch url1.com url2.com /sqli — Scan em lote
 ## MULTILINGUAL SUPPORT (PT/EN/ES/VI/ID)
-- [ ] Adicionar suporte ao idioma vietnamita (vi)
-- [ ] Adicionar suporte ao idioma indonésio (id)
-- [ ] Atualizar /lang command com vi e id
+- [x] Adicionar suporte ao idioma vietnamita (vi) — 39 traduções
+- [x] Adicionar suporte ao idioma indonésio (id) — 39 traduções
+- [x] Atualizar /lang command com vi e id
+- [x] Auto-detectar vi/id pelo language_code do Telegram
+## DEEP BUG REVIEW
+- [ ] Fix: setlang mensagem de confirmação hard-coded em PT/EN/ES (não respeita idioma selecionado)
+- [ ] Fix: Mensagens do menu principal não estão traduzidas (menu de idioma, ferramentas DONO, etc.)
+- [ ] Fix: Mensagem "🎯 Explorar Vulnerabilidades" aparece em PT mesmo quando usuário mudou idioma
+- [ ] Revisão completa: todos os menus e botões devem respeitar idioma do usuário
+- [ ] Revisão completa: verificar erros de indentação
+- [ ] Revisão completa: verificar variáveis não definidas
+- [ ] Revisão completa: verificar imports faltando
+- [ ] Revisão completa: verificar edge cases nos handlers
+
+## MULTILINGUAL SUPPORT (PT/EN/ES/VI/ID)
+- [x] Adicionar suporte ao idioma vietnamita (vi) — 39 traduções
+- [x] Adicionar suporte ao idioma indonésio (id) — 39 traduções
+- [x] Atualizar /lang command com vi e id
+- [x] Auto-detectar vi/id pelo language_code do Telegram
 - [ ] Language detection system (username locale / Telegram user lang)
 - [ ] Translation dictionary for all user-facing messages
 - [ ] Replace hardcoded PT messages with translated versions
