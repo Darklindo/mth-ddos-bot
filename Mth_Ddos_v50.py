@@ -428,6 +428,330 @@ _TRANSLATIONS: dict = {
         'en': 'Quick Scan completed!',
         'es': '¡Quick Scan completado!',
     },
+    '❌ Falha ao enviar o arquivo.': {
+        'en': '❌ Failed to send file.',
+        'es': '❌ Fallo al enviar el archivo.',
+    },
+    '❌ Falha ao enviar o relatório.': {
+        'en': '❌ Failed to send report.',
+        'es': '❌ Fallo al enviar el informe.',
+    },
+    '❌ Falha ao enviar relatório.': {
+        'en': '❌ Failed to send report.',
+        'es': '❌ Fallo al enviar el informe.',
+    },
+    '❌ Erro ao banir usuário.': {
+        'en': '❌ Error banning user.',
+        'es': '❌ Error al banear usuario.',
+    },
+    '❌ Erro ao buscar estatísticas.': {
+        'en': '❌ Error fetching stats.',
+        'es': '❌ Error al obtener estadísticas.',
+    },
+    '❌ Erro ao buscar lista de usuários.': {
+        'en': '❌ Error fetching user list.',
+        'es': '❌ Error al obtener la lista de usuarios.',
+    },
+    '❌ Erro ao desbanir usuário.': {
+        'en': '❌ Error unbanning user.',
+        'es': '❌ Error al desbanear usuario.',
+    },
+    '❌ Erro ao exportar lista.': {
+        'en': '❌ Error exporting list.',
+        'es': '❌ Error al exportar la lista.',
+    },
+    '❌ <b>Falha ao enviar o dump do banco.</b> Tente novamente.': {
+        'en': '❌ <b>Failed to send database dump.</b> Try again.',
+        'es': '❌ <b>Fallo al enviar el dump de la base de datos.</b> Inténtelo de nuevo.',
+    },
+    'ℹ️ Nenhum scan em andamento.': {
+        'en': 'ℹ️ No scans in progress.',
+        'es': 'ℹ️ No hay scans en progreso.',
+    },
+    'ℹ️ Nenhum scan encontrado para este target.': {
+        'en': 'ℹ️ No scan found for this target.',
+        'es': 'ℹ️ No se encontró ningún scan para este objetivo.',
+    },
+    'ℹ️ Nenhum scan registrado ainda.': {
+        'en': 'ℹ️ No scans registered yet.',
+        'es': 'ℹ️ Aún no hay scans registrados.',
+    },
+    'ℹ️ Nenhum usuário encontrado.': {
+        'en': 'ℹ️ No users found.',
+        'es': 'ℹ️ No se encontraron usuarios.',
+    },
+    'ℹ️ Nenhum usuário regular encontrado para enviar.': {
+        'en': 'ℹ️ No regular users found to send to.',
+        'es': 'ℹ️ No se encontraron usuarios regulares para enviar.',
+    },
+    '⏱️ Traceroute expirou (timeout 30s).': {
+        'en': '⏱️ Traceroute timed out (30s timeout).',
+        'es': '⏱️ Traceroute agotó el tiempo de espera (30s).',
+    },
+    '⏳ <b>Exportando lista de usuários...</b>': {
+        'en': '⏳ <b>Exporting user list...</b>',
+        'es': '⏳ <b>Exportando lista de usuarios...</b>',
+    },
+    '⏳ <b>Gerando dump do banco de dados...</b>': {
+        'en': '⏳ <b>Generating database dump...</b>',
+        'es': '⏳ <b>Generando dump de la base de datos...</b>',
+    },
+    '📄 <b>Dump do banco enviado como arquivo.</b>': {
+        'en': '📄 <b>Database dump sent as file.</b>',
+        'es': '📄 <b>Dump de la base de datos enviado como archivo.</b>',
+    },
+    '❌ Use: /info &lt;url&gt;\\nExemplo: /info example.com': {
+        'en': '❌ Use: /info &lt;url&gt;\\nExample: /info example.com',
+        'es': '❌ Usa: /info &lt;url&gt;\\nEjemplo: /info example.com',
+    },
+    '❌ Use: /sqli &lt;url&gt; [verbose]\\nExemplo: /sqli example.com/?id=1\\nExemplo: /sqli example.com/?id=1 verbose': {
+        'en': '❌ Use: /sqli &lt;url&gt; [verbose]\\nExample: /sqli example.com/?id=1\\nExample: /sqli example.com/?id=1 verbose',
+        'es': '❌ Usa: /sqli &lt;url&gt; [verbose]\\nEjemplo: /sqli example.com/?id=1\\nEjemplo: /sqli example.com/?id=1 verbose',
+    },
+    '❌ Use: /xss &lt;url&gt; [verbose]\\nExemplo: /xss example.com/?q=\\nExemplo: /xss example.com/?q= verbose': {
+        'en': '❌ Use: /xss &lt;url&gt; [verbose]\\nExample: /xss example.com/?q=\\nExample: /xss example.com/?q= verbose',
+        'es': '❌ Usa: /xss &lt;url&gt; [verbose]\\nEjemplo: /xss example.com/?q=\\nEjemplo: /xss example.com/?q= verbose',
+    },
+    '❌ Use: /admin &lt;url&gt;\\nExemplo: /admin example.com': {
+        'en': '❌ Use: /admin &lt;url&gt;\\nExample: /admin example.com',
+        'es': '❌ Usa: /admin &lt;url&gt;\\nEjemplo: /admin example.com',
+    },
+    '❌ Use: /ports &lt;ip/domain&gt;\\nExemplo: /ports example.com': {
+        'en': '❌ Use: /ports &lt;ip/domain&gt;\\nExample: /ports example.com',
+        'es': '❌ Usa: /ports &lt;ip/domain&gt;\\nEjemplo: /ports example.com',
+    },
+    '❌ Use: /dirs &lt;url&gt;\\nExemplo: /dirs example.com': {
+        'en': '❌ Use: /dirs &lt;url&gt;\\nExample: /dirs example.com',
+        'es': '❌ Usa: /dirs &lt;url&gt;\\nEjemplo: /dirs example.com',
+    },
+    '❌ Use: /sub &lt;domain&gt;\\nExemplo: /sub example.com': {
+        'en': '❌ Use: /sub &lt;domain&gt;\\nExample: /sub example.com',
+        'es': '❌ Usa: /sub &lt;domain&gt;\\nEjemplo: /sub example.com',
+    },
+    '❌ Use: /wp &lt;url&gt;\\nExemplo: /wp example.com': {
+        'en': '❌ Use: /wp &lt;url&gt;\\nExample: /wp example.com',
+        'es': '❌ Usa: /wp &lt;url&gt;\\nEjemplo: /wp example.com',
+    },
+    '❌ Use: /emails &lt;url&gt;\\nExemplo: /emails example.com': {
+        'en': '❌ Use: /emails &lt;url&gt;\\nExample: /emails example.com',
+        'es': '❌ Usa: /emails &lt;url&gt;\\nEjemplo: /emails example.com',
+    },
+    '❌ Use: /dns &lt;domain&gt;\\nExemplo: /dns example.com': {
+        'en': '❌ Use: /dns &lt;domain&gt;\\nExample: /dns example.com',
+        'es': '❌ Usa: /dns &lt;domain&gt;\\nEjemplo: /dns example.com',
+    },
+    '❌ Use: /cms &lt;url&gt;\\nExemplo: /cms example.com': {
+        'en': '❌ Use: /cms &lt;url&gt;\\nExample: /cms example.com',
+        'es': '❌ Usa: /cms &lt;url&gt;\\nEjemplo: /cms example.com',
+    },
+    '❌ Use: /reverse &lt;ip&gt;\\nExemplo: /reverse 8.8.8.8': {
+        'en': '❌ Use: /reverse &lt;ip&gt;\\nExample: /reverse 8.8.8.8',
+        'es': '❌ Usa: /reverse &lt;ip&gt;\\nEjemplo: /reverse 8.8.8.8',
+    },
+    '❌ Use: /ftpssh &lt;ip/domain&gt;\\nExemplo: /ftpssh example.com': {
+        'en': '❌ Use: /ftpssh &lt;ip/domain&gt;\\nExample: /ftpssh example.com',
+        'es': '❌ Usa: /ftpssh &lt;ip/domain&gt;\\nEjemplo: /ftpssh example.com',
+    },
+    '❌ Use: /logs user:&lt;id&gt;\\nExemplo: /logs user:123456789': {
+        'en': '❌ Use: /logs user:&lt;id&gt;\\nExample: /logs user:123456789',
+        'es': '❌ Usa: /logs user:&lt;id&gt;\\nEjemplo: /logs user:123456789',
+    },
+    '❌ Use: /panel &lt;url&gt;\\nExemplo: /panel example.com': {
+        'en': '❌ Use: /panel &lt;url&gt;\\nExample: /panel example.com',
+        'es': '❌ Usa: /panel &lt;url&gt;\\nEjemplo: /panel example.com',
+    },
+    '❌ Use: /msg &lt;sua mensagem&gt;\\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;': {
+        'en': '❌ Use: /msg &lt;sua mensagem&gt;\\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;',
+        'es': '❌ Usa: /msg &lt;sua mensagem&gt;\\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;',
+    },
+    '❌ Use: /ban &lt;user_id&gt; [motivo]\\nExemplo: /ban 123456789 Spam de comandos': {
+        'en': '❌ Use: /ban &lt;user_id&gt; [motivo]\\nExample: /ban 123456789 Spam de comandos',
+        'es': '❌ Usa: /ban &lt;user_id&gt; [motivo]\\nEjemplo: /ban 123456789 Spam de comandos',
+    },
+    '❌ Use: /unban &lt;user_id&gt;\\nExemplo: /unban 123456789': {
+        'en': '❌ Use: /unban &lt;user_id&gt;\\nExample: /unban 123456789',
+        'es': '❌ Usa: /unban &lt;user_id&gt;\\nEjemplo: /unban 123456789',
+    },
+    '❌ Use: /feedback &lt;sua mensagem&gt;\\nExemplo: /feedback Bot está muito rápido!': {
+        'en': '❌ Use: /feedback &lt;sua mensagem&gt;\\nExample: /feedback Bot está muito rápido!',
+        'es': '❌ Usa: /feedback &lt;sua mensagem&gt;\\nEjemplo: /feedback Bot está muito rápido!',
+    },
+    '❌ Use: /bugreport &lt;descrição do bug&gt;\\nExemplo: /bugreport /sqli não funciona com https': {
+        'en': '❌ Use: /bugreport &lt;descrição do bug&gt;\\nExample: /bugreport /sqli não funciona com https',
+        'es': '❌ Usa: /bugreport &lt;descrição do bug&gt;\\nEjemplo: /bugreport /sqli não funciona com https',
+    },
+    '❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\\nExemplo: /rescan sqli example.com': {
+        'en': '❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\\nExample: /rescan sqli example.com',
+        'es': '❌ Usa: /rescan &lt;comando&gt; &lt;target&gt;\\nEjemplo: /rescan sqli example.com',
+    },
+    '❌ Use: /ssl &lt;url&gt;\\nExemplo: /ssl google.com': {
+        'en': '❌ Use: /ssl &lt;url&gt;\\nExample: /ssl google.com',
+        'es': '❌ Usa: /ssl &lt;url&gt;\\nEjemplo: /ssl google.com',
+    },
+    '❌ Use: /headers &lt;url&gt;\\nExemplo: /headers google.com': {
+        'en': '❌ Use: /headers &lt;url&gt;\\nExample: /headers google.com',
+        'es': '❌ Usa: /headers &lt;url&gt;\\nEjemplo: /headers google.com',
+    },
+    '❌ Use: /cors &lt;url&gt;\\nExemplo: /cors google.com': {
+        'en': '❌ Use: /cors &lt;url&gt;\\nExample: /cors google.com',
+        'es': '❌ Usa: /cors &lt;url&gt;\\nEjemplo: /cors google.com',
+    },
+    '❌ Use: /robots &lt;url&gt;\\nExemplo: /robots google.com': {
+        'en': '❌ Use: /robots &lt;url&gt;\\nExample: /robots google.com',
+        'es': '❌ Usa: /robots &lt;url&gt;\\nEjemplo: /robots google.com',
+    },
+    '❌ Use: /sitemap &lt;url&gt;\\nExemplo: /sitemap google.com': {
+        'en': '❌ Use: /sitemap &lt;url&gt;\\nExample: /sitemap google.com',
+        'es': '❌ Usa: /sitemap &lt;url&gt;\\nEjemplo: /sitemap google.com',
+    },
+    '❌ Use: /tech &lt;url&gt;\\nExemplo: /tech google.com': {
+        'en': '❌ Use: /tech &lt;url&gt;\\nExample: /tech google.com',
+        'es': '❌ Usa: /tech &lt;url&gt;\\nEjemplo: /tech google.com',
+    },
+    '❌ Use: /exposed &lt;url&gt;\\nExemplo: /exposed google.com': {
+        'en': '❌ Use: /exposed &lt;url&gt;\\nExample: /exposed google.com',
+        'es': '❌ Usa: /exposed &lt;url&gt;\\nEjemplo: /exposed google.com',
+    },
+    '❌ Use: /backup &lt;url&gt;\\nExemplo: /backup google.com': {
+        'en': '❌ Use: /backup &lt;url&gt;\\nExample: /backup google.com',
+        'es': '❌ Usa: /backup &lt;url&gt;\\nEjemplo: /backup google.com',
+    },
+    '❌ Use: /api &lt;url&gt;\\nExemplo: /api google.com': {
+        'en': '❌ Use: /api &lt;url&gt;\\nExample: /api google.com',
+        'es': '❌ Usa: /api &lt;url&gt;\\nEjemplo: /api google.com',
+    },
+    '❌ Use: /shell &lt;url&gt;\\nExemplo: /shell google.com': {
+        'en': '❌ Use: /shell &lt;url&gt;\\nExample: /shell google.com',
+        'es': '❌ Usa: /shell &lt;url&gt;\\nEjemplo: /shell google.com',
+    },
+    '❌ Use: /config &lt;url&gt;\\nExemplo: /config google.com': {
+        'en': '❌ Use: /config &lt;url&gt;\\nExample: /config google.com',
+        'es': '❌ Usa: /config &lt;url&gt;\\nEjemplo: /config google.com',
+    },
+    '❌ Use: /traceroute &lt;ip&gt;\\nExemplo: /traceroute 8.8.8.8': {
+        'en': '❌ Use: /traceroute &lt;ip&gt;\\nExample: /traceroute 8.8.8.8',
+        'es': '❌ Usa: /traceroute &lt;ip&gt;\\nEjemplo: /traceroute 8.8.8.8',
+    },
+    '❌ Use: /whois &lt;domain&gt;\\nExemplo: /whois google.com': {
+        'en': '❌ Use: /whois &lt;domain&gt;\\nExample: /whois google.com',
+        'es': '❌ Usa: /whois &lt;domain&gt;\\nEjemplo: /whois google.com',
+    },
+    '❌ Use: /ip &lt;ip&gt;\\nExemplo: /ip 8.8.8.8': {
+        'en': '❌ Use: /ip &lt;ip&gt;\\nExample: /ip 8.8.8.8',
+        'es': '❌ Usa: /ip &lt;ip&gt;\\nEjemplo: /ip 8.8.8.8',
+    },
+    '❌ Use: /rate &lt;url&gt;\\nExemplo: /rate google.com': {
+        'en': '❌ Use: /rate &lt;url&gt;\\nExample: /rate google.com',
+        'es': '❌ Usa: /rate &lt;url&gt;\\nEjemplo: /rate google.com',
+    },
+    '❌ Use: /compare &lt;url1&gt; &lt;url2&gt;\\nExemplo: /compare google.com example.com': {
+        'en': '❌ Use: /compare &lt;url1&gt; &lt;url2&gt;\\nExample: /compare google.com example.com',
+        'es': '❌ Usa: /compare &lt;url1&gt; &lt;url2&gt;\\nEjemplo: /compare google.com example.com',
+    },
+    '❌ Use: /history &lt;url&gt;\\nExemplo: /history google.com': {
+        'en': '❌ Use: /history &lt;url&gt;\\nExample: /history google.com',
+        'es': '❌ Usa: /history &lt;url&gt;\\nEjemplo: /history google.com',
+    },
+    '❌ Use: /pdf &lt;comando&gt; &lt;url&gt;\\nExemplo: /pdf sqli google.com/?id=1': {
+        'en': '❌ Use: /pdf &lt;comando&gt; &lt;url&gt;\\nExample: /pdf sqli google.com/?id=1',
+        'es': '❌ Usa: /pdf &lt;comando&gt; &lt;url&gt;\\nEjemplo: /pdf sqli google.com/?id=1',
+    },
+    '❌ Use: /schedule &lt;minutos&gt; &lt;comando&gt; &lt;url&gt;\\nExemplo: /schedule 30 sqli google.com/?id=1': {
+        'en': '❌ Use: /schedule &lt;minutos&gt; &lt;comando&gt; &lt;url&gt;\\nExample: /schedule 30 sqli google.com/?id=1',
+        'es': '❌ Usa: /schedule &lt;minutos&gt; &lt;comando&gt; &lt;url&gt;\\nEjemplo: /schedule 30 sqli google.com/?id=1',
+    },
+    '❌ Use: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\\nExemplo: /cooldown 123456 5 60': {
+        'en': '❌ Use: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\\nExample: /cooldown 123456 5 60',
+        'es': '❌ Usa: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\\nEjemplo: /cooldown 123456 5 60',
+    },
+    '❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;\\nExemplo: /vip add 123456': {
+        'en': '❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;\\nExample: /vip add 123456',
+        'es': '❌ Usa: /vip &lt;add|remove&gt; &lt;user_id&gt;\\nEjemplo: /vip add 123456',
+    },
+    '❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;': {
+        'en': '❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;',
+        'es': '❌ Usa: /vip &lt;add|remove&gt; &lt;user_id&gt;',
+    },
+    '❌ Use: /log &lt;user_id&gt; ou /log audit\\nExemplo: /log 123456': {
+        'en': '❌ Use: /log &lt;user_id&gt; or /log audit\\nExample: /log 123456',
+        'es': '❌ Usa: /log &lt;user_id&gt; o /log audit\\nEjemplo: /log 123456',
+    },
+    '❌ Use: /broadcast &lt;minutos&gt; &lt;texto&gt;\\nExemplo: /broadcast 60 Bot vai cair para manutenção em 1 hora': {
+        'en': '❌ Use: /broadcast &lt;minutos&gt; &lt;texto&gt;\\nExample: /broadcast 60 Bot vai cair para manutenção em 1 hora',
+        'es': '❌ Usa: /broadcast &lt;minutos&gt; &lt;texto&gt;\\nEjemplo: /broadcast 60 Bot vai cair para manutenção em 1 hora',
+    },
+    '❌ Use: /stealth &lt;comando&gt; &lt;url&gt;\\nExemplo: /stealth sqli google.com/?id=1': {
+        'en': '❌ Use: /stealth &lt;comando&gt; &lt;url&gt;\\nExample: /stealth sqli google.com/?id=1',
+        'es': '❌ Usa: /stealth &lt;comando&gt; &lt;url&gt;\\nEjemplo: /stealth sqli google.com/?id=1',
+    },
+    '❌ Use: /notify &lt;url&gt;\\nExemplo: /notify google.com\\nUse /notify off para desativar todas.': {
+        'en': '❌ Use: /notify &lt;url&gt;\\nExample: /notify google.com\\nUse /notify off para desativar todas.',
+        'es': '❌ Usa: /notify &lt;url&gt;\\nEjemplo: /notify google.com\\nUse /notify off para desativar todas.',
+    },
+    '❌ Use: /scanall &lt;url&gt;\\nExemplo: /scanall google.com': {
+        'en': '❌ Use: /scanall &lt;url&gt;\\nExample: /scanall google.com',
+        'es': '❌ Usa: /scanall &lt;url&gt;\\nEjemplo: /scanall google.com',
+    },
+    '❌ Use: /deep &lt;url&gt;\\nExemplo: /deep site.com/?id=1': {
+        'en': '❌ Use: /deep &lt;url&gt;\\nExample: /deep site.com/?id=1',
+        'es': '❌ Usa: /deep &lt;url&gt;\\nEjemplo: /deep site.com/?id=1',
+    },
+    '❌ Use: /quick &lt;url&gt;\\nExemplo: /quick google.com': {
+        'en': '❌ Use: /quick &lt;url&gt;\\nExample: /quick google.com',
+        'es': '❌ Usa: /quick &lt;url&gt;\\nEjemplo: /quick google.com',
+    },
+    '❌ Use: /batch &lt;comando&gt; &lt;url1&gt; &lt;url2&gt; ...\\nExemplo: /batch sqli site1.com site2.com site3.com': {
+        'en': '❌ Use: /batch &lt;comando&gt; &lt;url1&gt; &lt;url2&gt; ...\\nExample: /batch sqli site1.com site2.com site3.com',
+        'es': '❌ Usa: /batch &lt;comando&gt; &lt;url1&gt; &lt;url2&gt; ...\\nEjemplo: /batch sqli site1.com site2.com site3.com',
+    },
+    '❌ Use: /http &lt;url&gt;\\nExemplo: /http google.com': {
+        'en': '❌ Use: /http &lt;url&gt;\\nExample: /http google.com',
+        'es': '❌ Usa: /http &lt;url&gt;\\nEjemplo: /http google.com',
+    },
+    '❌ Use: /sslchain &lt;url&gt;\\nExemplo: /sslchain google.com': {
+        'en': '❌ Use: /sslchain &lt;url&gt;\\nExample: /sslchain google.com',
+        'es': '❌ Usa: /sslchain &lt;url&gt;\\nEjemplo: /sslchain google.com',
+    },
+    '❌ Use: /watch &lt;url&gt; [intervalo_min]\\nExemplo: /watch google.com 10\\nUse /watch off para desativar.': {
+        'en': '❌ Use: /watch &lt;url&gt; [intervalo_min]\\nExample: /watch google.com 10\\nUse /watch off para desativar.',
+        'es': '❌ Usa: /watch &lt;url&gt; [intervalo_min]\\nEjemplo: /watch google.com 10\\nUse /watch off para desativar.',
+    },
+    '❌ Use: /report &lt;url&gt;\\nExemplo: /report google.com': {
+        'en': '❌ Use: /report &lt;url&gt;\\nExample: /report google.com',
+        'es': '❌ Usa: /report &lt;url&gt;\\nEjemplo: /report google.com',
+    },
+    '❌ Comando inválido: /': {
+        'en': '❌ Invalid command: /',
+        'es': '❌ Comando inválido: /',
+    },
+    '❌ Comando /': {
+        'en': '❌ Command /',
+        'es': '❌ Comando /',
+    },
+    'não suportado para rescan.': {
+        'en': 'not supported for rescan.',
+        'es': 'no soportado para rescan.',
+    },
+    'não suportado em batch.': {
+        'en': 'not supported in batch mode.',
+        'es': 'no soportado en modo batch.',
+    },
+    'não suportado em modo stealth.': {
+        'en': 'not supported in stealth mode.',
+        'es': 'no soportado en modo stealth.',
+    },
+    'não suportado para PDF.': {
+        'en': 'not supported for PDF.',
+        'es': 'no soportado para PDF.',
+    },
+    'não suportado em scans agendados.': {
+        'en': 'not supported in scheduled scans.',
+        'es': 'no soportado en scans programados.',
+    },
+    'Comandos aceitos: ': {
+        'en': 'Accepted commands: ',
+        'es': 'Comandos aceptados: ',
+    },
 }
 
 def _translate(text: str, lang: str) -> str:
@@ -877,6 +1201,19 @@ def send_message(chat_id, text, parse_mode="HTML"):
     except Exception as e:
         print(f"[Send Error] {e}")
         return None
+
+def check_owner(user_id, chat_id):
+    """Check if user is owner. Returns True if owner, sends translated deny message and returns False if not."""
+    if user_id in OWNERS:
+        return True
+    lang = get_user_lang(user_id)
+    if lang == 'en':
+        send_message_safe(chat_id, "🚫 <b>Access denied!</b> This command is restricted to bot owners.")
+    elif lang == 'es':
+        send_message_safe(chat_id, "🚫 <b>Acceso denegado!</b> Este comando está restringido a los dueños del bot.")
+    else:
+        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    return False
 
 def send_msg(user_id, chat_id, text, parse_mode="HTML"):
     """Translation-aware send_message_safe wrapper.
@@ -3468,51 +3805,29 @@ def tool_config_scanner(url):
 def handle_start(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
 
-    lang = get_user_lang(user_id)
-    if lang == 'en':
-        msg = f"""🛡️ <b>Mth Ddos Security</b>
-━━━━━━━━━━━━━━━━━━━━━━
+    buttons = [
+        [
+            {"text": "🇧🇷 PT-BR", "callback_data": "setlang:pt"},
+            {"text": "🇺🇸 EN", "callback_data": "setlang:en"},
+            {"text": "🇪🇸 ES", "callback_data": "setlang:es"}
+        ],
+        [
+            {"text": "🔧 /help", "callback_data": "cmd:help"},
+            {"text": "ℹ️ /about", "callback_data": "cmd:about"}
+        ]
+    ]
+    send_message_with_buttons(chat_id,
+        "🛡️ <b>Mth Ddos Security</b>\n━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+        "🌐 <b>Select your language / Selecione seu idioma / Selecciona tu idioma</b>\n\n" +
+        "🇧🇷 <b>Pt-BR</b> — Português do Brasil\n" +
+        "🇺🇸 <b>EN</b> — English\n" +
+        "🇪🇸 <b>ES</b> — Español\n\n" +
+        "━━━━━━━━━━━━━━━━━━━━━━\n" +
+        "<i>Mth Ddos Security v5.1</i>",
+        buttons)
 
-Hello {escape_html(first_name)}! Welcome to the security bot!
-
-<b>👑 Credits:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
-
-This bot has <b>55+ advanced tools</b> for security testing.
-Type <b>/help</b> to see the full command list.
-
-🌐 Use <b>/lang en</b> to change language (pt/en/es)
-
-<i>Mth Ddos Security v5.1</i>"""
-    elif lang == 'es':
-        msg = f"""🛡️ <b>Mth Ddos Security</b>
-━━━━━━━━━━━━━━━━━━━━━━
-
-¡Hola {escape_html(first_name)}! ¡Bienvenido al bot de seguridad!
-
-<b>👑 Créditos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
-
-Este bot tiene <b>55+ herramientas avanzadas</b> para pruebas de seguridad.
-Escribe <b>/help</b> para ver la lista completa de comandos.
-
-🌐 Usa <b>/lang es</b> para cambiar idioma (pt/en/es)
-
-<i>Mth Ddos Security v5.1</i>"""
-    else:
-        msg = f"""🛡️ <b>Mth Ddos Security</b>
-━━━━━━━━━━━━━━━━━━━━━━
-
-Olá {escape_html(first_name)}! Bem-vindo ao bot de segurança!
-
-<b>👑 Créditos:</b> @OnlyExaltarei, @Lhmodzz, @PETER_DNS
-
-Este bot possui <b>55+ ferramentas avançadas</b> para testes de segurança.
-Digite <b>/help</b> para ver a lista completa de comandos.
-
-🌐 Use <b>/lang pt</b> para mudar idioma (pt/en/es)
-
-<i>Mth Ddos Security v5.1</i>"""
-
-    send_message_safe(chat_id, msg)
+    # Auto-set language from Telegram language_code if not already set
+    # (the callback will handle explicit selection)
 
 def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
@@ -3729,7 +4044,7 @@ def handle_help(chat_id, user_id, username, first_name, last_name, args=None):
 <i>Mth Ddos Security v5.1</i>
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
 
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
     log_user(user_id, username, first_name, last_name)
@@ -3782,25 +4097,25 @@ def handle_about(chat_id, user_id, username, first_name, last_name, args=None):
 • Audit logs + Queue system
 
 <i>Uso apenas para fins educacionais e de segurança autorizada.</i>"""
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 def handle_info(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /info &lt;url&gt;\nExemplo: /info example.com")
+        send_msg(user_id, chat_id, "❌ Use: /info &lt;url&gt;\nExemplo: /info example.com")
         return
     target = args[0]
     log_command(user_id, username, "info", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Analisando</b> {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Analisando</b> {escape_html(clean_target)}...")
     result = tool_website_info(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
     """SQLi Scanner with verbose mode, DB cache, and inline buttons"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /sqli &lt;url&gt; [verbose]\nExemplo: /sqli example.com/?id=1\nExemplo: /sqli example.com/?id=1 verbose")
+        send_msg(user_id, chat_id, "❌ Use: /sqli &lt;url&gt; [verbose]\nExemplo: /sqli example.com/?id=1\nExemplo: /sqli example.com/?id=1 verbose")
         return
     target = args[0]
     verbose = len(args) > 1 and args[1].lower() == 'verbose'
@@ -3816,9 +4131,9 @@ def handle_sqli(chat_id, user_id, username, first_name, last_name, args):
             return
 
     if verbose:
-        send_message_safe(chat_id, f"🔍 <b>Scanner SQLi (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
+        send_msg(user_id, chat_id, f"🔍 <b>Scanner SQLi (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
     else:
-        send_message_safe(chat_id, f"🔍 <b>Scanner SQLi iniciado</b> em {escape_html(clean_target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Scanner SQLi iniciado</b> em {escape_html(clean_target)}...")
 
     result = tool_sqli(target, verbose=verbose)
 
@@ -3834,7 +4149,7 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
     """XSS Scanner with verbose mode, DB cache, and inline buttons"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /xss &lt;url&gt; [verbose]\nExemplo: /xss example.com/?q=\nExemplo: /xss example.com/?q= verbose")
+        send_msg(user_id, chat_id, "❌ Use: /xss &lt;url&gt; [verbose]\nExemplo: /xss example.com/?q=\nExemplo: /xss example.com/?q= verbose")
         return
     target = args[0]
     verbose = len(args) > 1 and args[1].lower() == 'verbose'
@@ -3850,9 +4165,9 @@ def handle_xss(chat_id, user_id, username, first_name, last_name, args):
             return
 
     if verbose:
-        send_message_safe(chat_id, f"🔍 <b>Scanner XSS (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
+        send_msg(user_id, chat_id, f"🔍 <b>Scanner XSS (VERBOSE)</b> em {escape_html(clean_target)}...\n📊 Modo detalhado ativado — mostrando cada payload testado.")
     else:
-        send_message_safe(chat_id, f"🔍 <b>Scanner XSS iniciado</b> em {escape_html(clean_target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Scanner XSS iniciado</b> em {escape_html(clean_target)}...")
 
     result = tool_xss_scanner(target, verbose=verbose)
 
@@ -3867,7 +4182,7 @@ def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
     """/admin — Quick admin panel finder (progress + cache + buttons)"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /admin &lt;url&gt;\nExemplo: /admin example.com")
+        send_msg(user_id, chat_id, "❌ Use: /admin &lt;url&gt;\nExemplo: /admin example.com")
         return
     target = args[0]
     log_command(user_id, username, "admin_panel", target)
@@ -3880,7 +4195,7 @@ def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
         send_message_with_buttons(chat_id, cached, buttons)
         return
 
-    send_message_safe(chat_id, f"🔍 <b>Buscando painéis admin</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Buscando painéis admin</b> em {escape_html(clean_target)}...")
     scan_id = f"admin_{user_id}_{time.time()}"
     progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
     result = tool_admin_finder(target, chat_id, progress_msg_id)
@@ -3892,114 +4207,114 @@ def handle_admin_panel(chat_id, user_id, username, first_name, last_name, args):
 def handle_ports(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /ports &lt;ip/domain&gt;\nExemplo: /ports example.com")
+        send_msg(user_id, chat_id, "❌ Use: /ports &lt;ip/domain&gt;\nExemplo: /ports example.com")
         return
     target = args[0]
     log_command(user_id, username, "ports", target)
     # FIX v3.9: Show clean hostname in progress message
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan de portas</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Scan de portas</b> em {escape_html(clean_target)}...")
     result = tool_port_scanner(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_dirs(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /dirs &lt;url&gt;\nExemplo: /dirs example.com")
+        send_msg(user_id, chat_id, "❌ Use: /dirs &lt;url&gt;\nExemplo: /dirs example.com")
         return
     target = args[0]
     log_command(user_id, username, "dirs", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan de diretórios</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Scan de diretórios</b> em {escape_html(clean_target)}...")
     result = tool_directory_scanner(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_sub(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /sub &lt;domain&gt;\nExemplo: /sub example.com")
+        send_msg(user_id, chat_id, "❌ Use: /sub &lt;domain&gt;\nExemplo: /sub example.com")
         return
     target = args[0]
     log_command(user_id, username, "sub", target)
     # FIX v3.9: Show clean hostname in progress message
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan de subdomínios</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Scan de subdomínios</b> em {escape_html(clean_target)}...")
     result = tool_subdomain_scanner(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_wp(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /wp &lt;url&gt;\nExemplo: /wp example.com")
+        send_msg(user_id, chat_id, "❌ Use: /wp &lt;url&gt;\nExemplo: /wp example.com")
         return
     target = args[0]
     log_command(user_id, username, "wp", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>WordPress Scanner</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>WordPress Scanner</b> em {escape_html(clean_target)}...")
     result = tool_wordpress_scanner(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_emails(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /emails &lt;url&gt;\nExemplo: /emails example.com")
+        send_msg(user_id, chat_id, "❌ Use: /emails &lt;url&gt;\nExemplo: /emails example.com")
         return
     target = args[0]
     log_command(user_id, username, "emails", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Extraindo emails</b> de {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Extraindo emails</b> de {escape_html(clean_target)}...")
     result = tool_email_scraper(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_dns(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /dns &lt;domain&gt;\nExemplo: /dns example.com")
+        send_msg(user_id, chat_id, "❌ Use: /dns &lt;domain&gt;\nExemplo: /dns example.com")
         return
     target = args[0]
     log_command(user_id, username, "dns", target)
     # FIX v3.9: Show clean hostname in progress message
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Análise DNS</b> de {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Análise DNS</b> de {escape_html(clean_target)}...")
     result = tool_dns_tools(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_cms(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /cms &lt;url&gt;\nExemplo: /cms example.com")
+        send_msg(user_id, chat_id, "❌ Use: /cms &lt;url&gt;\nExemplo: /cms example.com")
         return
     target = args[0]
     log_command(user_id, username, "cms", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Detectando CMS</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Detectando CMS</b> em {escape_html(clean_target)}...")
     result = tool_cms_detector(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_reverse(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /reverse &lt;ip&gt;\nExemplo: /reverse 8.8.8.8")
+        send_msg(user_id, chat_id, "❌ Use: /reverse &lt;ip&gt;\nExemplo: /reverse 8.8.8.8")
         return
     target = args[0]
     log_command(user_id, username, "reverse", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Reverse IP</b> de {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Reverse IP</b> de {escape_html(clean_target)}...")
     result = tool_reverse_ip(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_ftpssh(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /ftpssh &lt;ip/domain&gt;\nExemplo: /ftpssh example.com")
+        send_msg(user_id, chat_id, "❌ Use: /ftpssh &lt;ip/domain&gt;\nExemplo: /ftpssh example.com")
         return
     target = args[0]
     log_command(user_id, username, "ftpssh", target)
     # FIX v3.9: Show clean hostname in progress message
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan FTP/SSH</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Scan FTP/SSH</b> em {escape_html(clean_target)}...")
     result = tool_ftp_ssh(target)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_ping(chat_id, user_id, username, first_name, last_name, args):
     """Ping command - show bot response time and status"""
@@ -4078,7 +4393,7 @@ def handle_ping(chat_id, user_id, username, first_name, last_name, args):
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>Envio: {datetime.now().strftime('%H:%M:%S')}</i>"""
 
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 # ═══════════════════════════════════════════════════════════════
 #  OWNER-ONLY COMMANDS
@@ -4088,8 +4403,7 @@ def handle_logs(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Ver logs de usuários"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "logs")
@@ -4102,11 +4416,11 @@ def handle_logs(chat_id, user_id, username, first_name, last_name, args):
         if arg.startswith("user:"):
             uid_str = arg.split(":", 1)[1]
             if not uid_str.isdigit():
-                send_message_safe(chat_id, "❌ Use: /logs user:&lt;id&gt;\nExemplo: /logs user:123456789")
+                send_msg(user_id, chat_id, "❌ Use: /logs user:&lt;id&gt;\nExemplo: /logs user:123456789")
                 return
             user_logs = get_user_logs(int(uid_str))
             if not user_logs:
-                send_message_safe(chat_id, f"📋 <b>Nenhum log encontrado para ID:</b> {uid_str}")
+                send_msg(user_id, chat_id, f"📋 <b>Nenhum log encontrado para ID:</b> {uid_str}")
                 return
             msg = f"📋 <b>Logs do Usuário ID: {uid_str}</b> ({len(user_logs)} comandos)\n━━━━━━━━━━━━━━━━━━━━━━\n"
             for l in user_logs[:15]:
@@ -4119,7 +4433,7 @@ def handle_logs(chat_id, user_id, username, first_name, last_name, args):
         if arg.isdigit():
             user_logs = get_user_logs(int(arg))
             if not user_logs:
-                send_message_safe(chat_id, f"📋 <b>Nenhum log encontrado para ID:</b> {arg}")
+                send_msg(user_id, chat_id, f"📋 <b>Nenhum log encontrado para ID:</b> {arg}")
                 return
             msg = f"📋 <b>Logs do Usuário ID: {arg}</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
             for l in user_logs[:10]:
@@ -4147,7 +4461,7 @@ def handle_logs(chat_id, user_id, username, first_name, last_name, args):
                 msg += f"   ID:{l['user_id']} | {l['timestamp']}\n\n"
             send_long_message(chat_id, msg)
         else:
-            send_message_safe(chat_id, f"📋 <b>Nenhum log encontrado para:</b> {arg}")
+            send_msg(user_id, chat_id, f"📋 <b>Nenhum log encontrado para:</b> {arg}")
         return
 
     # Show global stats + recent logs
@@ -4178,7 +4492,7 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
     """PUBLIC: Painel Admin Finder — encontrar painéis de administração de sites"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /panel &lt;url&gt;\nExemplo: /panel example.com")
+        send_msg(user_id, chat_id, "❌ Use: /panel &lt;url&gt;\nExemplo: /panel example.com")
         return
     target = args[0]
     log_command(user_id, username, "panel", target)
@@ -4191,7 +4505,7 @@ def handle_panel(chat_id, user_id, username, first_name, last_name, args):
         send_message_with_buttons(chat_id, cached, buttons)
         return
 
-    send_message_safe(chat_id, f"🔍 <b>Painel Admin Finder</b> em {escape_html(clean_target)}...\n📊 Scan completo com 100+ paths...")
+    send_msg(user_id, chat_id, f"🔍 <b>Painel Admin Finder</b> em {escape_html(clean_target)}...\n📊 Scan completo com 100+ paths...")
     scan_id = f"panel_{user_id}_{time.time()}"
     # V5.1: Set stop event for cancellation
     STOP_EVENTS[user_id] = threading.Event()
@@ -4209,8 +4523,7 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Painel admin do bot (stats, donos, comandos)"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "botpanel")
@@ -4303,18 +4616,17 @@ def handle_botpanel(chat_id, user_id, username, first_name, last_name, args):
 ━━━━━━━━━━━━━━━━━━━━━━
 <i>""" + datetime.now().strftime("%d/%m/%Y %H:%M") + """</i>"""
 
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 def handle_bancodds(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Dump do banco de dados"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "bancodds")
-    send_message_safe(chat_id, "⏳ <b>Gerando dump do banco de dados...</b>")
+    send_msg(user_id, chat_id, "⏳ <b>Gerando dump do banco de dados...</b>")
 
     dump = get_db_dump()
 
@@ -4322,13 +4634,13 @@ def handle_bancodds(chat_id, user_id, username, first_name, last_name, args):
     if len(dump) > 3500:
         success = send_document(chat_id, dump, "mth_security_database_dump.txt")
         if success:
-            send_message_safe(chat_id, "📄 <b>Dump do banco enviado como arquivo.</b>")
+            send_msg(user_id, chat_id, "📄 <b>Dump do banco enviado como arquivo.</b>")
         else:
-            send_message_safe(chat_id, "❌ <b>Falha ao enviar o dump do banco.</b> Tente novamente.")
+            send_msg(user_id, chat_id, "❌ <b>Falha ao enviar o dump do banco.</b> Tente novamente.")
     else:
         # FIX v3.9: Escape HTML in inline dump to prevent XSS via username/target
         safe_dump = escape_html(dump)
-        send_message_safe(chat_id, f"📊 <b>Banco de Dados</b>\n━━━━━━━━━━━━━━━━━━━━━━\n" + safe_dump)
+        send_msg(user_id, chat_id, f"📊 <b>Banco de Dados</b>\n━━━━━━━━━━━━━━━━━━━━━━\n" + safe_dump)
 
 # ═══════════════════════════════════════════════════════════════
 #  GRACEFUL SHUTDOWN
@@ -4338,8 +4650,7 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
     Supports replying to a sticker/photo with /msg to send media + caption."""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "msg")
@@ -4348,7 +4659,7 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
 
     # If no media reply and no text, show usage
     if not reply_media and not args:
-        send_message_safe(chat_id, "❌ Use: /msg &lt;sua mensagem&gt;\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;")
+        send_msg(user_id, chat_id, "❌ Use: /msg &lt;sua mensagem&gt;\nOu envie um sticker/imagem e responda com /msg &lt;sua mensagem&gt;")
         return
 
     # Get all users from database
@@ -4360,11 +4671,11 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
             users = [dict(r) for r in c.fetchall()]
     except Exception as e:
         print(f"[DB Error] handle_msg: {e}")
-        send_message_safe(chat_id, "❌ Erro ao buscar lista de usuários.")
+        send_msg(user_id, chat_id, "❌ Erro ao buscar lista de usuários.")
         return
 
     if not users:
-        send_message_safe(chat_id, "ℹ️ Nenhum usuário regular encontrado para enviar.")
+        send_msg(user_id, chat_id, "ℹ️ Nenhum usuário regular encontrado para enviar.")
         return
 
     if reply_media:
@@ -4374,7 +4685,7 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
         caption = f"📢 {message_text}" if message_text else ''
 
         if media_type == 'sticker':
-            send_message_safe(chat_id, f"📢 <b>Enviando sticker para {len(users)} usuários...</b>")
+            send_msg(user_id, chat_id, f"📢 <b>Enviando sticker para {len(users)} usuários...</b>")
             sent = 0
             failed = 0
             for u in users:
@@ -4394,10 +4705,10 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
                     time.sleep(0.3)
                 except:
                     failed += 1
-            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
 
         elif media_type == 'photo':
-            send_message_safe(chat_id, f"📢 <b>Enviando imagem para {len(users)} usuários...</b>")
+            send_msg(user_id, chat_id, f"📢 <b>Enviando imagem para {len(users)} usuários...</b>")
             sent = 0
             failed = 0
             for u in users:
@@ -4415,10 +4726,10 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
                     time.sleep(0.3)
                 except:
                     failed += 1
-            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
 
         elif media_type == 'animation':
-            send_message_safe(chat_id, f"📢 <b>Enviando GIF para {len(users)} usuários...</b>")
+            send_msg(user_id, chat_id, f"📢 <b>Enviando GIF para {len(users)} usuários...</b>")
             sent = 0
             failed = 0
             for u in users:
@@ -4436,10 +4747,10 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
                     time.sleep(0.3)
                 except:
                     failed += 1
-            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
 
         elif media_type == 'video':
-            send_message_safe(chat_id, f"📢 <b>Enviando vídeo para {len(users)} usuários...</b>")
+            send_msg(user_id, chat_id, f"📢 <b>Enviando vídeo para {len(users)} usuários...</b>")
             sent = 0
             failed = 0
             for u in users:
@@ -4457,13 +4768,13 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
                     time.sleep(0.3)
                 except:
                     failed += 1
-            send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+            send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
         else:
-            send_message_safe(chat_id, "❌ Tipo de mídia não suportado.")
+            send_msg(user_id, chat_id, "❌ Tipo de mídia não suportado.")
 
     else:
         # TEXT BROADCAST (original behavior)
-        send_message_safe(chat_id, f"📢 <b>Enviando mensagem para todos os usuários...</b>\nMensagem: {escape_html(message_text[:100])}")
+        send_msg(user_id, chat_id, f"📢 <b>Enviando mensagem para todos os usuários...</b>\nMensagem: {escape_html(message_text[:100])}")
 
         broadcast = f"""📢 <b>Mensagem dos Donos</b>
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -4492,7 +4803,7 @@ def handle_msg(chat_id, user_id, username, first_name, last_name, args, reply_me
             except:
                 failed += 1
 
-        send_message_safe(chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
+        send_msg(user_id, chat_id, f"✅ <b>Broadcast concluído!</b>\n📤 Enviado: {sent}/{len(users)}\n❌ Falhou: {failed}")
 
 # ═══════════════════════════════════════════════════════════════
 #  NEW HANDLERS: /stats, /ban, /unban, /export, /uptime
@@ -4502,8 +4813,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: View stats of a specific user or all users"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "stats")
@@ -4522,7 +4832,7 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
                 rows = c.fetchall()
 
                 if not rows:
-                    send_message_safe(chat_id, f"🔍 Nenhum usuário encontrado para: {escape_html(search_term)}")
+                    send_msg(user_id, chat_id, f"🔍 Nenhum usuário encontrado para: {escape_html(search_term)}")
                     return
 
                 msg = f"📊 <b>Estatísticas — Buscar: {escape_html(search_term)}</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -4546,11 +4856,11 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
                             top_parts.append(f"/{ddd['command']}({ddd['cnt']}x)")
                         msg += f"  Top comandos: {', '.join(top_parts)}\n"
 
-            send_message_safe(chat_id, msg[:4000])
+            send_msg(user_id, chat_id, msg[:4000])
         except Exception as e:
             print(f"[DB Error] handle_stats: {e}")
             log_error("stats", str(e))
-            send_message_safe(chat_id, "❌ Erro ao buscar estatísticas.")
+            send_msg(user_id, chat_id, "❌ Erro ao buscar estatísticas.")
     else:
         # General stats
         stats = get_user_stats()
@@ -4584,30 +4894,29 @@ def handle_stats(chat_id, user_id, username, first_name, last_name, args):
         for i, u in enumerate(top_users, 1):
             msg += f"\n  {i}. @{escape_html(u['username'] or 'N/D')} — {u['command_count']} comandos"
 
-        send_message_safe(chat_id, msg)
+        send_msg(user_id, chat_id, msg)
 
 
 def handle_ban(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Ban a user from using the bot"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "ban")
 
     if not args:
-        send_message_safe(chat_id, "❌ Use: /ban &lt;user_id&gt; [motivo]\nExemplo: /ban 123456789 Spam de comandos")
+        send_msg(user_id, chat_id, "❌ Use: /ban &lt;user_id&gt; [motivo]\nExemplo: /ban 123456789 Spam de comandos")
         return
 
     target_id = int(args[0]) if args[0].isdigit() else None
     if not target_id:
-        send_message_safe(chat_id, "❌ ID inválido. Use o número do ID do usuário.")
+        send_msg(user_id, chat_id, "❌ ID inválido. Use o número do ID do usuário.")
         return
 
     if target_id in OWNERS:
-        send_message_safe(chat_id, "🚫 <b>Não é possível banir um dono!</b>")
+        send_msg(user_id, chat_id, "🚫 <b>Não é possível banir um dono!</b>")
         return
 
     reason = ' '.join(args[1:]) if len(args) > 1 else "Sem motivo especificado"
@@ -4633,25 +4942,24 @@ def handle_ban(chat_id, user_id, username, first_name, last_name, args):
         except:
             target_user = f"ID {target_id}"
 
-        send_message_safe(chat_id, f"✅ <b>Usuário banido!</b>\n👤 {escape_html(target_user)}\n📝 Motivo: {escape_html(reason)}")
+        send_msg(user_id, chat_id, f"✅ <b>Usuário banido!</b>\n👤 {escape_html(target_user)}\n📝 Motivo: {escape_html(reason)}")
     except Exception as e:
         print(f"[DB Error] handle_ban: {e}")
         log_error("ban", str(e))
-        send_message_safe(chat_id, "❌ Erro ao banir usuário.")
+        send_msg(user_id, chat_id, "❌ Erro ao banir usuário.")
 
 
 def handle_unban(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Unban a user"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "unban")
 
     if not args or not args[0].isdigit():
-        send_message_safe(chat_id, "❌ Use: /unban &lt;user_id&gt;\nExemplo: /unban 123456789")
+        send_msg(user_id, chat_id, "❌ Use: /unban &lt;user_id&gt;\nExemplo: /unban 123456789")
         return
 
     target_id = int(args[0])
@@ -4664,24 +4972,23 @@ def handle_unban(chat_id, user_id, username, first_name, last_name, args):
 
         BANNED_USERS.discard(target_id)
 
-        send_message_safe(chat_id, f"✅ <b>Usuário desbanido!</b>\nID: {target_id}")
+        send_msg(user_id, chat_id, f"✅ <b>Usuário desbanido!</b>\nID: {target_id}")
     except Exception as e:
         print(f"[DB Error] handle_unban: {e}")
         log_error("unban", str(e))
-        send_message_safe(chat_id, "❌ Erro ao desbanir usuário.")
+        send_msg(user_id, chat_id, "❌ Erro ao desbanir usuário.")
 
 
 def handle_export(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Export user list to TXT file"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "export")
 
-    send_message_safe(chat_id, "⏳ <b>Exportando lista de usuários...</b>")
+    send_msg(user_id, chat_id, "⏳ <b>Exportando lista de usuários...</b>")
 
     try:
         with sqlite3.connect(DB_PATH) as conn:
@@ -4692,11 +4999,11 @@ def handle_export(chat_id, user_id, username, first_name, last_name, args):
     except Exception as e:
         print(f"[DB Error] handle_export: {e}")
         log_error("export", str(e))
-        send_message_safe(chat_id, "❌ Erro ao exportar lista.")
+        send_msg(user_id, chat_id, "❌ Erro ao exportar lista.")
         return
 
     if not users:
-        send_message_safe(chat_id, "ℹ️ Nenhum usuário encontrado.")
+        send_msg(user_id, chat_id, "ℹ️ Nenhum usuário encontrado.")
         return
 
     export_text = "Mth Ddos Security - Exportação de Usuários\n"
@@ -4713,17 +5020,16 @@ def handle_export(chat_id, user_id, username, first_name, last_name, args):
     # Use send_document helper which has its own error handling
     success = send_document(chat_id, export_text, "users_export.txt")
     if success:
-        send_message_safe(chat_id, f"✅ <b>Exportação concluída!</b>\n📤 {len(users)} usuários exportados.")
+        send_msg(user_id, chat_id, f"✅ <b>Exportação concluída!</b>\n📤 {len(users)} usuários exportados.")
     else:
-        send_message_safe(chat_id, "❌ Falha ao enviar o arquivo.")
+        send_msg(user_id, chat_id, "❌ Falha ao enviar o arquivo.")
 
 
 def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: List all owner-exclusive commands"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "listdn")
@@ -4766,7 +5072,7 @@ def handle_listdn(chat_id, user_id, username, first_name, last_name, args):
 ━━━━━━━━━━━━━━━━━━━━━━
   🔒 Exclusivo para donos do bot"""
 
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 
 def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
@@ -4791,7 +5097,7 @@ def handle_uptime(chat_id, user_id, username, first_name, last_name, args):
     msg += f"⏰ Agora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
     msg += "━━━━━━━━━━━━━━━━━━━━━━"
 
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 
 def handle_status(chat_id, user_id, username, first_name, last_name, args):
@@ -4821,7 +5127,7 @@ def handle_status(chat_id, user_id, username, first_name, last_name, args):
 🧵 Threads ativas: {active_threads}
 🗃️ Banco: {db_size:.1f} KB
 ━━━━━━━━━━━━━━━━━━━━━━"""
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 
 def handle_feedback(chat_id, user_id, username, first_name, last_name, args):
@@ -4829,7 +5135,7 @@ def handle_feedback(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
 
     if not args:
-        send_message_safe(chat_id, "❌ Use: /feedback &lt;sua mensagem&gt;\nExemplo: /feedback Bot está muito rápido!")
+        send_msg(user_id, chat_id, "❌ Use: /feedback &lt;sua mensagem&gt;\nExemplo: /feedback Bot está muito rápido!")
         return
 
     message_text = ' '.join(args)
@@ -4865,7 +5171,7 @@ def handle_feedback(chat_id, user_id, username, first_name, last_name, args):
 │ Sua mensagem foi registrada com sucesso.
 │ ID do feedback: #{user_feedback_count}
 ━━━━━━━━━━━━━━━━━━━━━━"""
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 
 def handle_report(chat_id, user_id, username, first_name, last_name, args):
@@ -4873,7 +5179,7 @@ def handle_report(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
 
     if not args:
-        send_message_safe(chat_id, "❌ Use: /bugreport &lt;descrição do bug&gt;\nExemplo: /bugreport /sqli não funciona com https")
+        send_msg(user_id, chat_id, "❌ Use: /bugreport &lt;descrição do bug&gt;\nExemplo: /bugreport /sqli não funciona com https")
         return
 
     message_text = ' '.join(args)
@@ -4910,15 +5216,14 @@ def handle_report(chat_id, user_id, username, first_name, last_name, args):
 │ ID do relatório: #{user_report_count}
 │ Os donos serão notificados.
 ━━━━━━━━━━━━━━━━━━━━━━"""
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 
 def handle_stop(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Stop a running scan"""
     log_user(user_id, username, first_name, last_name)
 
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
 
     log_owner_command(user_id, username, "stop")
@@ -4932,13 +5237,13 @@ def handle_stop(chat_id, user_id, username, first_name, last_name, args):
             for scan_id, event in list(ACTIVE_SCANS.items()):
                 if str(target_user_id) in scan_id:
                     event.set()
-            send_message_safe(chat_id, f"✅ <b>Scan do usuário {target_user_id} parado!</b>")
+            send_msg(user_id, chat_id, f"✅ <b>Scan do usuário {target_user_id} parado!</b>")
         else:
-            send_message_safe(chat_id, f"❌ Nenhum scan ativo encontrado para o ID {target_user_id}.")
+            send_msg(user_id, chat_id, f"❌ Nenhum scan ativo encontrado para o ID {target_user_id}.")
     else:
         # Show active scans
         if not STOP_EVENTS:
-            send_message_safe(chat_id, "📋 <b>Nenhum scan ativo no momento.</b>")
+            send_msg(user_id, chat_id, "📋 <b>Nenhum scan ativo no momento.</b>")
             return
 
         msg = "📋 <b>Scans Ativos</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -4946,7 +5251,7 @@ def handle_stop(chat_id, user_id, username, first_name, last_name, args):
             msg += f"  👤 ID: {uid} — {'Rodando' if not event.is_set() else 'Parando...'}\n"
         msg += "━━━━━━━━━━━━━━━━━━━━━━\n"
         msg += "Use /stop &lt;user_id&gt; para parar um scan específico."
-        send_message_safe(chat_id, msg)
+        send_msg(user_id, chat_id, msg)
 
 
 def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
@@ -4954,11 +5259,11 @@ def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
 
     if not args:
-        send_message_safe(chat_id, "❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\nExemplo: /rescan sqli example.com")
+        send_msg(user_id, chat_id, "❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\nExemplo: /rescan sqli example.com")
         return
 
     if len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\nExemplo: /rescan sqli example.com")
+        send_msg(user_id, chat_id, "❌ Use: /rescan &lt;comando&gt; &lt;target&gt;\nExemplo: /rescan sqli example.com")
         return
 
     scan_cmd = '/' + args[0]
@@ -4969,142 +5274,148 @@ def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
     STOP_EVENTS[user_id] = threading.Event()
 
     if scan_cmd == '/sqli':
-        send_message_safe(chat_id, f"🔍 <b>Rescan SQLi</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan SQLi</b> em {escape_html(target)}...")
         result = tool_sqli(target)
         db_cache_set("sqli", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/xss':
-        send_message_safe(chat_id, f"🔍 <b>Rescan XSS</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan XSS</b> em {escape_html(target)}...")
         result = tool_xss_scanner(target)
         db_cache_set("xss", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/admin':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Admin</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Admin</b> em {escape_html(target)}...")
         result = tool_admin_finder(target, chat_id, None)
         db_cache_set("admin", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/panel':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Painel Admin</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Painel Admin</b> em {escape_html(target)}...")
         progress_msg_id = send_progress(chat_id, scan_id, 0, 100, "Escaneando paths...")
         result = tool_admin_finder(target, chat_id, progress_msg_id)
         finish_progress(progress_msg_id, chat_id, result)
         db_cache_set("panel", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/ports':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Portas</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Portas</b> em {escape_html(target)}...")
         result = tool_port_scanner(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/dirs':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Diretórios</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Diretórios</b> em {escape_html(target)}...")
         result = tool_directory_scanner(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/sub':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Subdomínios</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Subdomínios</b> em {escape_html(target)}...")
         result = tool_subdomain_scanner(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/wp':
-        send_message_safe(chat_id, f"🔍 <b>Rescan WordPress</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan WordPress</b> em {escape_html(target)}...")
         result = tool_wordpress_scanner(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/dns':
-        send_message_safe(chat_id, f"🔍 <b>Rescan DNS</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan DNS</b> de {escape_html(target)}...")
         result = tool_dns_tools(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/cms':
-        send_message_safe(chat_id, f"🔍 <b>Rescan CMS</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan CMS</b> em {escape_html(target)}...")
         result = tool_cms_detector(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/reverse':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Reverse IP</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Reverse IP</b> de {escape_html(target)}...")
         result = tool_reverse_ip(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/ftpssh':
-        send_message_safe(chat_id, f"🔍 <b>Rescan FTP/SSH</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan FTP/SSH</b> em {escape_html(target)}...")
         result = tool_ftp_ssh(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/info':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Info</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Info</b> de {escape_html(target)}...")
         result = tool_website_info(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/emails':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Emails</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Emails</b> de {escape_html(target)}...")
         result = tool_email_scraper(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/ssl':
-        send_message_safe(chat_id, f"🔍 <b>Rescan SSL</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan SSL</b> de {escape_html(target)}...")
         result = tool_ssl_audit(target)
         db_cache_set("ssl", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/headers':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Headers</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Headers</b> de {escape_html(target)}...")
         result = tool_headers_analysis(target)
         db_cache_set("headers", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/cors':
-        send_message_safe(chat_id, f"🔍 <b>Rescan CORS</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan CORS</b> de {escape_html(target)}...")
         result = tool_cors_test(target)
         db_cache_set("cors", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/robots':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Robots</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Robots</b> de {escape_html(target)}...")
         result = tool_robots_txt(target)
         db_cache_set("robots", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/sitemap':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Sitemap</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Sitemap</b> de {escape_html(target)}...")
         result = tool_sitemap(target)
         db_cache_set("sitemap", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/tech':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Tech</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Tech</b> de {escape_html(target)}...")
         result = tool_tech_detect(target)
         db_cache_set("tech", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/exposed':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Exposed</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Exposed</b> de {escape_html(target)}...")
         result = tool_exposed_files(target)
         db_cache_set("exposed", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/backup':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Backup</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Backup</b> de {escape_html(target)}...")
         result = tool_backup_finder(target)
         db_cache_set("backup", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/api':
-        send_message_safe(chat_id, f"🔍 <b>Rescan API</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan API</b> de {escape_html(target)}...")
         result = tool_api_discovery(target)
         db_cache_set("api", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/shell':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Shell</b> de {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Shell</b> de {escape_html(target)}...")
         result = tool_webshell_hunter(target)
         db_cache_set("shell", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/config':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Config</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Config</b> em {escape_html(target)}...")
         result = tool_config_scanner(target)
         db_cache_set("config", target, result)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     elif scan_cmd == '/scanall':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Completo</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Completo</b> em {escape_html(target)}...")
         handle_scanall(chat_id, user_id, username, first_name, last_name, [target])
     elif scan_cmd == '/deep':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Deep</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Deep</b> em {escape_html(target)}...")
         handle_deep(chat_id, user_id, username, first_name, last_name, [target])
     elif scan_cmd == '/quick':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Quick</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Quick</b> em {escape_html(target)}...")
         handle_quick(chat_id, user_id, username, first_name, last_name, [target])
     elif scan_cmd == '/http':
-        send_message_safe(chat_id, f"🔍 <b>Rescan HTTP</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan HTTP</b> em {escape_html(target)}...")
         handle_http(chat_id, user_id, username, first_name, last_name, [target])
     elif scan_cmd == '/sslchain':
-        send_message_safe(chat_id, f"🔍 <b>Rescan SSL Chain</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan SSL Chain</b> em {escape_html(target)}...")
         handle_sslchain(chat_id, user_id, username, first_name, last_name, [target])
     elif scan_cmd == '/report':
-        send_message_safe(chat_id, f"🔍 <b>Rescan Report</b> em {escape_html(target)}...")
+        send_msg(user_id, chat_id, f"🔍 <b>Rescan Report</b> em {escape_html(target)}...")
         handle_report_url(chat_id, user_id, username, first_name, last_name, [target])
     else:
-        send_message_safe(chat_id, f"❌ Comando /{args[0]} não suportado para rescan.")
+        lang = get_user_lang(user_id)
+        if lang == 'en':
+            send_msg(user_id, chat_id, f"❌ Command /{args[0]} not supported for rescan.")
+        elif lang == 'es':
+            send_msg(user_id, chat_id, f"❌ Comando /{args[0]} no soportado para rescan.")
+        else:
+            send_msg(user_id, chat_id, f"❌ Comando /{args[0]} não suportado para rescan.")
 
     # Cleanup stop event
     if user_id in STOP_EVENTS:
@@ -5118,144 +5429,144 @@ def handle_rescan(chat_id, user_id, username, first_name, last_name, args):
 def handle_ssl(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /ssl &lt;url&gt;\nExemplo: /ssl google.com")
+        send_msg(user_id, chat_id, "❌ Use: /ssl &lt;url&gt;\nExemplo: /ssl google.com")
         return
     target = args[0]
     log_command(user_id, username, "ssl", target)
-    send_message_safe(chat_id, f"🔍 <b>Auditando SSL/TLS</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Auditando SSL/TLS</b> em {escape_html(extract_hostname(target))}...")
     result = tool_ssl_audit(target)
     db_cache_set("ssl", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_headers(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /headers &lt;url&gt;\nExemplo: /headers google.com")
+        send_msg(user_id, chat_id, "❌ Use: /headers &lt;url&gt;\nExemplo: /headers google.com")
         return
     target = args[0]
     log_command(user_id, username, "headers", target)
-    send_message_safe(chat_id, f"🔍 <b>Analisando headers</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Analisando headers</b> em {escape_html(extract_hostname(target))}...")
     result = tool_headers_analysis(target)
     db_cache_set("headers", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_cors(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /cors &lt;url&gt;\nExemplo: /cors google.com")
+        send_msg(user_id, chat_id, "❌ Use: /cors &lt;url&gt;\nExemplo: /cors google.com")
         return
     target = args[0]
     log_command(user_id, username, "cors", target)
-    send_message_safe(chat_id, f"🔍 <b>Testando CORS</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Testando CORS</b> em {escape_html(extract_hostname(target))}...")
     result = tool_cors_test(target)
     db_cache_set("cors", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_robots(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /robots &lt;url&gt;\nExemplo: /robots google.com")
+        send_msg(user_id, chat_id, "❌ Use: /robots &lt;url&gt;\nExemplo: /robots google.com")
         return
     target = args[0]
     log_command(user_id, username, "robots", target)
-    send_message_safe(chat_id, f"🔍 <b>Analisando robots.txt</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Analisando robots.txt</b> em {escape_html(extract_hostname(target))}...")
     result = tool_robots_txt(target)
     db_cache_set("robots", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_sitemap(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /sitemap &lt;url&gt;\nExemplo: /sitemap google.com")
+        send_msg(user_id, chat_id, "❌ Use: /sitemap &lt;url&gt;\nExemplo: /sitemap google.com")
         return
     target = args[0]
     log_command(user_id, username, "sitemap", target)
-    send_message_safe(chat_id, f"🔍 <b>Analisando sitemap</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Analisando sitemap</b> em {escape_html(extract_hostname(target))}...")
     result = tool_sitemap(target)
     db_cache_set("sitemap", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_tech(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /tech &lt;url&gt;\nExemplo: /tech google.com")
+        send_msg(user_id, chat_id, "❌ Use: /tech &lt;url&gt;\nExemplo: /tech google.com")
         return
     target = args[0]
     log_command(user_id, username, "tech", target)
-    send_message_safe(chat_id, f"🔍 <b>Detectando tecnologias</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Detectando tecnologias</b> em {escape_html(extract_hostname(target))}...")
     result = tool_tech_detect(target)
     db_cache_set("tech", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_exposed(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /exposed &lt;url&gt;\nExemplo: /exposed google.com")
+        send_msg(user_id, chat_id, "❌ Use: /exposed &lt;url&gt;\nExemplo: /exposed google.com")
         return
     target = args[0]
     log_command(user_id, username, "exposed", target)
-    send_message_safe(chat_id, f"🔍 <b>Buscando arquivos expostos</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Buscando arquivos expostos</b> em {escape_html(extract_hostname(target))}...")
     result = tool_exposed_files(target)
     db_cache_set("exposed", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_backup(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /backup &lt;url&gt;\nExemplo: /backup google.com")
+        send_msg(user_id, chat_id, "❌ Use: /backup &lt;url&gt;\nExemplo: /backup google.com")
         return
     target = args[0]
     log_command(user_id, username, "backup", target)
-    send_message_safe(chat_id, f"🔍 <b>Buscando backups</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Buscando backups</b> em {escape_html(extract_hostname(target))}...")
     result = tool_backup_finder(target)
     db_cache_set("backup", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_api(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /api &lt;url&gt;\nExemplo: /api google.com")
+        send_msg(user_id, chat_id, "❌ Use: /api &lt;url&gt;\nExemplo: /api google.com")
         return
     target = args[0]
     log_command(user_id, username, "api", target)
-    send_message_safe(chat_id, f"🔍 <b>Descobrindo APIs</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Descobrindo APIs</b> em {escape_html(extract_hostname(target))}...")
     result = tool_api_discovery(target)
     db_cache_set("api", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_shell(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /shell &lt;url&gt;\nExemplo: /shell google.com")
+        send_msg(user_id, chat_id, "❌ Use: /shell &lt;url&gt;\nExemplo: /shell google.com")
         return
     target = args[0]
     log_command(user_id, username, "shell", target)
-    send_message_safe(chat_id, f"🔍 <b>Huntando webshells</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Huntando webshells</b> em {escape_html(extract_hostname(target))}...")
     result = tool_webshell_hunter(target)
     db_cache_set("shell", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_config(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /config &lt;url&gt;\nExemplo: /config google.com")
+        send_msg(user_id, chat_id, "❌ Use: /config &lt;url&gt;\nExemplo: /config google.com")
         return
     target = args[0]
     log_command(user_id, username, "config", target)
-    send_message_safe(chat_id, f"🔍 <b>Buscando configs expostas</b> em {escape_html(extract_hostname(target))}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Buscando configs expostas</b> em {escape_html(extract_hostname(target))}...")
     result = tool_config_scanner(target)
     db_cache_set("config", target, result)
-    send_message_safe(chat_id, result)
+    send_msg(user_id, chat_id, result)
 
 def handle_traceroute(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /traceroute &lt;ip&gt;\nExemplo: /traceroute 8.8.8.8")
+        send_msg(user_id, chat_id, "❌ Use: /traceroute &lt;ip&gt;\nExemplo: /traceroute 8.8.8.8")
         return
     target = args[0]
     log_command(user_id, username, "traceroute", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Traceroute</b> para {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Traceroute</b> para {escape_html(clean_target)}...")
     try:
         # Try using traceroute/tracert command
         if os.name == 'nt':
@@ -5266,23 +5577,23 @@ def handle_traceroute(chat_id, user_id, username, first_name, last_name, args):
         if output:
             lines = output.split('\n')[:15]
             msg = f"🛣️ <b>Traceroute</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n<code>" + escape_html('\n'.join(lines)) + "</code>\n━━━━━━━━━━━━━━━━━━━━━━"
-            send_message_safe(chat_id, msg)
+            send_msg(user_id, chat_id, msg)
         else:
-            send_message_safe(chat_id, "❌ Traceroute não disponível neste servidor.")
+            send_msg(user_id, chat_id, "❌ Traceroute não disponível neste servidor.")
     except subprocess.TimeoutExpired:
-        send_message_safe(chat_id, "⏱️ Traceroute expirou (timeout 30s).")
+        send_msg(user_id, chat_id, "⏱️ Traceroute expirou (timeout 30s).")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_whois(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /whois &lt;domain&gt;\nExemplo: /whois google.com")
+        send_msg(user_id, chat_id, "❌ Use: /whois &lt;domain&gt;\nExemplo: /whois google.com")
         return
     target = args[0]
     domain = extract_hostname(target)
     log_command(user_id, username, "whois", domain)
-    send_message_safe(chat_id, f"🔍 <b>Whois</b> de {escape_html(domain)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Whois</b> de {escape_html(domain)}...")
     results = f"📋 <b>Whois</b> — {escape_html(domain)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
     try:
         resp = _safe_get(f"https://api.allorigins.win/raw?url=https://www.whois.com/whois/{domain}", timeout=10)
@@ -5318,17 +5629,17 @@ def handle_whois(chat_id, user_id, username, first_name, last_name, args):
     except Exception as e:
         results += f"❌ Erro: {escape_html(str(e))}"
     results += "━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, results)
+    send_msg(user_id, chat_id, results)
 
 def handle_ip(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /ip &lt;ip&gt;\nExemplo: /ip 8.8.8.8")
+        send_msg(user_id, chat_id, "❌ Use: /ip &lt;ip&gt;\nExemplo: /ip 8.8.8.8")
         return
     target = args[0]
     log_command(user_id, username, "ip", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>GeoIP</b> de {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>GeoIP</b> de {escape_html(clean_target)}...")
     results = f"📍 <b>GeoIP Avançado</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
     try:
         resp = _safe_get(f"http://ip-api.com/json/{clean_target}?fields=status,message,country,regionName,city,lat,lon,timezone,isp,org,as,query,reverse,hosting,proxy,mobile", timeout=5)
@@ -5356,17 +5667,17 @@ def handle_ip(chat_id, user_id, username, first_name, last_name, args):
     except Exception as e:
         results += f"❌ Erro: {escape_html(str(e))}"
     results += "\n━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, results)
+    send_msg(user_id, chat_id, results)
 
 def handle_rate(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /rate &lt;url&gt;\nExemplo: /rate google.com")
+        send_msg(user_id, chat_id, "❌ Use: /rate &lt;url&gt;\nExemplo: /rate google.com")
         return
     target = args[0]
     log_command(user_id, username, "rate", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Avaliando segurança</b> de {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Avaliando segurança</b> de {escape_html(clean_target)}...")
     url = clean_target
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
@@ -5375,7 +5686,7 @@ def handle_rate(chat_id, user_id, username, first_name, last_name, args):
     try:
         resp = _safe_get(url, timeout=8)
         if not resp:
-            send_message_safe(chat_id, "❌ Não foi possível acessar o site")
+            send_msg(user_id, chat_id, "❌ Não foi possível acessar o site")
             return
         headers = resp.headers
         body = resp.text.lower()
@@ -5414,21 +5725,21 @@ def handle_rate(chat_id, user_id, username, first_name, last_name, args):
         if not details:
             msg += "  ✅ Tudo OK!\n"
         msg += "━━━━━━━━━━━━━━━━━━━━━━"
-        send_message_safe(chat_id, msg)
+        send_msg(user_id, chat_id, msg)
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_compare(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args or len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /compare &lt;url1&gt; &lt;url2&gt;\nExemplo: /compare google.com example.com")
+        send_msg(user_id, chat_id, "❌ Use: /compare &lt;url1&gt; &lt;url2&gt;\nExemplo: /compare google.com example.com")
         return
     target1 = args[0]
     target2 = args[1]
     log_command(user_id, username, "compare", f"{target1} vs {target2}")
     clean1 = extract_hostname(target1)
     clean2 = extract_hostname(target2)
-    send_message_safe(chat_id, f"🔍 <b>Comparando</b> {escape_html(clean1)} vs {escape_html(clean2)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Comparando</b> {escape_html(clean1)} vs {escape_html(clean2)}...")
     def get_headers_score(url):
         u = url
         if not u.startswith(('http://', 'https://')):
@@ -5457,17 +5768,17 @@ def handle_compare(chat_id, user_id, username, first_name, last_name, args):
     winner = clean1 if s1 > s2 else clean2
     msg += f"🏆 <b>Mais seguro:</b> {escape_html(winner)} ({max(s1,s2)} pts)\n"
     msg += "━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 def handle_history(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /history &lt;url&gt;\nExemplo: /history google.com")
+        send_msg(user_id, chat_id, "❌ Use: /history &lt;url&gt;\nExemplo: /history google.com")
         return
     target = args[0]
     log_command(user_id, username, "history", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Histórico de scans</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Histórico de scans</b> em {escape_html(clean_target)}...")
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
@@ -5480,19 +5791,18 @@ def handle_history(chat_id, user_id, username, first_name, last_name, args):
                     ts = datetime.fromtimestamp(r['created_at']).strftime('%d/%m %H:%M') if r['created_at'] else 'N/D'
                     msg += f"  → /{escape_html(r['cmd'])} em {ts}\n"
                 msg += "━━━━━━━━━━━━━━━━━━━━━━"
-                send_message_safe(chat_id, msg)
+                send_msg(user_id, chat_id, msg)
             else:
-                send_message_safe(chat_id, "ℹ️ Nenhum scan encontrado para este target.")
+                send_msg(user_id, chat_id, "ℹ️ Nenhum scan encontrado para este target.")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_top(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b> Este comando é restrito aos donos do bot.")
+    if not check_owner(user_id, chat_id):
         return
     log_command(user_id, username, "top", "")
-    send_message_safe(chat_id, "🔍 <b>Carregando top sites vulneráveis...</b>")
+    send_msg(user_id, chat_id, "🔍 <b>Carregando top sites vulneráveis...</b>")
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
@@ -5505,22 +5815,22 @@ def handle_top(chat_id, user_id, username, first_name, last_name, args):
                     emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "📌"
                     msg += f"{emoji} <b>#{i}</b> {escape_html(r['target'][:50])} ({r['scan_count']} scans)\n"
                 msg += "━━━━━━━━━━━━━━━━━━━━━━"
-                send_message_safe(chat_id, msg)
+                send_msg(user_id, chat_id, msg)
             else:
-                send_message_safe(chat_id, "ℹ️ Nenhum scan registrado ainda.")
+                send_msg(user_id, chat_id, "ℹ️ Nenhum scan registrado ainda.")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_pdf(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /pdf &lt;comando&gt; &lt;url&gt;\nExemplo: /pdf sqli google.com/?id=1")
+        send_msg(user_id, chat_id, "❌ Use: /pdf &lt;comando&gt; &lt;url&gt;\nExemplo: /pdf sqli google.com/?id=1")
         return
     scan_cmd = args[0]
     target = args[1]
     log_command(user_id, username, "pdf", f"{scan_cmd} {target}")
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Gerando relatório PDF</b> de /{scan_cmd} em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Gerando relatório PDF</b> de /{scan_cmd} em {escape_html(clean_target)}...")
     # Run the scan first
     tool_map = {
         'sqli': tool_sqli, 'xss': tool_xss_scanner, 'admin': tool_admin_finder,
@@ -5538,7 +5848,13 @@ def handle_pdf(chat_id, user_id, username, first_name, last_name, args):
     }
     tool_fn = tool_map.get(scan_cmd)
     if not tool_fn:
-        send_message_safe(chat_id, f"❌ Comando /{scan_cmd} não suportado para PDF.")
+        lang = get_user_lang(user_id)
+        if lang == 'en':
+            send_msg(user_id, chat_id, f"❌ Command /{scan_cmd} not supported for PDF.")
+        elif lang == 'es':
+            send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} no soportado para PDF.")
+        else:
+            send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} não suportado para PDF.")
         return
     try:
         result = tool_fn(target)
@@ -5555,29 +5871,35 @@ def handle_pdf(chat_id, user_id, username, first_name, last_name, args):
         report += clean_result
         success = send_document(chat_id, report, f"scan_report_{scan_cmd}_{clean_target}.txt")
         if success:
-            send_message_safe(chat_id, "📄 <b>Relatório exportado com sucesso!</b>")
+            send_msg(user_id, chat_id, "📄 <b>Relatório exportado com sucesso!</b>")
         else:
-            send_message_safe(chat_id, "❌ Falha ao enviar o relatório.")
+            send_msg(user_id, chat_id, "❌ Falha ao enviar o relatório.")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_schedule(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
     if len(args) < 3:
-        send_message_safe(chat_id, "❌ Use: /schedule &lt;minutos&gt; &lt;comando&gt; &lt;url&gt;\nExemplo: /schedule 30 sqli google.com/?id=1")
+        send_msg(user_id, chat_id, "❌ Use: /schedule &lt;minutos&gt; &lt;comando&gt; &lt;url&gt;\nExemplo: /schedule 30 sqli google.com/?id=1")
         return
     try:
         minutes = int(args[0])
         if minutes < 1:
             minutes = 1
     except ValueError:
-        send_message_safe(chat_id, "❌ Minutos devem ser um número válido.")
+        send_msg(user_id, chat_id, "❌ Minutos devem ser um número válido.")
         return
     scan_cmd = args[1]
     target = args[2]
     valid_cmds = ['sqli','xss','admin','panel','ports','dirs','sub','wp','dns','cms','reverse','ftpssh','info','emails','ssl','headers','cors','robots','sitemap','tech','exposed','backup','api','shell','config','scanall','deep','quick','http','sslchain']
     if scan_cmd not in valid_cmds:
-        send_message_safe(chat_id, f"❌ Comando inválido: /{scan_cmd}\nComandos aceitos: {', '.join(valid_cmds[:10])}...")
+        lang = get_user_lang(user_id)
+        if lang == 'en':
+            send_msg(user_id, chat_id, f"❌ Invalid command: /{scan_cmd}\nAccepted commands: {', '.join(valid_cmds[:10])}...")
+        elif lang == 'es':
+            send_msg(user_id, chat_id, f"❌ Comando inválido: /{scan_cmd}\nComandos aceptados: {', '.join(valid_cmds[:10])}...")
+        else:
+            send_msg(user_id, chat_id, f"❌ Comando inválido: /{scan_cmd}\nComandos aceitos: {', '.join(valid_cmds[:10])}...")
         return
     log_command(user_id, username, "schedule", f"{scan_cmd} {target} +{minutes}min")
     clean_target = extract_hostname(target)
@@ -5590,9 +5912,9 @@ def handle_schedule(chat_id, user_id, username, first_name, last_name, args):
                       (user_id, chat_id, scan_cmd, target, scheduled_time, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             conn.commit()
         dt = datetime.fromtimestamp(scheduled_time).strftime('%d/%m %H:%M')
-        send_message_safe(chat_id, f"⏰ <b>Scan agendado!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📋 /{scan_cmd} {clean_target}\n🕐 Execução: {dt} ({minutes}min)\n━━━━━━━━━━━━━━━━━━━━━━")
+        send_msg(user_id, chat_id, f"⏰ <b>Scan agendado!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📋 /{scan_cmd} {clean_target}\n🕐 Execução: {dt} ({minutes}min)\n━━━━━━━━━━━━━━━━━━━━━━")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro ao agendar: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro ao agendar: {escape_html(str(e))}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -5602,37 +5924,37 @@ def handle_schedule(chat_id, user_id, username, first_name, last_name, args):
 def handle_maintenance(chat_id, user_id, username, first_name, last_name, args):
     global MAINTENANCE_MODE, MAINTENANCE_MSG
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "maintenance")
     audit_log(user_id, username, "maintenance", ' '.join(args) if args else "")
     if not args:
         MAINTENANCE_MODE = not MAINTENANCE_MODE
         status = "ATIVADO" if MAINTENANCE_MODE else "DESATIVADO"
-        send_message_safe(chat_id, f"🔧 <b>Modo manutenção {status}</b>")
+        send_msg(user_id, chat_id, f"🔧 <b>Modo manutenção {status}</b>")
     else:
         msg = ' '.join(args)
         if msg.lower() in ('on', 'enable', 'ligar'):
             MAINTENANCE_MODE = True
-            send_message_safe(chat_id, f"🔧 <b>Modo manutenção ATIVADO</b>\nMensagem: {escape_html(msg)}")
+            send_msg(user_id, chat_id, f"🔧 <b>Modo manutenção ATIVADO</b>\nMensagem: {escape_html(msg)}")
         elif msg.lower() in ('off', 'disable', 'desligar'):
             MAINTENANCE_MODE = False
             MAINTENANCE_MSG = ""
-            send_message_safe(chat_id, "🔧 <b>Modo manutenção DESATIVADO</b>")
+            send_msg(user_id, chat_id, "🔧 <b>Modo manutenção DESATIVADO</b>")
         else:
             MAINTENANCE_MODE = True
             MAINTENANCE_MSG = msg
-            send_message_safe(chat_id, f"🔧 <b>Modo manutenção ATIVADO</b>\nMensagem: {escape_html(msg)}")
+            send_msg(user_id, chat_id, f"🔧 <b>Modo manutenção ATIVADO</b>\nMensagem: {escape_html(msg)}")
 
 def handle_cooldown(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "cooldown")
     if not args or len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\nExemplo: /cooldown 123456 5 60")
+        send_msg(user_id, chat_id, "❌ Use: /cooldown &lt;user_id&gt; &lt;limite&gt; [janela]\nExemplo: /cooldown 123456 5 60")
         return
     try:
         target_uid = int(args[0])
@@ -5643,26 +5965,26 @@ def handle_cooldown(chat_id, user_id, username, first_name, last_name, args):
         if window < 1:
             window = 60
     except ValueError:
-        send_message_safe(chat_id, "❌ Parâmetros inválidos. Use números inteiros.")
+        send_msg(user_id, chat_id, "❌ Parâmetros inválidos. Use números inteiros.")
         return
     CUSTOM_RATE_LIMITS[target_uid] = {'limit': limit, 'window': window}
     audit_log(user_id, username, "cooldown", f"Set rate limit {limit}/{window}s for user {target_uid}")
-    send_message_safe(chat_id, f"✅ <b>Rate limit configurado</b>\nUser: {target_uid}\nLimite: {limit} cmds / {window}s")
+    send_msg(user_id, chat_id, f"✅ <b>Rate limit configurado</b>\nUser: {target_uid}\nLimite: {limit} cmds / {window}s")
 
 def handle_vip(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "vip")
     if not args or len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;\nExemplo: /vip add 123456")
+        send_msg(user_id, chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;\nExemplo: /vip add 123456")
         return
     action = args[0].lower()
     try:
         target_uid = int(args[1])
     except ValueError:
-        send_message_safe(chat_id, "❌ User ID inválido. Use um número inteiro.")
+        send_msg(user_id, chat_id, "❌ User ID inválido. Use um número inteiro.")
         return
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if action == 'add':
@@ -5674,9 +5996,9 @@ def handle_vip(chat_id, user_id, username, first_name, last_name, args):
                           (target_uid, f"@{args[2]}" if len(args) > 2 else "N/D", now, user_id))
                 conn.commit()
             audit_log(user_id, username, "vip_add", f"Added VIP user {target_uid}")
-            send_message_safe(chat_id, f"✅ <b>VIP adicionado!</b>\nUser: {target_uid} — Sem rate limit, scans prioritários.")
+            send_msg(user_id, chat_id, f"✅ <b>VIP adicionado!</b>\nUser: {target_uid} — Sem rate limit, scans prioritários.")
         except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+            send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
     elif action == 'remove':
         VIP_USERS.discard(target_uid)
         try:
@@ -5685,17 +6007,17 @@ def handle_vip(chat_id, user_id, username, first_name, last_name, args):
                 c.execute("DELETE FROM vip_users WHERE user_id = ?", (target_uid,))
                 conn.commit()
             audit_log(user_id, username, "vip_remove", f"Removed VIP user {target_uid}")
-            send_message_safe(chat_id, f"🚫 <b>VIP removido!</b>\nUser: {target_uid}")
+            send_msg(user_id, chat_id, f"🚫 <b>VIP removido!</b>\nUser: {target_uid}")
         except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+            send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
     else:
-        send_message_safe(chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;")
+        send_msg(user_id, chat_id, "❌ Use: /vip &lt;add|remove&gt; &lt;user_id&gt;")
 
 def handle_viplist(chat_id, user_id, username, first_name, last_name, args):
     """OWNER ONLY: Lista todos os usuários VIP cadastrados"""
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "viplist")
     try:
@@ -5704,7 +6026,7 @@ def handle_viplist(chat_id, user_id, username, first_name, last_name, args):
             c.execute("SELECT user_id, username, added_at, added_by FROM vip_users ORDER BY added_at DESC")
             rows = c.fetchall()
         if not rows:
-            send_message_safe(chat_id, "📋 <b>VIP List</b>\n━━━━━━━━━━━━━━━━━━━━━━\n❌ Nenhum usuário VIP cadastrado.")
+            send_msg(user_id, chat_id, "📋 <b>VIP List</b>\n━━━━━━━━━━━━━━━━━━━━━━\n❌ Nenhum usuário VIP cadastrado.")
             return
         msg = "📋 <b>VIP List</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
         for i, row in enumerate(rows, 1):
@@ -5731,19 +6053,19 @@ def handle_viplist(chat_id, user_id, username, first_name, last_name, args):
             msg += f"{i}. <b>{uname}</b> (ID: {uid})\n"
             msg += f"   Add by: {by_name} | Data: {added}\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━\n📊 Total: {len(rows)} VIP(s)"
-        send_message_safe(chat_id, msg)
+        send_msg(user_id, chat_id, msg)
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_log(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "log")
     # This is the audit log command (detailed)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /log &lt;user_id&gt; ou /log audit\nExemplo: /log 123456")
+        send_msg(user_id, chat_id, "❌ Use: /log &lt;user_id&gt; ou /log audit\nExemplo: /log 123456")
         return
     query = args[0]
     try:
@@ -5766,14 +6088,14 @@ def handle_log(chat_id, user_id, username, first_name, last_name, args):
                 if not rows:
                     msg += "  ℹ️ Nenhum registro encontrado."
             msg += "━━━━━━━━━━━━━━━━━━━━━━"
-            send_message_safe(chat_id, msg)
+            send_msg(user_id, chat_id, msg)
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_clearlogs(chat_id, user_id, username, first_name, last_name, args):
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "clearlogs")
     try:
@@ -5784,26 +6106,26 @@ def handle_clearlogs(chat_id, user_id, username, first_name, last_name, args):
             c.execute("DELETE FROM audit_log WHERE timestamp < ?", (datetime.now().strftime("%Y-%m-%d") + " 00:00:00",))
             audit_deleted = c.rowcount
             conn.commit()
-        send_message_safe(chat_id, f"🗑️ <b>Logs limpos!</b>\nLogs antigos: {deleted}\nAudit logs: {audit_deleted}")
+        send_msg(user_id, chat_id, f"🗑️ <b>Logs limpos!</b>\nLogs antigos: {deleted}\nAudit logs: {audit_deleted}")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_broadcast(chat_id, user_id, username, first_name, last_name, args):
     """Schedule a broadcast for later (owner only)"""
     log_user(user_id, username, first_name, last_name)
-    if not is_owner(user_id):
-        send_message_safe(chat_id, "🚫 <b>Acesso negado!</b>")
+    if not check_owner(user_id, chat_id):
+        return
         return
     log_owner_command(user_id, username, "broadcast")
     if len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /broadcast &lt;minutos&gt; &lt;texto&gt;\nExemplo: /broadcast 60 Bot vai cair para manutenção em 1 hora")
+        send_msg(user_id, chat_id, "❌ Use: /broadcast &lt;minutos&gt; &lt;texto&gt;\nExemplo: /broadcast 60 Bot vai cair para manutenção em 1 hora")
         return
     try:
         minutes = int(args[0])
         if minutes < 1:
             minutes = 1
     except ValueError:
-        send_message_safe(chat_id, "❌ Minutos devem ser um número válido.")
+        send_msg(user_id, chat_id, "❌ Minutos devem ser um número válido.")
         return
     message_text = ' '.join(args[1:])
     scheduled_time = time.time() + (minutes * 60)
@@ -5814,9 +6136,9 @@ def handle_broadcast(chat_id, user_id, username, first_name, last_name, args):
                       (user_id, chat_id, message_text, scheduled_time, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             conn.commit()
         dt = datetime.fromtimestamp(scheduled_time).strftime('%d/%m %H:%M')
-        send_message_safe(chat_id, f"📢 <b>Broadcast agendado!</b>\n🕐 Execução: {dt} ({minutes}min)\n━━━━━━━━━━━━━━━━━━━━━━")
+        send_msg(user_id, chat_id, f"📢 <b>Broadcast agendado!</b>\n🕐 Execução: {dt} ({minutes}min)\n━━━━━━━━━━━━━━━━━━━━━━")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 
 # V5.0: Stealth and Notify handlers
@@ -5825,13 +6147,13 @@ def handle_stealth(chat_id, user_id, username, first_name, last_name, args):
     global STEALTH_MODE
     log_user(user_id, username, first_name, last_name)
     if len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /stealth &lt;comando&gt; &lt;url&gt;\nExemplo: /stealth sqli google.com/?id=1")
+        send_msg(user_id, chat_id, "❌ Use: /stealth &lt;comando&gt; &lt;url&gt;\nExemplo: /stealth sqli google.com/?id=1")
         return
     scan_cmd = args[0]
     target = args[1]
     log_command(user_id, username, "stealth", f"{scan_cmd} {target}")
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🕵️ <b>Modo Stealth</b> ativado para /{scan_cmd} em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🕵️ <b>Modo Stealth</b> ativado para /{scan_cmd} em {escape_html(clean_target)}...")
     # Enable stealth mode temporarily
     STEALTH_MODE = True
     # Map command to tool function
@@ -5856,11 +6178,17 @@ def handle_stealth(chat_id, user_id, username, first_name, last_name, args):
     tool_fn = tool_map.get(scan_cmd)
     if not tool_fn:
         STEALTH_MODE = False
-        send_message_safe(chat_id, f"❌ Comando /{scan_cmd} não suportado em modo stealth.")
+        lang = get_user_lang(user_id)
+        if lang == 'en':
+            send_msg(user_id, chat_id, f"❌ Command /{scan_cmd} not supported in stealth mode.")
+        elif lang == 'es':
+            send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} no soportado en modo stealth.")
+        else:
+            send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} não suportado em modo stealth.")
         return
     try:
         result = tool_fn(target)
-        send_message_safe(chat_id, result)
+        send_msg(user_id, chat_id, result)
     finally:
         STEALTH_MODE = False
 
@@ -5868,7 +6196,7 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
     """Set up notification when a site changes status"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /notify &lt;url&gt;\nExemplo: /notify google.com\nUse /notify off para desativar todas.")
+        send_msg(user_id, chat_id, "❌ Use: /notify &lt;url&gt;\nExemplo: /notify google.com\nUse /notify off para desativar todas.")
         return
     target = args[0]
     if target.lower() == 'off':
@@ -5879,9 +6207,9 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
                 c.execute("DELETE FROM site_monitor WHERE user_id = ?", (user_id,))
                 deleted = c.rowcount
                 conn.commit()
-            send_message_safe(chat_id, f"🔕 <b>Notificações desativadas!</b>\nRemovidos: {deleted} monitoramentos.")
+            send_msg(user_id, chat_id, f"🔕 <b>Notificações desativadas!</b>\nRemovidos: {deleted} monitoramentos.")
         except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+            send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
         return
     log_command(user_id, username, "notify", target)
     clean_target = extract_hostname(target)
@@ -5891,9 +6219,9 @@ def handle_notify(chat_id, user_id, username, first_name, last_name, args):
             c.execute("INSERT OR REPLACE INTO site_monitor (user_id, target, chat_id, last_status, last_check) VALUES (?, ?, ?, 0, ?)",
                       (user_id, clean_target, chat_id, time.time()))
             conn.commit()
-        send_message_safe(chat_id, f"🔔 <b>Notificação ativada!</b>\n━━━━━━━━━━━━━━━━━━━━━━\nVou avisar se {escape_html(clean_target)} mudar de status.\nUse /notify off para desativar.\n━━━━━━━━━━━━━━━━━━━━━━")
+        send_msg(user_id, chat_id, f"🔔 <b>Notificação ativada!</b>\n━━━━━━━━━━━━━━━━━━━━━━\nVou avisar se {escape_html(clean_target)} mudar de status.\nUse /notify off para desativar.\n━━━━━━━━━━━━━━━━━━━━━━")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -5904,12 +6232,12 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Scan All — runs info + ports + dns + ssl + headers + exposed on a URL. Results sent as .txt file."""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /scanall &lt;url&gt;\nExemplo: /scanall google.com")
+        send_msg(user_id, chat_id, "❌ Use: /scanall &lt;url&gt;\nExemplo: /scanall google.com")
         return
     target = args[0]
     log_command(user_id, username, "scanall", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos. Os resultados serão enviados em um arquivo .txt")
+    send_msg(user_id, chat_id, f"🔍 <b>Scan Completo</b> em {escape_html(clean_target)}...\nIsso pode levar alguns minutos. Os resultados serão enviados em um arquivo .txt")
 
     def _clean_html(text):
         """Strip HTML tags for plain text report."""
@@ -5917,7 +6245,7 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
 
     sections = []
     # 1/6 — Info
-    send_message_safe(chat_id, "📋 <b>1/6 — Info...</b>")
+    send_msg(user_id, chat_id, "📋 <b>1/6 — Info...</b>")
     r = tool_website_info(target)
     sections.append("═" * 50)
     sections.append("1/6 — INFORMATION")
@@ -5925,7 +6253,7 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     sections.append(_clean_html(r))
 
     # 2/6 — DNS
-    send_message_safe(chat_id, "📋 <b>2/6 — DNS...</b>")
+    send_msg(user_id, chat_id, "📋 <b>2/6 — DNS...</b>")
     r = tool_dns_tools(target)
     sections.append("\n" + "═" * 50)
     sections.append("2/6 — DNS ANALYSIS")
@@ -5933,7 +6261,7 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     sections.append(_clean_html(r))
 
     # 3/6 — Ports
-    send_message_safe(chat_id, "📋 <b>3/6 — Portas...</b>")
+    send_msg(user_id, chat_id, "📋 <b>3/6 — Portas...</b>")
     r = tool_port_scanner(target)
     sections.append("\n" + "═" * 50)
     sections.append("3/6 — PORT SCAN")
@@ -5941,7 +6269,7 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     sections.append(_clean_html(r))
 
     # 4/6 — SSL
-    send_message_safe(chat_id, "📋 <b>4/6 — SSL/TLS...</b>")
+    send_msg(user_id, chat_id, "📋 <b>4/6 — SSL/TLS...</b>")
     r = tool_ssl_audit(target)
     sections.append("\n" + "═" * 50)
     sections.append("4/6 — SSL/TLS AUDIT")
@@ -5949,7 +6277,7 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     sections.append(_clean_html(r))
 
     # 5/6 — Headers
-    send_message_safe(chat_id, "📋 <b>5/6 — Security Headers...</b>")
+    send_msg(user_id, chat_id, "📋 <b>5/6 — Security Headers...</b>")
     r = tool_headers_analysis(target)
     sections.append("\n" + "═" * 50)
     sections.append("5/6 — SECURITY HEADERS")
@@ -5957,7 +6285,7 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     sections.append(_clean_html(r))
 
     # 6/6 — Exposed files
-    send_message_safe(chat_id, "📋 <b>6/6 — Arquivos Expostos...</b>")
+    send_msg(user_id, chat_id, "📋 <b>6/6 — Arquivos Expostos...</b>")
     r = tool_exposed_files(target)
     sections.append("\n" + "═" * 50)
     sections.append("6/6 — EXPOSED FILES")
@@ -5974,57 +6302,57 @@ def handle_scanall(chat_id, user_id, username, first_name, last_name, args):
     # Send as .txt file
     success = send_document(chat_id, report, f"scanall_{clean_target}.txt")
     if success:
-        send_message_safe(chat_id, f"✅ <b>Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
+        send_msg(user_id, chat_id, f"✅ <b>Scan Completo finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
     else:
-        send_message_safe(chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
+        send_msg(user_id, chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
         # Fallback: send truncated text
         for section in sections:
             safe_text = section[:4000]
             if safe_text.strip():
-                send_message_safe(chat_id, safe_text)
+                send_msg(user_id, chat_id, safe_text)
 
 def handle_deep(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Deep Scan — sqli + xss + admin + exposed + shell + config. Results sent as .txt file."""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /deep &lt;url&gt;\nExemplo: /deep site.com/?id=1")
+        send_msg(user_id, chat_id, "❌ Use: /deep &lt;url&gt;\nExemplo: /deep site.com/?id=1")
         return
     target = args[0]
     log_command(user_id, username, "deep", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar. Os resultados serão enviados em um arquivo .txt")
+    send_msg(user_id, chat_id, f"🔍 <b>Deep Scan</b> em {escape_html(clean_target)}...\nVulnerabilidades profundas. Pode demorar. Os resultados serão enviados em um arquivo .txt")
 
     def _clean_html(text):
         return re.sub(r'<[^>]+>', '', text)
 
     sections = []
     # SQLi
-    send_message_safe(chat_id, "📋 <b>1/6 — SQL Injection...</b>")
+    send_msg(user_id, chat_id, "📋 <b>1/6 — SQL Injection...</b>")
     r = tool_sqli(target)
     sections.append("═" * 50 + "\n1/6 — SQL INJECTION\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # XSS
-    send_message_safe(chat_id, "📋 <b>2/6 — XSS...</b>")
+    send_msg(user_id, chat_id, "📋 <b>2/6 — XSS...</b>")
     r = tool_xss_scanner(target)
     sections.append("\n" + "═" * 50 + "\n2/6 — XSS (CROSS-SITE SCRIPTING)\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Admin
-    send_message_safe(chat_id, "📋 <b>3/6 — Admin Panels...</b>")
+    send_msg(user_id, chat_id, "📋 <b>3/6 — Admin Panels...</b>")
     r = tool_admin_finder(target)
     sections.append("\n" + "═" * 50 + "\n3/6 — ADMIN PANELS\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Exposed
-    send_message_safe(chat_id, "📋 <b>4/6 — Arquivos Expostos...</b>")
+    send_msg(user_id, chat_id, "📋 <b>4/6 — Arquivos Expostos...</b>")
     r = tool_exposed_files(target)
     sections.append("\n" + "═" * 50 + "\n4/6 — EXPOSED FILES\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Webshells
-    send_message_safe(chat_id, "📋 <b>5/6 — Webshells...</b>")
+    send_msg(user_id, chat_id, "📋 <b>5/6 — Webshells...</b>")
     r = tool_webshell_hunter(target)
     sections.append("\n" + "═" * 50 + "\n5/6 — WEBSHELLS\n" + "═" * 50 + "\n" + _clean_html(r))
 
     # Config
-    send_message_safe(chat_id, "📋 <b>6/6 — Config Files...</b>")
+    send_msg(user_id, chat_id, "📋 <b>6/6 — Config Files...</b>")
     r = tool_config_scanner(target)
     sections.append("\n" + "═" * 50 + "\n6/6 — CONFIG FILES\n" + "═" * 50 + "\n" + _clean_html(r))
 
@@ -6038,24 +6366,24 @@ def handle_deep(chat_id, user_id, username, first_name, last_name, args):
     # Send as .txt file
     success = send_document(chat_id, report, f"deep_scan_{clean_target}.txt")
     if success:
-        send_message_safe(chat_id, f"✅ <b>Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
+        send_msg(user_id, chat_id, f"✅ <b>Deep Scan finalizado</b>\nTarget: {escape_html(clean_target)}\n📄 Resultados enviados como arquivo .txt")
     else:
-        send_message_safe(chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
+        send_msg(user_id, chat_id, f"⚠️ Falha ao enviar arquivo. Tentando via mensagem...")
         for section in sections:
             safe_text = section[:4000]
             if safe_text.strip():
-                send_message_safe(chat_id, safe_text)
+                send_msg(user_id, chat_id, safe_text)
 
 def handle_quick(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Quick Scan — info + headers + rate in one shot (file output)"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /quick &lt;url&gt;\nExemplo: /quick google.com")
+        send_msg(user_id, chat_id, "❌ Use: /quick &lt;url&gt;\nExemplo: /quick google.com")
         return
     target = args[0]
     log_command(user_id, username, "quick", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"⚡ <b>Quick Scan</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"⚡ <b>Quick Scan</b> em {escape_html(clean_target)}...")
 
     # Gather all results
     info_r = tool_website_info(target)
@@ -6074,18 +6402,18 @@ def handle_quick(chat_id, user_id, username, first_name, last_name, args):
 
     success = send_document(chat_id, report, f"quick_scan_{clean_target}.txt")
     if success:
-        send_message_safe(chat_id, f"📄 <b>Quick Scan finalizado!</b>\nTarget: {escape_html(clean_target)}")
+        send_msg(user_id, chat_id, f"📄 <b>Quick Scan finalizado!</b>\nTarget: {escape_html(clean_target)}")
     else:
-        send_message_safe(chat_id, f"✅ <b>Quick Scan finalizado</b> em {escape_html(clean_target)}")
+        send_msg(user_id, chat_id, f"✅ <b>Quick Scan finalizado</b> em {escape_html(clean_target)}")
 
 def handle_cancel(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Cancel any running scan for the user"""
     log_user(user_id, username, first_name, last_name)
     if user_id in STOP_EVENTS:
         STOP_EVENTS[user_id].set()
-        send_message_safe(chat_id, "🛑 <b>Scan cancelado!</b> Processos interrompidos.")
+        send_msg(user_id, chat_id, "🛑 <b>Scan cancelado!</b> Processos interrompidos.")
     else:
-        send_message_safe(chat_id, "ℹ️ <b>Nenhum scan em andamento.</b>")
+        send_msg(user_id, chat_id, "ℹ️ <b>Nenhum scan em andamento.</b>")
 
 def handle_batch(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Batch scan multiple URLs with the same command
@@ -6093,12 +6421,12 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
     """
     log_user(user_id, username, first_name, last_name)
     if len(args) < 2:
-        send_message_safe(chat_id, "❌ Use: /batch &lt;comando&gt; &lt;url1&gt; &lt;url2&gt; ...\nExemplo: /batch sqli site1.com site2.com site3.com")
+        send_msg(user_id, chat_id, "❌ Use: /batch &lt;comando&gt; &lt;url1&gt; &lt;url2&gt; ...\nExemplo: /batch sqli site1.com site2.com site3.com")
         return
     scan_cmd = args[0]
     targets = args[1:]
     log_command(user_id, username, "batch", f"{scan_cmd} x{len(targets)} targets")
-    send_message_safe(chat_id, f"🔍 <b>Batch Scan</b> — {len(targets)} targets com /{scan_cmd}...\n⚠️ Use /cancel para parar.")
+    send_msg(user_id, chat_id, f"🔍 <b>Batch Scan</b> — {len(targets)} targets com /{scan_cmd}...\n⚠️ Use /cancel para parar.")
 
     # V5.1: Create stop event so /cancel works
     STOP_EVENTS[user_id] = threading.Event()
@@ -6119,24 +6447,30 @@ def handle_batch(chat_id, user_id, username, first_name, last_name, args):
     }
     tool_fn = tool_map.get(scan_cmd)
     if not tool_fn:
-        send_message_safe(chat_id, f"❌ Comando /{scan_cmd} não suportado em batch.")
+        lang = get_user_lang(user_id)
+        if lang == 'en':
+            send_msg(user_id, chat_id, f"❌ Command /{scan_cmd} not supported in batch mode.")
+        elif lang == 'es':
+            send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} no soportado en modo batch.")
+        else:
+            send_msg(user_id, chat_id, f"❌ Comando /{scan_cmd} não suportado em batch.")
         return
 
     for i, t in enumerate(targets, 1):
         if user_id in STOP_EVENTS and STOP_EVENTS[user_id].is_set():
             break
         ct = extract_hostname(t)
-        send_message_safe(chat_id, f"\n━━━━━━━━━━━━━━━━━━━━━━\n📋 <b>[{i}/{len(targets)}] {escape_html(ct)}</b>")
+        send_msg(user_id, chat_id, f"\n━━━━━━━━━━━━━━━━━━━━━━\n📋 <b>[{i}/{len(targets)}] {escape_html(ct)}</b>")
         try:
             r = tool_fn(t)
             # Truncate long results for batch
             if len(r) > 3000:
                 r = r[:3000] + "\n... <i>(truncado)</i>"
-            send_message_safe(chat_id, r)
+            send_msg(user_id, chat_id, r)
         except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e)[:100])}")
+            send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e)[:100])}")
 
-    send_message_safe(chat_id, f"\n✅ <b>Batch Scan finalizado!</b> {len(targets)} targets processados.")
+    send_msg(user_id, chat_id, f"\n✅ <b>Batch Scan finalizado!</b> {len(targets)} targets processados.")
 
     # Cleanup stop event
     if user_id in STOP_EVENTS:
@@ -6146,7 +6480,7 @@ def handle_http(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: HTTP Response Analysis — status, timing, redirects, tech headers"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /http &lt;url&gt;\nExemplo: /http google.com")
+        send_msg(user_id, chat_id, "❌ Use: /http &lt;url&gt;\nExemplo: /http google.com")
         return
     target = args[0]
     log_command(user_id, username, "http", target)
@@ -6154,7 +6488,7 @@ def handle_http(chat_id, user_id, username, first_name, last_name, args):
     url = clean_target
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
-    send_message_safe(chat_id, f"🔍 <b>Análise HTTP</b> em {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Análise HTTP</b> em {escape_html(clean_target)}...")
 
     results = f"🌐 <b>Análise HTTP</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
     try:
@@ -6209,18 +6543,18 @@ def handle_http(chat_id, user_id, username, first_name, last_name, args):
         results += f"❌ Erro: {escape_html(str(e)[:100])}\n"
 
     results += "━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, results)
+    send_msg(user_id, chat_id, results)
 
 def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: SSL Certificate Chain — full chain info with expiry dates"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /sslchain &lt;url&gt;\nExemplo: /sslchain google.com")
+        send_msg(user_id, chat_id, "❌ Use: /sslchain &lt;url&gt;\nExemplo: /sslchain google.com")
         return
     target = args[0]
     log_command(user_id, username, "sslchain", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"🔍 <b>Cadeia SSL</b> de {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"🔍 <b>Cadeia SSL</b> de {escape_html(clean_target)}...")
 
     results = f"📜 <b>Cadeia de Certificados SSL</b> — {escape_html(clean_target)}\n━━━━━━━━━━━━━━━━━━━━━━\n"
     try:
@@ -6287,7 +6621,7 @@ def handle_sslchain(chat_id, user_id, username, first_name, last_name, args):
         results += f"❌ Erro: {escape_html(str(e)[:150])}\n"
 
     results += "━━━━━━━━━━━━━━━━━━━━━━"
-    send_message_safe(chat_id, results)
+    send_msg(user_id, chat_id, results)
 
 def handle_watch(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Watch a site for changes — notify when content changes
@@ -6296,7 +6630,7 @@ def handle_watch(chat_id, user_id, username, first_name, last_name, args):
     """
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /watch &lt;url&gt; [intervalo_min]\nExemplo: /watch google.com 10\nUse /watch off para desativar.")
+        send_msg(user_id, chat_id, "❌ Use: /watch &lt;url&gt; [intervalo_min]\nExemplo: /watch google.com 10\nUse /watch off para desativar.")
         return
     target = args[0]
     if target.lower() == 'off':
@@ -6306,9 +6640,9 @@ def handle_watch(chat_id, user_id, username, first_name, last_name, args):
                 c.execute("DELETE FROM site_monitor WHERE user_id = ? AND watch_type = 'content'", (user_id,))
                 deleted = c.rowcount
                 conn.commit()
-            send_message_safe(chat_id, f"🔕 <b>Watch desativado!</b> ({deleted} monitoramentos removidos)")
+            send_msg(user_id, chat_id, f"🔕 <b>Watch desativado!</b> ({deleted} monitoramentos removidos)")
         except Exception as e:
-            send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+            send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
         return
 
     interval = 5
@@ -6318,7 +6652,7 @@ def handle_watch(chat_id, user_id, username, first_name, last_name, args):
             if interval < 1:
                 interval = 1
         except ValueError:
-            send_message_safe(chat_id, "❌ Intervalo deve ser um número válido em minutos.")
+            send_msg(user_id, chat_id, "❌ Intervalo deve ser um número válido em minutos.")
             return
 
     log_command(user_id, username, "watch", f"{target} {interval}min")
@@ -6340,20 +6674,20 @@ def handle_watch(chat_id, user_id, username, first_name, last_name, args):
             c.execute("INSERT OR REPLACE INTO site_monitor (user_id, target, chat_id, last_status, last_check, content_hash, watch_interval, watch_type) VALUES (?, ?, ?, ?, ?, ?, ?, 'content')",
                       (user_id, clean_target, chat_id, 1, time.time(), initial_hash, interval))
             conn.commit()
-        send_message_safe(chat_id, f"👁️ <b>Watch ativado!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📍 {escape_html(clean_target)}\n⏱️ Check a cada {interval}min\n📊 Hash inicial: {initial_hash[:8]}...\n━━━━━━━━━━━━━━━━━━━━━━\nUse /watch off para desativar.")
+        send_msg(user_id, chat_id, f"👁️ <b>Watch ativado!</b>\n━━━━━━━━━━━━━━━━━━━━━━\n📍 {escape_html(clean_target)}\n⏱️ Check a cada {interval}min\n📊 Hash inicial: {initial_hash[:8]}...\n━━━━━━━━━━━━━━━━━━━━━━\nUse /watch off para desativar.")
     except Exception as e:
-        send_message_safe(chat_id, f"❌ Erro: {escape_html(str(e))}")
+        send_msg(user_id, chat_id, f"❌ Erro: {escape_html(str(e))}")
 
 def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
     """V5.1: Generate full security report for a URL"""
     log_user(user_id, username, first_name, last_name)
     if not args:
-        send_message_safe(chat_id, "❌ Use: /report &lt;url&gt;\nExemplo: /report google.com")
+        send_msg(user_id, chat_id, "❌ Use: /report &lt;url&gt;\nExemplo: /report google.com")
         return
     target = args[0]
     log_command(user_id, username, "report", target)
     clean_target = extract_hostname(target)
-    send_message_safe(chat_id, f"📊 <b>Gerando relatório completo</b> para {escape_html(clean_target)}...")
+    send_msg(user_id, chat_id, f"📊 <b>Gerando relatório completo</b> para {escape_html(clean_target)}...")
 
     # Run all basic scanners
     info_r = tool_website_info(target)
@@ -6408,9 +6742,9 @@ def handle_report_url(chat_id, user_id, username, first_name, last_name, args):
 
     success = send_document(chat_id, report, f"relatorio_{clean_target}.txt")
     if success:
-        send_message_safe(chat_id, f"📄 <b>Relatório exportado!</b>\nTarget: {escape_html(clean_target)}")
+        send_msg(user_id, chat_id, f"📄 <b>Relatório exportado!</b>\nTarget: {escape_html(clean_target)}")
     else:
-        send_message_safe(chat_id, "❌ Falha ao enviar relatório.")
+        send_msg(user_id, chat_id, "❌ Falha ao enviar relatório.")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -6437,7 +6771,7 @@ def handle_lang(chat_id, user_id, username, first_name, last_name, args):
             set_user_lang(user_id, lang_input)
             lang_name = {'pt': 'Português', 'en': 'English', 'es': 'Español'}[lang_input]
             msg = f"✅ <b>Idioma alterado para {lang_name}!</b>\n<i>Language changed to {lang_name}!</i>\n<i>Idioma cambiado a {lang_name}!</i>"
-    send_message_safe(chat_id, msg)
+    send_msg(user_id, chat_id, msg)
 
 def signal_handler(signum, frame):
     global SHUTDOWN_FLAG
@@ -6557,6 +6891,33 @@ def process_update(update):
             }, timeout=5)
         except:
             pass
+
+        # i18n: Handle language selection from inline keyboard
+        if cb_data.startswith('setlang:'):
+            new_lang = cb_data.split(':', 1)[1]
+            if new_lang in ('pt', 'en', 'es'):
+                set_user_lang(user_id, new_lang)
+                lang_names = {'pt': 'Português', 'en': 'English', 'es': 'Español'}
+                flags = {'pt': '🇧🇷', 'en': '🇺🇸', 'es': '🇪🇸'}
+                try:
+                    HTTP_SESSION.post(f"{API_URL}/editMessageText", json={
+                        "chat_id": chat_id,
+                        "message_id": cb_message_id,
+                        "text": f"{flags[new_lang]} <b>Idioma alterado para {lang_names[new_lang]}!</b>\n\n<i>Language changed to {lang_names[new_lang]}!</i>\n<i>Idioma cambiado a {lang_names[new_lang]}!</i>\n\n━━━━━━━━━━━━━━━━━━━━━━\n<i>Mth Ddos Security v5.1</i>",
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True
+                    }, timeout=5)
+                except:
+                    pass
+            return
+
+        # Handle /help and /about from inline buttons
+        if cb_data == 'cmd:help':
+            handle_help(chat_id, user_id, username, first_name, last_name)
+            return
+        if cb_data == 'cmd:about':
+            handle_about(chat_id, user_id, username, first_name, last_name)
+            return
 
         # Parse callback data: "rescan:sqli:example.com" or "rescan:sqli:example.com/1"
         if cb_data.startswith('rescan:'):
